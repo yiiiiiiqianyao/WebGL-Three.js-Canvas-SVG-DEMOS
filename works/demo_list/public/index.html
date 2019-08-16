@@ -35,9 +35,26 @@
         })
         // renderer.setClearColor(new THREE.Color(0x000000))
         renderer.setSize(window.innerWidth,window.innerHeight)
-        
+        // renderer.shadowMap.enabled = true
         var axisHelper = new THREE.AxesHelper( 10 )
         scene.add( axisHelper )
+
+        /**
+            * 光源设置
+            */
+        // 方向光1
+        var directionalLight = new THREE.DirectionalLight(0xffffff, 0.9);
+        directionalLight.position.set(400, 200, 300);
+        // directionalLight.castShadow = true
+        scene.add(directionalLight);
+        // 方向光2
+        var directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.9);
+        directionalLight2.position.set(-400, -200, -300);
+        scene.add(directionalLight2);
+        //环境光
+        var ambient = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambient);
+
         controlller = new THREE.OrbitControls(camera,renderer.domElement)
         document.body.appendChild(renderer.domElement)
         window.onresize = onResize
