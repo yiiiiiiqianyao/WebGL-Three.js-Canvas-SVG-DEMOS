@@ -13,6 +13,8 @@
     </style>
     <script src="../src/three.js"></script>
     <script src="../src/OrbitControls.js"></script>
+    <script src="../src/objects/Refractor.js"></script>
+    <script src="../src/shaders/WaterRefractionShader.js"></script>
 </head>
 <body>
     
@@ -21,6 +23,7 @@
 <script type="x-shader/x-vertex" id="fragmentShader"></script>
 <script>
     var scene, camera, renderer, clock, controlller
+    var refractorGeometry, refractor
     // var shadermaterial
     init()
     animate()
@@ -28,16 +31,29 @@
     // - Functions -
     function init(){
         scene = new THREE.Scene()
+        // scene.background = new THREE.Color(0xffffff)
         clock = new THREE.Clock();
         camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000)
-        camera.position.z = 10
+        camera.position.z = 20
         renderer = new THREE.WebGLRenderer({
             antialias:true, // 开启抗锯齿处理
             alpha:true
         })
-        // renderer.setClearColor(new THREE.Color(0x000000))
+        renderer.setClearColor(new THREE.Color(0x000000))
         renderer.setSize(window.innerWidth,window.innerHeight)
         // renderer.shadowMap.enabled = true
+
+		scene.add(new THREE.Mesh(new THREE.BoxBufferGeometry(5, 5, 5),new THREE.MeshStandardMaterial({ color: 0xffff00 })))
+
+        refractorGeometry = new THREE.PlaneBufferGeometry(5, 5)
+        refractor = new THREE.Refractor(refractorGeometry, {
+            color: 0x999999,
+            textureWidth: 1024,
+            textureHeight: 1024,
+            shader: THREE.WaterRefractionShader
+        });
+        refractor.position.set(0, 0, 5)
+        scene.add(refractor)
 
         // shadermaterial = new THREE.ShaderMaterial( {
         //     uniforms: {
