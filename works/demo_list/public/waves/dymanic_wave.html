@@ -140,6 +140,7 @@
             alpha:true
         })
         renderer.setSize(window.innerWidth,window.innerHeight)
+        // renderer.shadowMap.enabled = true
         // var back_mat = {
         //     map:"",
         //     color: 0x6CA6CD,
@@ -151,26 +152,30 @@
         p1 = new THREE.Mesh(pg,new THREE.MeshBasicMaterial({ map:plane_texture }))
         p1.translateZ(-BOUNDS/2)
         p1.translateY(-BOUNDS/4)
+        // p1.castShadow = true
         scene.add(p1)
         p2 = new THREE.Mesh(pg,new THREE.MeshBasicMaterial({ map:plane_texture }))
         p2.rotation.y = Math.PI/2
         p2.translateZ(-BOUNDS/2)
         p2.translateY(-BOUNDS/4)
+        // p2.castShadow = true
         scene.add(p2)
         p3 = new THREE.Mesh(pg,new THREE.MeshBasicMaterial({ map:plane_texture }))
         p3.translateY(-(BOUNDS*3)/4)
+        // p3.receiveShadow = true
         p3.rotation.x = -Math.PI/2
         scene.add(p3)
         p4 = new THREE.Mesh(pg,new THREE.MeshBasicMaterial({ map:plane_texture }))
         p4.translateY(-BOUNDS/4)
         p4.translateX(BOUNDS/2)
         p4.rotation.y = -Math.PI/2
+        // p4.castShadow = true
         scene.add(p4)
-        p4 = new THREE.Mesh(pg,new THREE.MeshBasicMaterial({ map:plane_texture }))
-        p4.translateY(-BOUNDS/4)
-        p4.translateZ(BOUNDS/2)
-        p4.rotation.y = -Math.PI
-        scene.add(p4)
+        p5 = new THREE.Mesh(pg,new THREE.MeshBasicMaterial({ map:plane_texture }))
+        p5.translateY(-BOUNDS/4)
+        p5.translateZ(BOUNDS/2)
+        p5.rotation.y = -Math.PI
+        scene.add(p5)
         
 
         var cube = new THREE.Mesh( new THREE.BoxGeometry( BOUNDS, BOUNDS*3/4, BOUNDS ), new THREE.MeshBasicMaterial( {
@@ -191,12 +196,15 @@
         // 方向光1
         var directionalLight = new THREE.DirectionalLight(0xffffff, 0.9)
         directionalLight.position.set(400, 200, 300)
+        // directionalLight.castShadow = true
+        // directionalLight.shadow.camera.near = 0.5;    // default
+        // directionalLight.shadow.camera.far = 1000;
         scene.add(directionalLight)
         // 方向光2
         var directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.9)
         directionalLight2.position.set(-400, -200, -300)
         scene.add(directionalLight2)
-        //环境光
+        // 环境光
         var ambient = new THREE.AmbientLight(0xffffff, 0.6)
         scene.add(ambient)
 
