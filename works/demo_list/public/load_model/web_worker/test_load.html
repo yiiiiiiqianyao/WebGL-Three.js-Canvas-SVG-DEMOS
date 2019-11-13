@@ -4,8 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <link rel="shortcut icon" href="../favicon.ico"/>
-    <link rel="bookmark" href="../favicon.ico"/>
+    <link rel="shortcut icon" href="/favicon.ico"/>
+    <link rel="bookmark" href="/favicon.ico"/>
     <title>Document</title>
     <style>
         body{
@@ -13,25 +13,18 @@
             overflow: hidden;
         }
     </style>
-    <script src="../src/three.js"></script>
-    <script src="../src/OrbitControls.js"></script>
+    <script src="../../src/three.js"></script>
+    <script src="../../src/OrbitControls.js"></script>
+    <script src="../../src/loaders/OBJLoader.js"></script>
 </head>
 <body>
     
 </body>
-<<<<<<< HEAD
-<!-- <script type="x-shader/x-vertex" id="vertexShader"></script>
-<script type="x-shader/x-vertex" id="fragmentShader"></script> -->
-<script>
-    var scene, camera, renderer, clock, controlller
-    // var shader_material
-=======
 <script type="x-shader/x-vertex" id="vertexShader"></script>
 <script type="x-shader/x-vertex" id="fragmentShader"></script>
 <script>
     var scene, camera, renderer, clock, controlller
     // var shadermaterial
->>>>>>> 916e04782f4ce76815dc49df3810ddc925cde105
     init()
     animate()
 
@@ -40,53 +33,45 @@
         scene = new THREE.Scene()
         clock = new THREE.Clock();
         camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000)
-        camera.position.z = 10
+        camera.position.z = 200,
+        camera.position.x = 200,
+        camera.position.y = 200
         renderer = new THREE.WebGLRenderer({
             antialias:true, // 开启抗锯齿处理
             alpha:true
         })
         // renderer.setClearColor(new THREE.Color(0x000000))
         renderer.setSize(window.innerWidth,window.innerHeight)
-        // renderer.shadowMap.enabled = true
+         // - Manager -
 
-        // shadermaterial = new THREE.ShaderMaterial( {
-            // uniforms: {
-            //     texture: {
-            //      // 加载纹理贴图返回Texture对象作为texture的值
-            //      // Texture对象对应着色器中sampler2D数据类型变量
-            //      value: new THREE.TextureLoader().load('./Earth.png')
-            //  },
-            // },
+         if(typeof(Worker)!=="undefined"){
+                var myWorker = new Worker('./test_load.js')
+                myWorker.onmessage = function(e) {
+                    var loadedGeometry = JSON.parse(e.data)
+                    var loader = new THREE.ObjectLoader()
+                    var group = loader.parse(loadedGeometry)
+                   
+                    function loadModel() {
+                        group.traverse( function ( child ) {
+                            if ( child.isMesh ) child.material.map = texture;
+                        } );
+                        group.position.y = - 95;
+                        scene.add( group );
+                    }
 
-            // uniforms: THREE.UniformsUtils.merge([   // 系统提供用来合并 系统的 uniform 属性值和自己提供的属性值 
-            //     THREE.UniformsLib["common"],    // 调用系统提供的 uniform 的属性值
-            //     THREE.UniformsLib["fog"],
-            //     { // 自定义uniform变量写在一个对象中
-            //         time: {
-            //             value: 0.3
-            //         },
-            //         opacity: {
-            //             value: 0.6
-            //         },
-            //     }
-            // ]),
-             
-            // vertexShader: document.getElementById( 'vertexShader' ).textContent,
-            // fragmentShader: document.getElementById( 'fragmentShader' ).textContent,
-            // vertexColors: THREE.VertexColors,   // 以顶点颜色为准进行渲染
-            // side:THREE.DoubleSide,              // 双面可见
-        // } );
+                    var manager = new THREE.LoadingManager( loadModel )
+                        manager.onProgress = function ( item, loaded, total ) {
+                    }
+
+                    var textureLoader = new THREE.TextureLoader(manager)
+                    var texture = textureLoader.load( './UV_Grid_Sm.jpg' )
+                }
+            }else{
+                console.log('web worker not support')
+            }
 
         var axisHelper = new THREE.AxesHelper( 10 )
         scene.add( axisHelper )
-
-
-        // shader_material = new THREE.ShaderMaterial( {
-        //     uniforms: {
-        //     },
-        //     vertexShader: document.getElementById( 'vertexShader' ).textContent,
-        //     fragmentShader: document.getElementById( 'fragmentShader' ).textContent
-        // } );
 
         /**
             * 光源设置
