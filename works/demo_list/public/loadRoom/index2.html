@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <style>
+        body{
+            margin: 0;
+            overflow: hidden;
+        }
+       
+    </style>
+    <script src="../src/three.js"></script>
+    <script src="../src/OrbitControls.js"></script>
+    <script src="../src/loaders/MTLLoader.js"></script>
+    <script src="../src/loaders/OBJLoader.js"></script>
+    <script src="../src/libs/popmotion.js"></script>
+</head>
+<body>
+  
+</body>
+<script>
+    var scene, camera, renderer, controls
+    var btns = []
+    var tween = popmotion.tween, easing = popmotion.easing, easeInOut = popmotion.easeInOut
+
+    var floorBaseOpacity = 0.2 // floor opacity
+
+    var canBeSelectedMeshes = []
+    var currentState = 1    // 0 - ining , 1 - inner , 2 - outing , 3 - outer 表示建筑的进入与退出的状态
+    var moveScale = 0, wallOpacity = 0.5
+
+    var currentSelectedFloor = null
+    var selectedScale = 2
+
+    var build = new THREE.Group(), buildwall = null, buildWallStartOpacity = 0.5
+    var floors = []
+    var floorInHeight = 10
+    var floorInWallTween = null, floorInRoomsTween = null, floorOutWallTween = null, floorOutRoomsTween = null
+    var floorEnlargeTween = null, floorNarrowTween = null, 
+    currentTransformState = 0 // 0 - none, 1 - enlarging, 2 - narrowing 表示当前楼层放大缩小的状态
+
+    var carouselTimer = null // 轮播控制器
+
+    var cameraLocations = [
+        {
+            index: 0,
+            nextIndex: 1,
+            target: {
+                x: 0,
+                y: 0,
+                z: 0
+            },
+            position: {
+                x: 100,
+                y: 100,
+                z: 100
+            },
+            duration: 3000
+        },
+        {
+            index: 1,
+            nextIndex: 2,
+            target: {
+                x: 0,
+                y: 0,
+                z: 0
+            },
+            position: {
+                x: -100,
+                y: 100,
+                z: 100
+            },
+            duration: 3000
+        },
+        {
+            index: 2,
+            nextIndex: -1,
+            target: {
+                x: 0,
+                y: 50,
+                z: 0
+            },
+            position: {
+                x: 0,
+                y: 150,
+                z: 300
+            },
+            duration: 3000
+        }
+    ]
+    var currentCamera = cameraLocations[0]
+    var cameraTween = null
+
+    var floorInColorTime = 2000, floorInMoveTime = 2000, floorOutColorTime = 2000, floorOutMoveTime = 2000
+    var carouselTime = 3000
+    var upBtnPosition = { x: 0, y: 50, z:0 }, upScale = 10, downBtnPosition = { x: 0, y: -50, z:0 }, downScale = 10
+
+    init()
+    animate()
+
+    // - Functions -
+    function init(){
+        scene = new THREE.Scene()
+        camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000)
+        var cameraPos = cameraLocations[0]
+        camera.position.x = cameraPos.position.x;
+        camera.position.y = cameraPos.position.y;
+        camera.position.z = cameraPos.position.z;
+        camera.lookAt(cameraPos.target.x, cameraPos.target.y, cameraPos.target.z)
+        renderer = new THREE.WebGLRenderer({
+            antialias:true, // 开启抗锯齿处理
+            alpha:true,
+            logarithmicDepthBuffer: true
+        })
+        renderer.setClearColor(new THREE.Color(0x000000))
+        renderer.setPixelRatio( window.devicePixelRatio )
+        renderer.setSize(window.innerWidth,window.innerHeight)
+       
+        var domElement = renderer.domElement
+
+        // add lights
+        scene.add(new THREE.AmbientLight(0x444444))
+        light = new THREE.PointLight(0xffffff)
+        light.position.set(0,50,0)
+        //告诉平行光需要开启阴影投射
+        light.castShadow = true
+        scene.add(light);
+
+        var buildBaseMat = new THREE.MeshLambertMaterial({
+            side: THREE.DoubleSide,
+            color: new THREE.Color('#0000ff'),
+            transparent: true,
+            opacity: buildWallStartOpacity
+        })
+       
+        // var mtlLoader = new THREE.MTLLoader();
+        // mtlLoader.setPath('library/');
+        //加载mtl文件
+        // mtlLoader.load('city.mtl', function (material) {
+            var objLoader = new THREE.OBJLoader();
+            //设置当前加载的纹理
+            // objLoader.setMaterials(material);
+            objLoader.setPath('library/');
+            objLoader.load('room4.obj', function (object) {
+               
+                object.children.filter(item=>{
+                    return item.name == '外轮廓'
+                }).map(item=>{
+                    buildwall = item
+                    // item.material = new THREE.MeshBasicMaterial({
+                    //     // side: THREE.DoubleSide,
+                    //     color: new THREE.Color(Math.random(), Math.random() ,Math.random()),
+                    //     transparent: true,
+                    //     opacity: buildWallStartOpacity,
+                    //     depthTest: false
+                    // });
+                    item.material = buildBaseMat.clone()
+                    item.renderOrder = 20;
+                })
+
+                var floor1 = new THREE.Group()
+                floor1.userData.floorIndex = 1
+                floor1.userData.renderOrder = 1
+                floor1.userData.isParent = true
+                floor1.userData.isEnlarge = false
+                floors.push(floor1)
+                object.children.filter(item=>{
+                    return item.name.startsWith('1_')
+                }).map(item=>{
+                    // canBeSelectedMeshes.push(item)
+                    // item.castShadow = true
+                    // item.receiveShadow = true  
+
+                    item.renderOrder = 1
+                    if(item.name.endsWith('地板')||item.name.endsWith('墙体')){ // 统一颜色
+                        item.castShadow = true
+                        item.receiveShadow = true  
+                        item.material = buildBaseMat.clone()
+                    }else {
+                        item.renderOrder = 2
+                        item.material = new THREE.MeshBasicMaterial({
+                            side: THREE.DoubleSide,
+                            color: new THREE.Color(Math.random(), Math.random() ,Math.random()),
+                            transparent: true,
+                            opacity: floorBaseOpacity,
+                            depthTest: false
+                        })
+                    }
+                   
+                    floor1.add(item)
+                    if(/(_E_)/.test(item.name)&&!item.name.endsWith('X')){ // 增加信息标牌
+                        addSprite(item, '', 3)
+                    }
+                    if(item.name.endsWith('标记位置')){ // 增加楼层标牌
+                        addFloorSign(item, './floorSign.png', '1F')
+                    }
+                    
+                })
+
+                var floor2 = new THREE.Group()
+                floor2.userData.floorIndex = 2
+                floor2.userData.renderOrder = 4
+                floor2.userData.isParent = true
+                floor2.userData.isEnlarge = false
+                floors.push(floor2)
+                object.children.filter(item=>{
+                    return item.name.startsWith('2_')
+                }).map(item=>{
+                    // canBeSelectedMeshes.push(item)
+                    item.renderOrder = 4
+                    if(item.name.endsWith('地板')||item.name.endsWith('墙体')){ // 统一颜色
+                        item.castShadow = true
+                        item.receiveShadow = true 
+                        item.material = buildBaseMat.clone()
+                    }else {
+                        item.renderOrder = 5
+                        item.material = new THREE.MeshBasicMaterial({
+                            side: THREE.DoubleSide,
+                            color: new THREE.Color(Math.random(), Math.random() ,Math.random()),
+                            transparent: true,
+                            opacity: floorBaseOpacity,
+                            depthTest: false
+                        })
+                    }
+                    floor2.add(item)
+                    if(/(_E_)/.test(item.name)&&!item.name.endsWith('X')){ // 增加信息标牌
+                        addSprite(item, '', 6)
+                    }
+                    if(item.name.endsWith('标记位置')){ // 增加楼层标牌
+                        addFloorSign(item, './floorSign.png', '2F')
+                    }
+                   
+                })
+
+                var floor3 = new THREE.Group()
+                floor3.userData.floorIndex = 3
+                floor3.userData.renderOrder = 7
+                floor3.userData.isParent = true
+                floor3.userData.isEnlarge = false
+                floors.push(floor3)
+                object.children.filter(item=>{
+                    return item.name.startsWith('3_')
+                }).map(item=>{
+                    // canBeSelectedMeshes.push(item)
+                    item.renderOrder = 7
+                    if(item.name.endsWith('地板')||item.name.endsWith('墙体')){ // 统一颜色
+                        item.castShadow = true
+                        item.receiveShadow = true 
+                        item.material = buildBaseMat.clone()
+                    }else {
+                        item.renderOrder = 8
+                        item.material = new THREE.MeshBasicMaterial({
+                            side: THREE.DoubleSide,
+                            color: new THREE.Color(Math.random(), Math.random() ,Math.random()),
+                            transparent: true,
+                            opacity: floorBaseOpacity,
+                            depthTest: false
+                        })
+                    }
+                    floor3.add(item)
+                    if(/(_E_)/.test(item.name)&&!item.name.endsWith('X')){ // 增加信息标牌
+                        addSprite(item, '', 9)
+                    }
+                    if(item.name.endsWith('标记位置')){ // 增加楼层标牌
+                        addFloorSign(item, './floorSign.png', '3F')
+                    }
+                    
+                })
+
+                var floor4 = new THREE.Group()
+                floor4.userData.floorIndex = 4
+                floor4.userData.renderOrder = 10
+                floor4.userData.isParent = true
+                floor4.userData.isEnlarge = false
+                floors.push(floor4)
+                object.children.filter(item=>{
+                    return item.name.startsWith('4_')
+                }).map(item=>{
+                    // canBeSelectedMeshes.push(item)
+                    item.renderOrder = 10
+                    if(item.name.endsWith('地板')||item.name.endsWith('墙体')){ // 统一颜色
+                        item.castShadow = true
+                        item.receiveShadow = true 
+                        item.material = buildBaseMat.clone()
+                    }else {
+                        item.renderOrder = 11
+                        item.material = new THREE.MeshBasicMaterial({
+                            side: THREE.DoubleSide,
+                            color: new THREE.Color(Math.random(), Math.random() ,Math.random()),
+                            transparent: true,
+                            opacity: floorBaseOpacity,
+                            depthTest: false
+                        })
+                    }
+                    floor4.add(item)
+                    if(/(_E_)/.test(item.name)&&!item.name.endsWith('X')){ // 增加信息标牌
+                        addSprite(item, '', 12)
+                    }
+                    if(item.name.endsWith('标记位置')){ // 增加楼层标牌
+                        addFloorSign(item, './floorSign.png', '4F')
+                    }
+                    
+                })
+
+                var floor5 = new THREE.Group()
+                floor5.userData.floorIndex = 5
+                floor5.userData.renderOrder = 13
+                floor5.userData.isParent = true
+                floor5.userData.isEnlarge = false
+                floors.push(floor5)
+                object.children.filter(item=>{
+                    return item.name.startsWith('5_')
+                }).map(item=>{
+                    // canBeSelectedMeshes.push(item)
+                    item.renderOrder = 13
+                    if(item.name.endsWith('地板')||item.name.endsWith('墙体')){ // 统一颜色
+                        item.castShadow = true
+                        item.receiveShadow = true 
+                        item.material = buildBaseMat.clone()
+                    }else {
+                        item.renderOrder = 14
+                        item.material = new THREE.MeshBasicMaterial({
+                            side: THREE.DoubleSide,
+                            color: new THREE.Color(Math.random(), Math.random() ,Math.random()),
+                            transparent: true,
+                            opacity: floorBaseOpacity,
+                            depthTest: false
+                        })
+                    }
+                    floor5.add(item)
+                    if(/(_E_)/.test(item.name)&&!item.name.endsWith('X')){ // 增加信息标牌
+                        addSprite(item, '', 15)
+                    }
+                    if(item.name.endsWith('标记位置')){ // 增加楼层标牌
+                        addFloorSign(item, './floorSign.png', '5F')
+                    }
+                    
+                })
+                build.add(floor1)
+                build.add(floor2)
+                build.add(floor3)
+                build.add(floor4)
+                build.add(floor5)
+                build.add(buildwall)
+                scene.add(build)
+                addButton('./up.png', upBtnPosition, upScale, 'up')
+                addButton('./down.png', downBtnPosition, downScale, 'down')
+                floorInAction()
+                // cameraAnimate()
+                console.log(build)
+            })
+        // });
+        
+        controls = new THREE.OrbitControls(camera, domElement)
+        document.body.appendChild(domElement)
+
+        domElement.addEventListener('click', handleClick, false)
+        window.onresize = onResize
+       
+    }
+
+    function addFloorSign(item, src, text){
+        var img = new Image()
+        img.src = src
+        img.onload = function(e){
+            var width = e.target.width, height = e.target.height
+            let canvas = document.createElement("canvas");
+            canvas.width = width;
+            canvas.height = height;
+            let ctx = canvas.getContext("2d");
+            ctx.drawImage(img,0,0,width,height,0,0,width,height);
+
+            ctx.textBaseline="top";
+            ctx.textAlign="center";
+            var textTop = 12*(width/100)
+            var textItem = {
+                text,
+                color: '#ffffff',
+                fontWeight: 'Bold',
+                fontSize: 24,
+                fontFamily: 'Arial'
+            }
+            ctx.fillStyle = textItem.color
+            ctx.font = `${textItem.fontWeight} ${textItem.fontSize*(width/100)}px ${textItem.fontFamily}`
+            ctx.fillText(textItem.text, width/2, textTop);
+            textTop += textItem.fontSize*(width/100) + 6*(width/100)
+            
+
+            let texture = new THREE.Texture(canvas);
+            texture.needsUpdate = true; 
+            let material = new THREE.SpriteMaterial({ map:texture, depthTest:false });
+            let mesh = new THREE.Sprite(material);
+            mesh.scale.set(6, 6, 6)
+            mesh.renderOrder = 19
+            item.geometry.computeBoundingSphere()
+            mesh.position.x = item.geometry.boundingSphere.center.x
+            mesh.position.z = item.geometry.boundingSphere.center.z
+            mesh.position.y = item.geometry.boundingSphere.center.y + 3
+            item.add(mesh)
+        }
+    }
+
+    function addButton(src, position, scale, type){
+        var img = new Image()
+        img.src = src
+        img.onload = function(e){
+            var width = e.target.width, height = e.target.height
+            let canvas = document.createElement("canvas");
+            canvas.width = width;
+            canvas.height = height;
+            let ctx = canvas.getContext("2d");
+            ctx.drawImage(img,0,0,width,height,0,0,width,height);
+            let texture = new THREE.Texture(canvas);
+            texture.needsUpdate = true; 
+            let material = new THREE.SpriteMaterial({ map:texture, depthTest:false });
+            let mesh = new THREE.Sprite(material);
+            mesh.position.set(position.x, position.y, position.z)
+            mesh.scale.set(scale, scale, scale)
+            mesh.userData.btnType = type
+            mesh.visible = false
+            canBeSelectedMeshes.push(mesh)
+            scene.add(mesh)
+            btns.push(mesh)
+        }
+    }
+
+    function addSprite(parent, texts, renderOrder){
+        var testTexts = [
+            {
+                text: '历史文献区',
+                color: '#ffffff',
+                fontWeight: 'Bold',
+                fontSize: 12,
+                fontFamily: 'Arial'
+            },
+            {
+                text: '213',
+                color: '#ffff00',
+                fontWeight: 'bolder',
+                fontSize: 24,
+                fontFamily: 'Arial'
+            },
+            {
+                text: '历史文献区',
+                color: '#ffffff',
+                fontWeight: 'Bold',
+                fontSize: 12,
+                fontFamily: 'Arial'
+            },
+            {
+                text: '36%',
+                color: '#ffff00',
+                fontWeight: 'bolder',
+                fontSize: 24,
+                fontFamily: 'Arial'
+            }
+        ]
+        var img = new Image()
+        img.src = './bg.png'
+        img.onload = function(e){
+            var width = e.target.width, height = e.target.height
+            let canvas = document.createElement("canvas");
+            canvas.width = width;
+            canvas.height = height;
+            let ctx = canvas.getContext("2d");
+            ctx.drawImage(img,0,0,width,height,0,0,width,height);
+
+            ctx.textBaseline="top";
+            ctx.textAlign="center";
+            var textTop = 12*(width/100)
+            testTexts.map(textItem=>{
+                ctx.fillStyle = textItem.color
+                ctx.font = `${textItem.fontWeight} ${textItem.fontSize*(width/100)}px ${textItem.fontFamily}`
+                ctx.fillText(textItem.text, width/2, textTop);
+                textTop += textItem.fontSize*(width/100) + 6*(width/100)
+            })
+            
+            let texture = new THREE.Texture(canvas);
+            texture.needsUpdate = true; 
+            let material = new THREE.SpriteMaterial({ map:texture, depthTest: false, transparent: true, opacity: floorBaseOpacity });
+            let mesh = new THREE.Sprite(material);
+            mesh.renderOrder = renderOrder
+            var scale = 3
+            mesh.scale.set(scale, scale*(height /width), 1)
+            parent.geometry.computeBoundingSphere()
+            mesh.position.x = parent.geometry.boundingSphere.center.x
+            mesh.position.z = parent.geometry.boundingSphere.center.z
+            mesh.position.y = parent.geometry.boundingSphere.center.y + 3
+            parent.add(mesh)
+        }
+    }
+
+    function animate(){
+        requestAnimationFrame(animate)
+        renderer.render(scene, camera)
+        // controls.update()
+    }
+
+    function onResize() {
+        camera.aspect = window.innerWidth / window.innerHeight
+        camera.updateProjectionMatrix()
+        renderer.setSize(window.innerWidth, window.innerHeight)
+    }
+
+    function cameraAnimate(){
+        if(currentCamera.nextIndex < 0)return // 没有下一个相机点位的时候结束相机动画
+        if(cameraLocations.filter(item=>{return item.index == currentCamera.nextIndex}) <= 0) return
+        var nextCamera = cameraLocations.filter(item=>{return item.index == currentCamera.nextIndex})[0]
+        cameraTween = tween({
+            from: {
+                x: currentCamera.position.x, // 位置切换
+                y: currentCamera.position.y,
+                z: currentCamera.position.z,
+                tx: currentCamera.target.x,  // 角度切换
+                ty: currentCamera.target.y,
+                tz: currentCamera.target.z
+            },
+            to: {
+                x: nextCamera.position.x,
+                y: nextCamera.position.y,
+                z: nextCamera.position.z,
+                tx: nextCamera.target.x,
+                ty: nextCamera.target.y,
+                tz: nextCamera.target.z
+            },
+            ease: easing.easeIn,
+            duration: nextCamera.duration
+        }).start({
+            update: (o)=>{
+                camera.position.x = o.x
+                camera.position.y = o.y
+                camera.position.z = o.z
+                camera.lookAt(o.tx, o.ty, o.tz)
+            },
+            complete: ()=>{
+                currentCamera = nextCamera
+                cameraAnimate()
+            }
+        })
+    }
+
+    function floorInAction(){
+        currentState = 0 // ining
+        var floorInRoomsTween = floorInRoomsTween
+        floorInWallTween = tween({  // 外墙渐变
+            from: {
+                opacity: wallOpacity
+            },
+            to: {
+                opacity: 0
+            },
+            ease: easing.easeIn,
+            duration: floorInColorTime
+        }).start({
+            update: (o)=>{
+                wallOpacity = o.opacity
+                buildwall.material.opacity = o.opacity
+            },
+            complete: (o)=>{
+                floorInRoomsTween = tween({ // 楼层移动
+                    from: {
+                        moveScale: moveScale
+                    },
+                    to: {
+                        moveScale: 1
+                    },
+                    ease: easing.easeIn,
+                    duration: floorInMoveTime
+                }).start({
+                    update: (o)=>{
+                        moveScale = o.moveScale
+                        floors.map(item => {
+                            item.position.y = o.moveScale*floorInHeight*(item.userData.floorIndex-1)
+                        })
+                    },
+                    complete: ()=>{
+                        currentState = 1 // inner
+                        btns.map(item=>item.visible = true)
+                        // ---
+                        // enlargeFloor(floors.filter(item => item.userData.floorIndex == 1)[0])
+                        // ---
+                        if(carouselTimer == null){ // 开启轮播
+                            if(currentSelectedFloor == null){ // 初始化
+                                enlargeFloor(floors.filter(item => item.userData.floorIndex == 1)[0])
+                            }
+                            carouselTimer = setInterval(carousel, carouselTime)
+                        }
+                    }
+                })
+            }
+        })
+    }
+
+    function floorOutAction(isFinal){
+        currentState = 2 // outing
+        btns.map(item=>item.visible = false)
+        var floorOutWallTween = floorOutWallTween
+        var Y = build.position.y
+        floorOutRoomsTween = tween({ // 楼层下移
+            from: {
+                moveScale: moveScale,
+                Y: Y
+            },
+            to: {
+                moveScale: 0,
+                Y: 0
+            },
+            ease: easing.easeIn,
+            duration: floorOutMoveTime
+        }).start({
+            update: (o)=>{
+                moveScale = o.moveScale
+                build.position.y = o.Y
+                floors.map(item => {
+                    item.position.y = o.moveScale*floorInHeight*(item.userData.floorIndex-1)
+                })
+            },
+            complete: ()=>{
+                floorOutWallTween = tween({  // 外墙渐变
+                    from: {
+                        opacity: wallOpacity
+                    },
+                    to: {
+                        opacity: buildWallStartOpacity
+                    },
+                    ease: easing.easeIn,
+                    duration: floorOutColorTime
+                }).start({
+                    update: (o)=>{
+                        wallOpacity = o.opacity
+                        buildwall.material.opacity = o.opacity
+                    },
+                    complete: (o)=>{
+                        currentState = 3 // outer
+                        if(isFinal){
+                            floorInAction()
+                        }
+                    }
+                })
+            }
+        })
+    }
+
+    function handleClick(e){
+        var coords = tranformMouseCoord(e.clientX, e.clientY, renderer.domElement);
+        var intersects = getSelectedMeshes(coords, camera, canBeSelectedMeshes);
+        if(currentState !== 1)return // 只有在进入状态点击才会起效果
+        // console.log(intersects[0])
+
+        if(intersects.length > 0){  // 选中物体 打开
+                // console.log(currentSelectedFloor.userData.floorIndex)
+                var nextFloorIndex
+                if(intersects[0].object.userData.btnType !== undefined && intersects[0].object.userData.btnType == 'up'){
+                    nextFloorIndex = currentSelectedFloor.userData.floorIndex + 1
+                }else {
+                    nextFloorIndex = currentSelectedFloor.userData.floorIndex - 1
+                }
+
+                if(nextFloorIndex < 1)return
+               
+                if(nextFloorIndex <= 5){ // 下一个
+                    narrowFloor(currentSelectedFloor, false)
+                    enlargeFloor(floors.filter(item=>{return item.userData.floorIndex == nextFloorIndex})[0])
+                }else{
+                    narrowFloor(floors.filter(item=>{return item.userData.floorIndex == nextFloorIndex - 1})[0], true)
+                }
+        //     if(currentSelectedFloor !== null){
+        //         narrowFloor(currentSelectedFloor)
+        //     }
+        //     var selectedFloor = getParent(intersects[0].object)
+        //     if(selectedFloor.uuid !== currentSelectedFloor.uuid){ 
+        //         enlargeFloor(selectedFloor)
+        //     }
+        }else{  // 没有选中物体 关闭
+        //     narrowFloor(currentSelectedFloor, true)
+        }
+    }
+
+    function carousel(){
+        if(currentSelectedFloor == null){ // 初始时只有放大动画，没有需要缩小的动画
+            enlargeFloor(floors.filter(item => item.userData.floorIndex == 1)[0])
+        }else{
+            var nextFloorIndex = currentSelectedFloor.userData.floorIndex + 1
+            if(currentSelectedFloor.userData.floorIndex + 1 <= 5){ // 下一个
+                narrowFloor(currentSelectedFloor, false)
+                enlargeFloor(floors.filter(item=>{return item.userData.floorIndex == nextFloorIndex})[0])
+            }else{
+                narrowFloor(floors.filter(item=>{return item.userData.floorIndex == nextFloorIndex - 1})[0], true)
+            }
+        }
+    }
+
+    function enlargeFloor(obj){
+        if(currentTransformState !== 1){ // 当前没有正在运行的 enlargeFloor 动画
+            currentSelectedFloor = obj
+            currentTransformState = 1
+            var Y = build.position.y
+            floorEnlargeTween = tween({
+                from: {
+                    scale: obj.scale.x,
+                    opacity: floorBaseOpacity,
+                    Y: Y
+                },
+                to: {
+                    scale: selectedScale,
+                    opacity: 1,
+                    Y: -(obj.userData.floorIndex-1)*floorInHeight
+                },
+                ease: easing.easeIn,
+                duration: 500
+            }).start({
+                update: (o)=>{
+                    obj.scale.set(o.scale, o.scale, o.scale)
+                    build.position.y = o.Y
+                    obj.children.map(item=>{
+                        // item.renderOrder = 20
+                        item.material.opacity = o.opacity
+                        if(item.children.length > 0){
+                            item.children.map(e=>{
+                                // e.renderOrder = 15
+                                e.material.opacity = o.opacity
+                            })
+                        }
+                    })
+                },
+                complete: ()=>{
+                    obj.userData.isEnlarge = true
+                    currentTransformState = 0
+                }
+            })
+        }
+    }
+
+    function narrowFloor(obj, isFinal){
+        if(currentTransformState !== 2){ // 当前没有正在运行的 narrowFloor 动画
+            currentTransformState = 2
+            floorNarrowTween = tween({
+                from: {
+                    scale: obj.scale.x,
+                    opacity: 1
+                },
+                to: {
+                    scale: 1,
+                    opacity: floorBaseOpacity
+                },
+                ease: easing.easeIn,
+                duration: 500
+            }).start({
+                update: (o)=>{
+                    obj.scale.set(o.scale, o.scale, o.scale)
+                    
+                    obj.children.map(item=>{
+                        // item.material.depthTest = true
+                        // item.renderOrder = obj.userData.renderOrder
+                        item.material.opacity = o.opacity
+                        if(item.children.length > 0){
+                            item.children.map(e=>{
+                                // e.renderOrder = obj.userData.renderOrder + 1
+                                e.material.opacity = o.opacity
+                            })
+                        }
+                    })
+                },
+                complete: ()=>{
+                    obj.userData.isEnlarge = false
+                    currentTransformState = 0
+                    if(isFinal){
+                        if(carouselTimer !== null){
+                            clearInterval(carouselTimer)
+                            carouselTimer = null
+                        }
+                        currentSelectedFloor = null
+                        floorOutAction(true)
+                    }
+                }
+            })
+        }
+    }
+
+    function tranformMouseCoord(x2D, y2D, domElement){
+        var mouse = new THREE.Vector2();
+        mouse.x = ( x2D / domElement.clientWidth ) * 2 - 1;
+        mouse.y = - ( y2D / domElement.clientHeight ) * 2 + 1;
+        return mouse;
+    }
+
+    function getSelectedMeshes( coords, camera, Meshes ){
+        var raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera( coords, camera );	
+        var intersects = raycaster.intersectObjects( Meshes );
+        return intersects;
+    }
+
+    function getParent(selectedMesh){
+        if(selectedMesh.userData.isParent !== true){
+            return getParent(selectedMesh.parent);
+        }
+        return selectedMesh;
+    }
+
+</script>
+</html>

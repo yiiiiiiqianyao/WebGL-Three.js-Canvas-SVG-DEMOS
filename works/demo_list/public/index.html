@@ -17,9 +17,11 @@
 <body>
     
 </body>
+<!-- <script type="x-shader/x-vertex" id="vertexShader"></script>
+<script type="x-shader/x-vertex" id="fragmentShader"></script> -->
 <script>
     var scene, camera, renderer, clock, controlller
-
+    // var shader_material
     init()
     animate()
 
@@ -38,6 +40,14 @@
         // renderer.shadowMap.enabled = true
         var axisHelper = new THREE.AxesHelper( 10 )
         scene.add( axisHelper )
+
+
+        // shader_material = new THREE.ShaderMaterial( {
+        //     uniforms: {
+        //     },
+        //     vertexShader: document.getElementById( 'vertexShader' ).textContent,
+        //     fragmentShader: document.getElementById( 'fragmentShader' ).textContent
+        // } );
 
         /**
             * 光源设置
