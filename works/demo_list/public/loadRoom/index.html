@@ -30,15 +30,15 @@
 
     var canBeSelectedMeshes = []
     var currentState = 1    // 0 - ining , 1 - inner , 2 - outing , 3 - outer 表示建筑的进入与退出的状态
-    var moveScale = 0, wallOpacity = 0.5
+    var moveScale = 0
 
     var currentSelectedFloor = null
     var selectedScale = 2
 
-    var build = new THREE.Group(), buildwall = null, buildWallStartOpacity = 0.5
+    var build = new THREE.Group(), buildwall = null, buildWallStartOpacity = 0.5, wallOpacity = buildWallStartOpacity
     var floors = []
     var floorInHeight = 10
-    var floorInWallTween = null, floorInRoomsTween = null, floorOutWallTween = null, floorOutRoomsTween = null
+    var floorInWallTween = null, floorInFloorsTween = null, floorOutWallTween = null, floorOutFloorsTween = null
     var floorEnlargeTween = null, floorNarrowTween = null, 
     currentTransformState = 0 // 0 - none, 1 - enlarging, 2 - narrowing 表示当前楼层放大缩小的状态
 
@@ -156,13 +156,6 @@
                     return item.name == '外轮廓'
                 }).map(item=>{
                     buildwall = item
-                    // item.material = new THREE.MeshBasicMaterial({
-                    //     // side: THREE.DoubleSide,
-                    //     color: new THREE.Color(Math.random(), Math.random() ,Math.random()),
-                    //     transparent: true,
-                    //     opacity: buildWallStartOpacity,
-                    //     depthTest: false
-                    // });
                     item.material = buildBaseMat.clone()
                     item.renderOrder = 20;
                 })
@@ -380,7 +373,6 @@
 
         domElement.addEventListener('click', handleClick, false)
         window.onresize = onResize
-       
     }
 
     function addFloorSign(item, src, text){
@@ -565,7 +557,7 @@
 
     function floorInAction(){
         currentState = 0 // ining
-        var floorInRoomsTween = floorInRoomsTween
+        var floorInFloorsTween = floorInFloorsTween
         floorInWallTween = tween({  // 外墙渐变
             from: {
                 opacity: wallOpacity
@@ -581,7 +573,7 @@
                 buildwall.material.opacity = o.opacity
             },
             complete: (o)=>{
-                floorInRoomsTween = tween({ // 楼层移动
+                floorInFloorsTween = tween({ // 楼层移动
                     from: {
                         moveScale: moveScale
                     },
@@ -620,7 +612,7 @@
         btns.map(item=>item.visible = false)
         var floorOutWallTween = floorOutWallTween
         var Y = build.position.y
-        floorOutRoomsTween = tween({ // 楼层下移
+        floorOutFloorsTween = tween({ // 楼层下移
             from: {
                 moveScale: moveScale,
                 Y: Y
