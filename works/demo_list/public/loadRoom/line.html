@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <link rel="shortcut icon" href="../favicon.ico"/>
+    <link rel="bookmark" href="../favicon.ico"/>
+    <title>Document</title>
+    <style>
+        body{
+            margin: 0;
+            overflow: hidden;
+        }
+    </style>
+    <script src="../src/three.js"></script>
+    <script src="../src/OrbitControls.js"></script>
+
+</head>
+<body>
+        <div id="container"></div>
+</body>
+<script type="x-shader/x-vertex" id="vertexShader">
+    uniform float ratio;
+    attribute float aIndex;
+    varying float vIndex;
+    void main(void)
+    {
+      vIndex = aIndex;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+    }
+</script>
+<script type="x-shader/x-vertex" id="fragmentShader">
+    uniform float ratio;
+    uniform float count;
+    uniform float length;
+    uniform vec4 start;
+    uniform vec4 end;
+    uniform vec4 color;
+    uniform bool fillType;
+    uniform float intensity[INTENSITY];
+    varying float vIndex;
+    float blendColor(float src, float dist, float alpha) {
+    return src * alpha + dist * (1.0 - alpha);
+    }
+    void main(void)
+    {
+        vec4 rColor = vec4(0.0, 0.0, 0.0, 0.0);
+        for(int i = 0; i < INTENSITY; i++) {
+            float current = count * ratio + count * intensity[i];
+            //有效线段
+            bool availableLine = vIndex > current && vIndex < current + length;
+            if (availableLine) {
+            float opacity = availableLine ? (vIndex - current) / length : 0.0;
+            //单色
+            vec4 c = vec4(color.x, color.y, color.z, color.w * opacity);
+            //渐变
+            if(fillType) {
+                vec4 diff = end - start;
+                vec4 tempColor = start + diff * opacity;
+                c = vec4(tempColor.x, tempColor.y, tempColor.z, tempColor.w * opacity);
+            }
+            rColor.x = blendColor(rColor.x, c.x, rColor.w);
+            rColor.y = blendColor(rColor.y, c.y, rColor.w);
+            rColor.z = blendColor(rColor.z, c.z, rColor.w);
+            rColor.w = rColor.w + c.w * (1.0 - rColor.w);
+            }
+        }
+        gl_FragColor = rColor;
+    }
+</script>
+
+<script>
+    var scene, camera, renderer, clock, controlller
+    var shadermaterial = null, time = 0
+    var mesh = null
+    var WIDTH = window.innerWidth;
+	var HEIGHT = window.innerHeight;
+    init()
+
+    // - Functions -
+    function init(){
+        scene = new THREE.Scene();
+        clock = new THREE.Clock();
+        camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000)
+        camera.position.copy(new THREE.Vector3(100,100,100))
+        renderer = new THREE.WebGLRenderer({
+            antialias:true, // 开启抗锯齿处理
+            alpha:true,
+            logarithmicDepthBuffer: true
+        })
+        // renderer.setClearColor(new THREE.Color(0xffffff))
+        renderer.setSize(window.innerWidth,window.innerHeight)
+       
+        var gridHelper = new THREE.GridHelper( 100, 20 );
+        scene.add( gridHelper );
+        var axesHelper = new THREE.AxesHelper( 60 );
+        scene.add( axesHelper );
+        
+        // 三维二次贝塞尔曲线   THREE.QuadraticBezierCurve3( v0 : Vector3, v1 : Vector3, v2 : Vector3 )
+        // v0 – 起点 v1 – 中间的控制点 v2 – 终点
+        var curve = new THREE.QuadraticBezierCurve3(
+            new THREE.Vector3( -50,0,50 ),
+            new THREE.Vector3( 0, 20, 0 ),
+            new THREE.Vector3( 50,0,-50 )
+        );
+        // var points = curve.getPoints( 50 );
+        // var geometry = new THREE.BufferGeometry().setFromPoints( points );
+        // var material = new THREE.LineBasicMaterial( { color : 0xff0000 } );
+        // var curveObject = new THREE.Line( geometry, material );
+        // scene.add(curveObject)
+        var geometry = new THREE.TubeBufferGeometry( curve, 100, 2, 50, false );
+        var { count } = geometry.attributes.position;
+        var indexes = new Float32Array(count);
+        for (var i = 0; i < count; i++) {
+            indexes[i] = i;
+        }
+        geometry.addAttribute('aIndex', new THREE.BufferAttribute(indexes, 1));
+
+        var fillType = 'gradient', intensity = 2, length = 0.2
+        shadermaterial = new THREE.ShaderMaterial( {
+            defines: {
+                INTENSITY: 1,
+            },
+            uniforms: {
+                ratio:      { type: 'f', value: 0.5 },
+                count:      { type: 'f', value: count },
+                length:     { type: 'f', value: count * length },
+                intensity:  { type: 'fv1', value: [0] },
+                fillType:   { type: 'b', value: fillType === 'gradient' },
+                color:      { type: 'v4', value: new THREE.Vector4(1.0, 1.0, 0.0, 1.0) },
+                start:      { type: 'v4', value: new THREE.Vector4(1.0, 1.0, 0.0, 1.0) },
+                end:        { type: 'v4', value: new THREE.Vector4(0.9921, 0.82745, 0.0705, 1.0) },
+            },
+            vertexShader: document.getElementById( 'vertexShader' ).textContent,
+            fragmentShader: document.getElementById( 'fragmentShader' ).textContent,
+            transparent: true,
+            depthTest: false
+        } );
+        var mesh = new THREE.Mesh( geometry, shadermaterial );
+        scene.add( mesh );
+    
+        var directionalLight = new THREE.DirectionalLight(0xffffff, 0.9);
+        directionalLight.position.set(400, 200, 300);
+        scene.add(directionalLight);
+        var directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.9);
+        directionalLight2.position.set(-400, -200, -300);
+        scene.add(directionalLight2);
+        var ambient = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambient);
+
+        controlller = new THREE.OrbitControls(camera,renderer.domElement)
+        document.body.appendChild(renderer.domElement)
+        window.onresize = onResize
+
+        
+    animate()
+    }
+
+    function animate(){
+        time += 0.01
+        if(time > 1){
+            console.log(time)
+            time = 0
+        }
+        if(shadermaterial != null){
+            // shadermaterial.uniforms.ratio.value = time
+        }
+        
+        requestAnimationFrame(animate)
+        renderer.render(scene, camera)
+        controlller.update(clock.getDelta())
+    }
+
+    function onResize() {
+        camera.aspect = window.innerWidth / window.innerHeight
+        camera.updateProjectionMatrix()
+        renderer.setSize(window.innerWidth, window.innerHeight)
+    }
+</script>
+
+</html>

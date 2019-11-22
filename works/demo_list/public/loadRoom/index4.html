@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <style>
+        body{
+            margin: 0;
+            overflow: hidden;
+        }
+       
+    </style>
+    <script src="../src/three.js"></script>
+    <script src="../src/OrbitControls.js"></script>
+    <script src="../src/loaders/MTLLoader.js"></script>
+    <script src="../src/loaders/OBJLoader.js"></script>
+
+    <script src="../src/loaders/ColladaLoader.js"></script>
+    <script src="../src/libs/Reflector.js"></script>
+    <script src="../src/libs/popmotion.js"></script>
+
+
+    <script src="../src/libs/EffectComposer.js"></script>
+    <script src="../src/libs/RenderPass.js"></script>
+    <script src="../src/libs/ShaderPass.js"></script>
+    <script src="../src/libs/CopyShader.js"></script>
+    <script src="../src/libs/LuminosityHighPassShader.js"></script>
+    <script src="../src/libs/UnrealBloomPass.js"></script>
+</head>
+<body>
+  
+</body>
+<script>
+    var scene, camera, renderer, controls, model
+    var tween = popmotion.tween, easing = popmotion.easing, easeInOut = popmotion.easeInOut
+    var composer,  mixer
+    var params = {
+				exposure: 1,
+				bloomStrength: 0.6,
+				bloomThreshold: 0.65,
+				bloomRadius: 0.5
+			};
+    var WIDTH = window.innerWidth
+	var HEIGHT = window.innerHeight
+    var canBeSelectedMeshes = []
+    var cameras = [], balls = [], buildings = [], APSign = [], hSign = null, sign = []
+    var b1 = [], b2 = [], b3 = [], b4 = [], b5 = [], b6 = []
+
+    var currentBuilding = null
+
+    var upmoving = false, downmoving = false
+
+    var t1 = null // 主建筑动画
+    var cameraTween = null
+
+    init()
+    
+
+    // - Functions -
+    function init(){
+        scene = new THREE.Scene()
+        camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 10000)
+
+        camera.position.x = 50;
+        camera.position.y = 50;
+        camera.position.z = 50;
+        camera.lookAt(0, 0, 0)
+        renderer = new THREE.WebGLRenderer({
+            antialias:true, // 开启抗锯齿处理
+            alpha:true,
+            // logarithmicDepthBuffer: true
+        })
+        // renderer.setClearColor(new THREE.Color(0xff0000))
+        renderer.setPixelRatio( window.devicePixelRatio )
+        renderer.setSize(window.innerWidth,window.innerHeight)
+       
+        var domElement = renderer.domElement
+
+        var loader = new THREE.ColladaLoader()
+        loader.load("./dae/1.dae", function (result) {
+            model = result.scene
+            model.scale.set(100,100,100)
+            console.log(model)
+
+            model.children.map(item=>{
+
+                if(item.name.startsWith('球体')){
+                    item.visible = false
+                    balls.push(item)
+                }
+
+                if(item.name == '黑色反光板.1'){
+                    item.visible =false
+                    var plane = new THREE.PlaneGeometry(110, 110);
+                    var mirror = new THREE.Reflector(plane, {
+                        clipBias: 0.003,
+                        textureWidth: WIDTH * window.devicePixelRatio,
+                        textureHeight: HEIGHT * window.devicePixelRatio,
+                        color: 0x111111,
+                        recursion: 0.5
+                    });
+                    mirror.position.y = -0.1;
+                    mirror.rotateX(-Math.PI / 2);
+                    scene.add(mirror);
+                }
+
+                if(item.name == '外面围栏.1'){
+                    item.material.side = THREE.DoubleSide
+                    item.material.transparent = true
+                    // item.visible = false
+                }
+
+                if(item.name == '其他建筑.1'
+                ){
+                    item.visible = false
+                }
+
+                if (item.name.startsWith('ap')) {
+                    if (item.name == 'ap.1') {
+                        item.rotation.x = Math.PI /2
+                    }
+                    item.visible = false
+                    APSign.push(item)
+                }
+
+                if(item.name == '医院logo.1'){
+                    // item.material.reflectivity = 60
+                    item.material.emissive = new THREE.Color('#ff0000')
+                    // item.material.emissiveIntensity = 20
+                    hSign = item
+                }
+
+                if(item.name.startsWith('_5g')){
+                    if (item.name == '_5g1.1' || item.name == '_5g2.1') {
+                        item.rotation.x = 0
+                    }
+                    item.visible = false
+                    sign.push(item)
+                }
+
+                if(item.name == '主楼.1_内部楼层.1'){
+                    buildings.push(item)
+                   item.material.color = new THREE.Color('#1FE7FF')
+                }
+
+                if(item.name == '主楼'){  // 外墙
+                    // item.visible = false
+                    buildings.push(item)
+                    canBeSelectedMeshes.push(item)
+                    item.material = new THREE.MeshPhongMaterial({
+                        color:'#1FE7FF',
+                        // depthTest: false
+                    })
+                    // item.renderOrder = 2
+                    item.material.transparent = true
+                    item.material.opacity = 0.8
+
+                    // item.material.color = new THREE.Color('#000')
+                    var loader = new THREE.TextureLoader()
+                    loader.load('./ho/logoBottom.png', function ( texture ) {
+                        var material = new THREE.MeshBasicMaterial( {
+                            map: texture,
+                            transparent: true,
+                            side: THREE.DoubleSide,
+                            // depthTest: false
+                        } )
+                        var planeGeomerey = new THREE.PlaneBufferGeometry(0.1,0.1)
+                        var plane = new THREE.Mesh(planeGeomerey, material)
+                        plane.rotation.x = Math.PI / 2
+                        plane.position.set(-0.18, 0.28, -0.2)
+                        item.add(plane)
+                    })
+                }
+
+                if( 
+                    item.name == '伟伦.1'||
+                    item.name == '东.1'||
+                    item.name == '东.3'
+                ){
+                    // item.renderOrder = 2
+                    // item.material.depthTest = false
+                    buildings.push(item)
+                    canBeSelectedMeshes.push(item)
+                }
+
+                if(item.name == '科教.1'){
+                    // item.renderOrder = 4
+                    // item.material.depthTest = false
+                    buildings.push(item)
+                    canBeSelectedMeshes.push(item)
+                }
+
+                if(item.name == '英东.1'){
+                    // item.renderOrder = 6
+                    // item.material.depthTest = false
+                    buildings.push(item)
+                    canBeSelectedMeshes.push(item)
+                }
+
+                if(item.name.endsWith('_x')){
+                    // console.log(item)
+                    buildings.push(item)
+                }
+
+                if(item.name.startsWith('主楼.1_y')){
+                    item.material.depthTest = false
+                    item.material.transparent = true
+                    item.material.opacity = 0.8
+                    item.visible = false
+                    b1.push(item)
+                    buildings.push(item)
+                }
+
+                if(item.name.startsWith('东1.1_y')){
+                    item.material.depthTest = false
+                    item.material.transparent = true
+                    item.material.opacity = 0.8
+                    item.visible = false
+                    b2.push(item)
+                    buildings.push(item)
+                }
+
+                if(item.name.startsWith('东3.1_y')){
+                    item.material.depthTest = false
+                    item.material.transparent = true
+                    item.material.opacity = 0.8
+                    item.visible = false
+                    b3.push(item)
+                    buildings.push(item)
+                }
+
+                if(item.name.startsWith('伟伦.1_y')){
+                    item.material.depthTest = false
+                    item.material.transparent = true
+                    item.material.opacity = 0.8
+                    item.visible = false
+                    b4.push(item)
+                    buildings.push(item)
+                }
+
+                if(item.name.startsWith('英东.1_y')){
+                    item.material.depthTest = false
+                    item.material.transparent = true
+                    item.material.opacity = 0.8
+                    item.visible = false
+                    b5.push(item)
+                    buildings.push(item)
+                }
+
+                if(item.name.startsWith('科教.1_y')){
+                    item.material.depthTest = false
+                    item.material.transparent = true
+                    item.material.opacity = 0.8
+                    item.visible = false
+                    b6.push(item)
+                    buildings.push(item)
+                }
+
+
+            })
+
+            // console.log(balls)
+            // console.log(APSign)
+            // console.log(hSign)
+            // console.log(sign)
+            // console.log(b2)
+
+            scene.add(model);
+        });
+
+        var renderScene = new THREE.RenderPass( scene, camera );
+        var bloomPass = new THREE.UnrealBloomPass( new THREE.Vector2( window.innerWidth, window.innerHeight ), 1.5, 0.4, 0.85 );
+        bloomPass.threshold = params.bloomThreshold;
+        bloomPass.strength = params.bloomStrength;
+        bloomPass.radius = params.bloomRadius;
+        composer = new THREE.EffectComposer( renderer );
+        composer.setSize( window.innerWidth, window.innerHeight );
+        composer.addPass( renderScene );
+        composer.addPass( bloomPass );
+        
+        controls = new THREE.OrbitControls(camera, domElement)
+        document.body.appendChild(domElement)
+
+        domElement.addEventListener('click', handleClick, false)
+        window.onresize = onResize
+
+        animate()
+    }
+
+    // window.onclick = compressBuilding
+    // 建筑压缩变矮
+    function compressBuilding() {
+        buildings.map(item=>{
+            item.scale.set(1,0.5,1)
+        })
+    }
+
+    // 将建筑恢复初始大小
+    function decompressBuilding() {
+
+    }
+
+    function animate(){
+        requestAnimationFrame(animate)
+        // renderer.render(scene, camera)
+        composer.render();
+    }
+
+    function onResize() {
+        camera.aspect = window.innerWidth / window.innerHeight
+        camera.updateProjectionMatrix()
+        renderer.setSize(window.innerWidth, window.innerHeight)
+    }
+
+    function handleClick(e){
+        var coords = tranformMouseCoord(e.clientX, e.clientY, renderer.domElement);
+        var intersects = getSelectedMeshes(coords, camera, canBeSelectedMeshes);
+        if(intersects.length > 0){  // 选中物体 打开
+            if(upmoving || downmoving) return
+
+            var item = intersects[0].object
+            // console.log(item.geometry.boundingSphere.center)
+            // var center = item.geometry.boundingSphere.center
+            // camera.position.set(center.x*100 + 50, center.y*100 + 50, center.z*100 + 50)
+            var map = {
+                '主楼': {meshes: b1, step: 0.067, position: { x: -20, y: 50, z: 50 }, target: { x: -20, y: 20, z: 0 }},
+                '东.1': {meshes: b2, step: 0.05, position: { x: 40, y: 50, z: 100 }, target: { x: 50, y: 10, z: 0 }},
+                '东.3': {meshes: b3, step: 0.05, position: { x: 40, y: 20, z: 80 }, target: { x: 0, y: 0, z: 0 }},
+                '伟伦.1': {meshes: b4, step: 0.05, position: { x: 0, y: 40, z: 40 }, target: { x: 0, y: 0, z: 0 }},
+                '英东.1': {meshes: b5, step: 0.035, position: { x: 20, y: 40, z: 80 }, target: { x: 0, y: 0, z: 0 }},
+                '科教.1': {meshes: b6, step: 0.035, position: { x: 20, y: 40, z: 90 }, target: { x: 0, y: 0, z: 0 }}
+            }
+            var option = map[item.name]
+            cameraAnim(camera, option.position, option.target)
+            if(currentBuilding == null){    // 没有其他被选中建筑
+                growAnim(map[item.name].meshes, item.name, map[item.name].step)
+            }else if(currentBuilding == item.name){ // 再次选中本建筑
+                // cameraAnim(camera, { x: 100, y: 100, z: 100 }, { x: 0, y: 0, z: 0 })
+                currentBuilding = null
+                fallAnim(map[item.name].meshes, map[item.name].step)
+            }else{// 当前由其他被选中建筑
+                fallAnim(map[currentBuilding].meshes, map[currentBuilding].step)
+                currentBuilding = item.name
+                growAnim(map[item.name].meshes, item.name, map[item.name].step)
+            }
+          
+        }
+    }
+
+    function cameraAnim(camera, position, target) {
+        if(cameraTween !== null){
+            cameraTween.stop()
+            cameraTween = null
+        }
+        cameraTween = tween({
+            from: {
+                x: camera.position.x,
+                y: camera.position.y,
+                z: camera.position.z
+            },
+            to: {
+                x: position.x,
+                y: position.y,
+                z: position.z
+            },
+            ease: easing.easeInOut,
+            duration: 3000
+        }).start({
+            update: (o)=>{
+                camera.position.x = o.x
+                camera.position.y = o.y
+                camera.position.z = o.z
+                camera.lookAt(target.x, target.y, target.z)
+            },
+            complete: ()=>{
+
+            }
+        })
+    }
+
+    function growAnim(meshes, name, step){
+        currentBuilding = name
+        var finallyMesh = meshes.filter(m=>{return m.name.endsWith('_d.1')})[0]
+        var movingMeshes = meshes.filter(m=>{
+            m.visible = true
+            return !m.name.endsWith('_d.1')
+        })
+        
+        finallyMesh.material.side = THREE.DoubleSide
+        finallyMesh.visible = false
+        finallyMesh.material.color = new THREE.Color('#FFD700')
+        finallyMesh.material.transparent = true
+        finallyMesh.material.opacity = 0.6
+        var startY = movingMeshes[0].position.y
+        upmoving = true
+
+        tween({
+            from: {
+                scale: 0
+            },
+            to: {
+                scale: 1
+            },
+            ease: easing.easeInOut,
+            duration: 300
+        }).start({
+            update: (o)=>{
+                for(var i = 0; i < movingMeshes.length;i++) {
+                    movingMeshes[i].position.y = i*step*o.scale
+                }
+                finallyMesh.position.y = movingMeshes.length * step * o.scale
+            },
+            complete : ()=>{
+                finallyMesh.visible = true
+                upmoving = false
+            }
+        })
+    }
+
+    function fallAnim(meshes, step){
+        var finallyMesh = meshes.filter(m=>{return m.name.endsWith('_d.1')})[0]
+        finallyMesh.userData.y = finallyMesh.position.y
+        finallyMesh.visible = false
+        var movingMeshes = meshes.filter(m=>{
+            m.userData.y = m.position.y
+            return !m.name.endsWith('_d.1')
+        })
+       
+        downmoving = true
+       
+        tween({
+            from: {
+                scale: 1
+            },
+            to: {
+                scale: 0
+            },
+            ease: easing.easeInOut,
+            duration: 300
+        }).start({
+            update: (o)=>{
+                finallyMesh.position.y = finallyMesh.userData.y * o.scale
+                movingMeshes.map(m=>{
+                    m.position.y = m.userData.y * o.scale
+                })
+            },
+            complete: () => {
+                movingMeshes.map(m=>m.visible = false)
+                downmoving = false
+            }
+        })
+    }
+
+    function tranformMouseCoord(x2D, y2D, domElement){
+        var mouse = new THREE.Vector2();
+        mouse.x = ( x2D / domElement.clientWidth ) * 2 - 1;
+        mouse.y = - ( y2D / domElement.clientHeight ) * 2 + 1;
+        return mouse;
+    }
+
+    function getSelectedMeshes( coords, camera, Meshes ){
+        var raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera( coords, camera );	
+        var intersects = raycaster.intersectObjects( Meshes );
+        return intersects;
+    }
+
+    function getParent(selectedMesh){
+        if(selectedMesh.userData.isParent !== true){
+            return getParent(selectedMesh.parent);
+        }
+        return selectedMesh;
+    }
+
+</script>
+</html>
