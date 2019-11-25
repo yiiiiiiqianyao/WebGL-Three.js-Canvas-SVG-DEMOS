@@ -110,8 +110,8 @@
     var WIDTH = window.innerWidth
 	var HEIGHT = window.innerHeight
     var canBeSelectedMeshes = []
-    var cameras = [], balls = [], buildings = [], logo_ap = [], logo_5g = [], lines = []
-    var outerWraps = []
+    var cameras = [], balls = [], buildings = [], logo_ap = [], logo_5g = []
+    var outerWraps = [], flyLineMeshes = [], targetCircles = [], lightBars = [], textPlanes = []
     var shadermaterial = null, time = -0.3
     var bottomPlane = null, wall = null, map = null, flylines = null
 
@@ -157,7 +157,35 @@
 
                 if(item.name.startsWith('O')){
                     // item.visible = false
+                    item.material.transparent = true
+                    item.material.opacity = 0
+                    item.material.depthWrite = false
                     balls.push(item)
+                    
+                    addLightBar(item, './ho/bar.png')
+                    var text = Math.random() > 0.5 ? '智能床垫系统系统':'智能床垫'
+                    addText(item, './ho/text.png', text)
+                    // var loader = new THREE.TextureLoader()
+                    // loader.load('./ho/bar.png', function ( texture ) {
+                    //     var material = new THREE.MeshBasicMaterial( {
+                    //         map: texture,
+                    //         transparent: true,
+                    //         side: THREE.DoubleSide,
+                    //         // depthTest: false
+                    //     } )
+                    //     const material2 = new THREE.MeshBasicMaterial({
+                    //         transparent: true,
+                    //         opacity: 0
+                    //     });
+                    //     var size = 0.01
+                    //     var geometry = new THREE.CylinderBufferGeometry( size, size, size * (texture.image.height/texture.image.width), 32 );
+                    //     var cylinder = new THREE.Mesh(geometry, [material, material2])
+                    //     cylinder.position.y = size * (texture.image.height/texture.image.width) / 2
+                    //     cylinder.visible = false
+                    //     lightBars.push(cylinder)
+                    //     item.add(cylinder)
+                    // })
+
                 }
 
                 if(item.name.startsWith('AP_')){
@@ -179,7 +207,7 @@
                 }
 
                 if(item.name.startsWith('_5G')){
-                    // item.visible = false
+                    item.visible = false
                     item.material.transparent = true
                     item.material.opacity = 0
                     item.material.depthWrite = false
@@ -240,7 +268,7 @@
                 }
 
                 if(item.name == 'T'){
-                    item.visible = false
+                    // item.visible = false
                 }
 
                 if(item.name.match(/(y)/) !== null){
@@ -250,7 +278,6 @@
                     item.visible = false
                     outerWraps.push(item)
                 }
-
 
                 if(item.name == 'E_黑色反光板'){
                     item.visible =false
@@ -279,7 +306,7 @@
             })
             
             
-            console.log(logo_5g)
+            // console.log(logo_5g)
             // console.log(canBeSelectedMeshes)
             scene.add(model);
         });
@@ -302,56 +329,178 @@
 
         animate()
     }
+
+    function addLightBar(parent, src) {
+        var img = new Image()
+        img.src = src
+        img.onload = function(e){
+            var width = e.target.width, height = e.target.height
+            let canvas = document.createElement("canvas")
+            canvas.width = width
+            canvas.height = height
+            let ctx = canvas.getContext("2d")
+            ctx.drawImage(img,0,0,width,height,0,0,width,height)
+
+            let texture = new THREE.Texture(canvas)
+            texture.needsUpdate = true 
+            let material = new THREE.SpriteMaterial({ map:texture, depthTest:false });
+            let mesh = new THREE.Sprite(material)
+            mesh.scale.set(0.01,0.05,0.01)
+            mesh.visible = false
+            lightBars.push(mesh)
+            parent.add(mesh)
+        }
+    }
    
+    function addText(parent, src, text) {
+        var img = new Image()
+        img.src = src
+        img.onload = function(e){
+            var width = e.target.width, height = e.target.height
+            let canvas = document.createElement("canvas");
+            canvas.width = width;
+            canvas.height = height;
+            let ctx = canvas.getContext("2d");
+            ctx.drawImage(img,0,0,width,height,0,0,width,height);
+
+            ctx.textBaseline="top";
+            ctx.textAlign="center";
+            var textTop = 8*(width/100)
+            var textItem = {
+                text,
+                color: '#ffffff',
+                fontWeight: 'Bold',
+                fontSize: 12,
+                fontFamily: 'Arial'
+            }
+            ctx.fillStyle = textItem.color
+            ctx.font = `${textItem.fontWeight} ${textItem.fontSize*(width/100)}px ${textItem.fontFamily}`
+            // console.log(ctx.measureText(textItem.text).width)
+            ctx.fillText(textItem.text, width/2, textTop);
+            textTop += textItem.fontSize*(width/100) + 6*(width/100)
+            
+
+            let texture = new THREE.Texture(canvas);
+            texture.needsUpdate = true; 
+            let material = new THREE.SpriteMaterial({ map:texture, depthTest:false });
+            let mesh = new THREE.Sprite(material);
+            mesh.scale.set(0.08, 0.02, 1)
+            mesh.visible = false
+            // mesh.userData.visible = false
+            mesh.position.y = 0.03
+            textPlanes.push(mesh)
+            parent.add(mesh)
+        }
+    }
+
+    function changeRandomText(textPlanes, count) {  // count - 当前显示的标牌的数量
+        if(count >= textPlanes) {
+            textPlanes.map(t=>{
+                t.visible = true
+                // t.userData.visible = true
+            })
+        }else{
+            var step = Math.floor(textPlanes.length / count)
+            for(var i = 0;i < textPlanes.length;i++) {
+                var t = textPlanes[i]
+                if(i % step == 0){
+                    t.visible = true
+                    // t.userData.visible = true
+                }else{
+                    t.visible = false
+                    // t.userData.visible = false
+                }
+            }
+        }
+        
+    }
+
     function changeScene(flag) {
         if(flag == currentSceneFlag)return
         if(sceneChangeTween !== null){
             sceneChangeTween.stop()
         }
-        console.log(flag)
+        // console.log(flag)
         
         if(flag == 0){          // 主视角
+            flyLineMeshes.map(item=>{ item.mesh.visible = false })
+            lightBars.map(bar=>bar.visible = false)
+            logo_5g.map(logo=>logo.visible = false)
+            textPlanes.map(text=>text.visible = false)
             toMainScene(currentSceneFlag)
+            bottomPlane.visible = false
+            buildings.filter(b=>{return b.name.match(/(y)/) == undefined}).map(b=>{
+                // b.userData.color = b.material.color.clone()
+                b.material.color =b.userData.color.clone()
+            })
+            buildings.filter(b=>{return b.name.endsWith('x')}).map(b=>{
+                b.visible = true
+            })
         }else if (flag == 1){   // 物联网
             if(flylines == null){
                 flylines = []
-                for(var i = 0;i < logo_5g.length;i++) {
-                    
-                    var _5g_center = getPointWorldPos(logo_5g[i])
-                   
+                for(var i = 0;i < logo_5g.length;i++) {     // 5g_logo 的飞线
                     for(var i2 = 0;i2 < balls.length;i2++) {
-                        
-                        var ball_center = getPointWorldPos(balls[i2])
-
-                        var start = _5g_center
-                        var control = (_5g_center.add(ball_center).divideScalar(2))
-                        var end = ball_center
-                        // flylines.push({ start, control, end })
+                        flylines.push({ 
+                            start: getPointWorldPos(logo_5g[i]), 
+                            control: getPointWorldPos(logo_5g[1]).add(getPointWorldPos(balls[i2])).divideScalar(2), 
+                            end: getPointWorldPos(balls[i2]),
+                            show: false
+                        })
                     }
                 }
-                
-                // logo_5g[0].geometry.computeBoundingBox()
-                // var centroid = new THREE.Vector3()
-                // centroid.addVectors( logo_5g[0].geometry.boundingBox.min, logo_5g[0].geometry.boundingBox.max )
-                // centroid.multiplyScalar( 0.5 )
-                // centroid.applyMatrix4( logo_5g[0].matrixWorld )
+                for(var i = 0;i < logo_ap.length;i++) {     // ap_logo 的飞线
+                    for(var i2 = 0;i2 < balls.length;i2++) {
+                        flylines.push({ 
+                            start: getPointWorldPos(logo_ap[i]), 
+                            control: getPointWorldPos(logo_ap[1]).add(getPointWorldPos(balls[i2])).divideScalar(2), 
+                            end: getPointWorldPos(balls[i2]),
+                            show: false
+                        })
+                    }
+                }
 
-                // console.log(getPointWorldPos(logo_5g[0]))
-                // console.log(getPointWorldPos(logo_5g[0]).add(getPointWorldPos(balls[0])).divideScalar(2))
-                // console.log(getPointWorldPos(balls[0]))
-
-                // flylines = [
-                //     {
-                //         start: getPointWorldPos(logo_5g[0]),
-                //         control: new THREE.Vector3(0,10,0),//(getPointWorldPos(logo_5g[0]).add(getPointWorldPos(balls[0])).divideScalar(2)),
-                //         end: getPointWorldPos(balls[0])
-                //     }
-                // ]
-                // console.log(flylines)
+                var showLineCount = 20, step = 1
+                if(showLineCount < flylines.length){
+                    step = Math.floor(flylines.length / showLineCount)
+                }
+                for(var j = 0;j < flylines.length; j += step){
+                    flylines[j].show = true
+                }
+                initFlyLine(flylines)
+            }else {
+                flyLineMeshes.map(item=>{
+                    if(item.show){
+                        item.mesh.visible = true
+                    }
+                })
             }
-            initFlyLine(flylines)
+            bottomPlane.visible = true
+            lightBars.map(bar=>{ bar.visible = true })
+            logo_5g.map(logo=>logo.visible = true)
+            changeRandomText(textPlanes, 5)
+            buildings.filter(b=>{return b.name.match(/(y)/) == undefined}).map(b=>{
+                b.userData.color = b.material.color.clone()
+                b.material.color = new THREE.Color('#000')
+            })
+            buildings.filter(b=>{return b.name.endsWith('x')}).map(b=>{
+                b.visible = false
+            })
+            // console.log(buildings.filter(b=>{return b.name.match(/(y)/) == undefined}))
             toTingsScene(currentSceneFlag)
         }else{                  // 热力图
+            flyLineMeshes.map(item=>{ item.mesh.visible = false })
+            lightBars.map(bar=>bar.visible = false)
+            logo_5g.map(logo=>logo.visible = false)
+            bottomPlane.visible = false
+            textPlanes.map(text=>text.visible = false)
+            buildings.filter(b=>{return b.name.match(/(y)/) == undefined}).map(b=>{
+                // b.userData.color = b.material.color.clone()
+                b.material.color =b.userData.color.clone()
+            })
+            buildings.filter(b=>{return b.name.endsWith('x')}).map(b=>{
+                b.visible = true
+            })
             toHeatScene(currentSceneFlag)
         }
         currentSceneFlag = flag
@@ -523,16 +672,18 @@
     }
 
     function animate(){
-        time += 0.01
-        if(time > (1 - 0.3)){
-            time = 0
-        }
-        if(shadermaterial != null){
-            shadermaterial.uniforms.ratio.value = time
-        }
+       
+        flyLineMeshes.map(item=>{
+            item.length += 0.01
+            if(item.length > (1 - 0.3)){
+                item.length = 0
+            }
+            item.flyLineMaterials.uniforms.ratio.value = item.length
+        })
+       
         requestAnimationFrame(animate)
         renderer.render(scene, camera)
-        // composer.render();
+        // composer.render()
     }
 
     function onResize() {
@@ -585,55 +736,53 @@
     }
 
     function initFlyLine(flylines) {
-        // console.log(flylines)
-        var v1 = getPointWorldPos(logo_5g[0])
-        var v2 = getPointWorldPos(logo_5g[0]).add(getPointWorldPos(balls[0])).divideScalar(1)
-        var v3 = getPointWorldPos(balls[0])
-        // var v1m = new THREE.Mesh(new THREE.SphereBufferGeometry(1,24,24), new THREE.MeshBasicMaterial({color:'#ff0000'}))
-        // v1m.position.copy(v1)
-        // scene.add(v1m)
-        // var v2m = new THREE.Mesh(new THREE.SphereBufferGeometry(1,24,24), new THREE.MeshBasicMaterial({color:'#ff0000'}))
-        // v2m.position.copy(v2)
-        // scene.add(v2m)
-        // var v3m = new THREE.Mesh(new THREE.SphereBufferGeometry(1,24,24), new THREE.MeshBasicMaterial({color:'#ff0000'}))
-        // v3m.position.copy(v3)
-        // scene.add(v3m)
-        
-        var curve = new THREE.QuadraticBezierCurve3(
-            v1,
-            v2,
-            v3
-        );
-        var geometry = new THREE.TubeBufferGeometry( curve, 100, 0.1, 50, false );
-        var { count } = geometry.attributes.position;
-        var indexes = new Float32Array(count);
-        for (var i = 0; i < count; i++) {
-            indexes[i] = i;
-        }
-        geometry.addAttribute('aIndex', new THREE.BufferAttribute(indexes, 1));
+        // console.log(flylines.length)
+        flylines.map(item=>{
+          
+            var curve = new THREE.QuadraticBezierCurve3(
+                item.start,
+                item.control,
+                item.end
+            );
+            var geometry = new THREE.TubeBufferGeometry( curve, 100, 0.1, 50, false );
+            var { count } = geometry.attributes.position;
+            var indexes = new Float32Array(count);
+            for (var i = 0; i < count; i++) {
+                indexes[i] = i;
+            }
+            geometry.addAttribute('aIndex', new THREE.BufferAttribute(indexes, 1));
 
-        var fillType = 'gradient', intensity = 1, length = 0.3
-        shadermaterial = new THREE.ShaderMaterial( {
-            defines: {
-                INTENSITY: intensity,
-            },
-            uniforms: {
-                ratio:      { type: 'f', value: -length },
-                count:      { type: 'f', value: count },
-                length:     { type: 'f', value: count * length },
-                intensity:  { type: 'fv1', value: [0] },
-                fillType:   { type: 'b', value: fillType === 'gradient' },
-                color:      { type: 'v4', value: new THREE.Vector4(1.0, 1.0, 0.0, 1.0) },
-                start:      { type: 'v4', value: new THREE.Vector4(1.0, 1.0, 0.0, 1.0) },
-                end:        { type: 'v4', value: new THREE.Vector4(0.9921, 0.82745, 0.0705, 1.0) },
-            },
-            vertexShader, fragmentShader,
-            transparent: true,
-            depthTest: false
-        } );
-        var mesh = new THREE.Mesh( geometry, shadermaterial );
-        scene.add( mesh );
-        
+            var fillType = 'gradient', intensity = 1, length = Math.random()/2
+            var shadermaterial = new THREE.ShaderMaterial({
+                defines: {
+                    INTENSITY: intensity,
+                },
+                uniforms: {
+                    ratio:      { type: 'f', value: -length },
+                    count:      { type: 'f', value: count },
+                    length:     { type: 'f', value: count * length },
+                    intensity:  { type: 'fv1', value: [0] },
+                    fillType:   { type: 'b', value: fillType === 'gradient' },
+                    color:      { type: 'v4', value: new THREE.Vector4(0.0, 1.0, 1.0, 1.0) },
+                    start:      { type: 'v4', value: new THREE.Vector4(0.0, 1.0, 1.0, 1.0) },
+                    end:        { type: 'v4', value: new THREE.Vector4(0.0, 0.82745, 0.9705, 1.0) },
+                },
+                vertexShader, fragmentShader,
+                transparent: true,
+                depthTest: false
+            })
+            var mesh = new THREE.Mesh( geometry, shadermaterial )
+            mesh.visible = item.show
+            flyLineMeshes.push({
+                mesh,
+                flyLineMaterials: shadermaterial,
+                length,
+                show: item.show
+            })
+            scene.add( mesh )
+       
+        })
+       
     }
 
     function cameraAnim(camera, position, target) {
