@@ -95,7 +95,7 @@
             var vertex = planeGeometry.vertices[i]
             vertex.z = pn.noise((vertex.x + count*2)/10,(vertex.y+0*count)/10,count*0.1)*5
             // pn.noise(x,y,z)  x,y 可以用于生成( 固定 x,y 生成固定的地形 )地形 z 可以用来调整生成的地形
-            // vertex.x + count / vertex.y+count 通过增加 count 的值导致 perlin 根据 x/y 生成的 z 高度值整体移动 造成类似波浪的效果\
+            // vertex.x + count / vertex.y+count 通过增加 count 的值导致 perlin 根据 x、y 生成的 z 高度值整体移动 造成类似波浪的效果\
             // vertex.x+count 可以用来调整水面的流动
         }
         planeGeometry.computeFaceNormals()      //    

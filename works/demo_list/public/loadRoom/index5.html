@@ -37,9 +37,9 @@
     <script src="../src/libs/EffectComposer.js"></script>
     <script src="../src/libs/RenderPass.js"></script>
     <script src="../src/libs/ShaderPass.js"></script>
+    <script src="../src/libs/UnrealBloomPass.js"></script>
     <script src="../src/libs/CopyShader.js"></script>
     <script src="../src/libs/LuminosityHighPassShader.js"></script>
-    <script src="../src/libs/UnrealBloomPass.js"></script>
 </head>
 <body>
     <div class="btnBar">
@@ -113,6 +113,7 @@
     var cameras = [], balls = [], buildings = [], logo_ap = [], logo_5g = []
     var outerWraps = [], flyLineMeshes = [], targetCircles = [], lightBars = [], textPlanes = []
     var shadermaterial = null, time = -0.3
+   
     var bottomPlane = null, wall = null, map = null, flylines = null
 
     var currentBuilding = null, currentSceneFlag = 0 // 0 - 主视角  1 - 物联网  2 - 热力图
@@ -121,6 +122,8 @@
 
     var t1 = null               // 主建筑动画
     var cameraTween = null      // 相机动画
+    var cameraMoving = false
+    var circleTween = null
     var sceneChangeTween = null // 场景切换动画
     var _5G_interval = []       // 5G底图旋转动画
 
@@ -165,26 +168,8 @@
                     addLightBar(item, './ho/bar.png')
                     var text = Math.random() > 0.5 ? '智能床垫系统系统':'智能床垫'
                     addText(item, './ho/text.png', text)
-                    // var loader = new THREE.TextureLoader()
-                    // loader.load('./ho/bar.png', function ( texture ) {
-                    //     var material = new THREE.MeshBasicMaterial( {
-                    //         map: texture,
-                    //         transparent: true,
-                    //         side: THREE.DoubleSide,
-                    //         // depthTest: false
-                    //     } )
-                    //     const material2 = new THREE.MeshBasicMaterial({
-                    //         transparent: true,
-                    //         opacity: 0
-                    //     });
-                    //     var size = 0.01
-                    //     var geometry = new THREE.CylinderBufferGeometry( size, size, size * (texture.image.height/texture.image.width), 32 );
-                    //     var cylinder = new THREE.Mesh(geometry, [material, material2])
-                    //     cylinder.position.y = size * (texture.image.height/texture.image.width) / 2
-                    //     cylinder.visible = false
-                    //     lightBars.push(cylinder)
-                    //     item.add(cylinder)
-                    // })
+                    addBottom(item)
+                  
 
                 }
 
@@ -326,7 +311,7 @@
 
         domElement.addEventListener('click', handleClick, false)
         window.onresize = onResize
-
+       
         animate()
     }
 
@@ -393,6 +378,86 @@
         }
     }
 
+    function addBottom(parent) {
+        var material = new THREE.MeshBasicMaterial({
+            color: new THREE.Color('#1FE7FF'), 
+            side: THREE.DoubleSide ,
+            transparent: true,
+            depthTest: false
+        })
+        var scale = 1.5
+        var rings = [{
+                    innerRadius: 0.01,
+                    outerRadius: 0.012,
+                    scale,
+                    startOpacity: 1,
+                    endOpacity: 0.8
+                   },
+                   {
+                    innerRadius: 0.014,
+                    outerRadius: 0.016,
+                    scale,
+                    startOpacity: 0.8,
+                    endOpacity: 0.4
+                   },
+                   {
+                    innerRadius: 0.018,
+                    outerRadius: 0.02,
+                    scale,
+                    startOpacity: 0.3,
+                    endOpacity: 0.2
+                   }]
+        for(var i = 0 ;i < rings.length;i++) {
+            var item = rings[i]
+            var geometry = new THREE.RingBufferGeometry( item.innerRadius, item.outerRadius, 64 )
+            var material = material.clone()
+            material.opacity = item.startOpacity
+            var ring = new THREE.Mesh(geometry, material)
+            var scale = Math.random()
+            ring.userData.scaleDely = Math.random()
+            ring.userData.scale = item.scale
+            ring.userData.startOpacity = item.startOpacity
+            ring.userData.endOpacity = item.endOpacity
+            ring.rotation.x = Math.PI / 2
+            ring.position.y = -0.015
+            ring.visible = false
+            targetCircles.push(ring)
+            parent.add(ring)
+        }
+
+    }
+
+    function circleAnim(ringGroup, start, end) {
+        circleTween = tween({
+            from: {
+                timeScale: start
+            },
+            to: {
+                timeScale: end
+            },
+            ease: easing.easeInOut,
+            duration: 1000
+        })
+        .start({
+            update: (o) => {
+                ringGroup.map(item=>{
+                    if(end > start){ // 0 - 1
+                        var scale = 1 + (item.userData.scale - 1) * o.timeScale
+                        var opacity = item.userData.startOpacity - (item.userData.startOpacity - item.userData.endOpacity) * o.timeScale
+                    }else { // 1 - 0
+                        var scale = item.userData.scale - (item.userData.scale - 1) * (1-o.timeScale)
+                        var opacity = item.userData.endOpacity + (item.userData.startOpacity - item.userData.endOpacity) * (1-o.timeScale)
+                    }
+                    item.scale.set(scale, scale, scale)
+                    item.material.opacity = opacity
+                })
+            },
+            complete: () => {
+                circleAnim(ringGroup, end, start)
+            }
+        })
+    }
+
     function changeRandomText(textPlanes, count) {  // count - 当前显示的标牌的数量
         if(count >= textPlanes) {
             textPlanes.map(t=>{
@@ -419,24 +484,28 @@
         if(flag == currentSceneFlag)return
         if(sceneChangeTween !== null){
             sceneChangeTween.stop()
+            sceneChangeTween = null
         }
-        // console.log(flag)
         
         if(flag == 0){          // 主视角
             flyLineMeshes.map(item=>{ item.mesh.visible = false })
             lightBars.map(bar=>bar.visible = false)
             logo_5g.map(logo=>logo.visible = false)
             textPlanes.map(text=>text.visible = false)
+            targetCircles.map(ring=>{ring.visible = false})
             toMainScene(currentSceneFlag)
             bottomPlane.visible = false
             buildings.filter(b=>{return b.name.match(/(y)/) == undefined}).map(b=>{
-                // b.userData.color = b.material.color.clone()
                 b.material.color =b.userData.color.clone()
             })
             buildings.filter(b=>{return b.name.endsWith('x')}).map(b=>{
                 b.visible = true
             })
         }else if (flag == 1){   // 物联网
+            if(circleTween == null){
+                circleAnim(targetCircles , 0 , 1)
+            }
+         
             if(flylines == null){
                 flylines = []
                 for(var i = 0;i < logo_5g.length;i++) {     // 5g_logo 的飞线
@@ -478,7 +547,11 @@
             bottomPlane.visible = true
             lightBars.map(bar=>{ bar.visible = true })
             logo_5g.map(logo=>logo.visible = true)
+
+            targetCircles.map(ring=>{ring.visible = true})
+
             changeRandomText(textPlanes, 5)
+
             buildings.filter(b=>{return b.name.match(/(y)/) == undefined}).map(b=>{
                 b.userData.color = b.material.color.clone()
                 b.material.color = new THREE.Color('#000')
@@ -486,16 +559,15 @@
             buildings.filter(b=>{return b.name.endsWith('x')}).map(b=>{
                 b.visible = false
             })
-            // console.log(buildings.filter(b=>{return b.name.match(/(y)/) == undefined}))
             toTingsScene(currentSceneFlag)
         }else{                  // 热力图
             flyLineMeshes.map(item=>{ item.mesh.visible = false })
             lightBars.map(bar=>bar.visible = false)
             logo_5g.map(logo=>logo.visible = false)
+            targetCircles.map(ring=>{ring.visible = false})
             bottomPlane.visible = false
             textPlanes.map(text=>text.visible = false)
             buildings.filter(b=>{return b.name.match(/(y)/) == undefined}).map(b=>{
-                // b.userData.color = b.material.color.clone()
                 b.material.color =b.userData.color.clone()
             })
             buildings.filter(b=>{return b.name.endsWith('x')}).map(b=>{
@@ -658,21 +730,7 @@
 
     }
 
-    // window.onclick = compressBuilding
-    // 建筑压缩变矮
-    function compressBuilding() {
-        buildings.map(item=>{
-            item.scale.set(1,0.5,1)
-        })
-    }
-
-    // 将建筑恢复初始大小
-    function decompressBuilding() {
-
-    }
-
     function animate(){
-       
         flyLineMeshes.map(item=>{
             item.length += 0.01
             if(item.length > (1 - 0.3)){
@@ -680,7 +738,6 @@
             }
             item.flyLineMaterials.uniforms.ratio.value = item.length
         })
-       
         requestAnimationFrame(animate)
         renderer.render(scene, camera)
         // composer.render()
@@ -695,38 +752,48 @@
     function handleClick(e){
         var coords = tranformMouseCoord(e.clientX, e.clientY, renderer.domElement);
         var intersects = getSelectedMeshes(coords, camera, canBeSelectedMeshes);
-        if(intersects.length > 0){  // 选中物体 打开
        
-            if(upmoving || downmoving || currentSceneFlag !== 0) return
+        if(intersects.length > 0){  // 选中物体 打开
+            
+            if(upmoving || downmoving || currentSceneFlag !== 0 ) return
 
             var item = intersects[0].object
             var name = item.name
             if(map == null){
                 map = {
-                    'B_主楼': {meshes: outerWraps.filter(b=>{return b.name.match(/(主楼)/)!==null}),step: 0.067, position: { x: -20, y: 50, z: 50 }, target: { x: -20, y: 20, z: 0 }},
-                    'B_东1' : {meshes: outerWraps.filter(b=>{return b.name.match(/(东1)/)!==null}), step: 0.05,  position: { x: 40, y: 50, z: 100 }, target: { x: 50, y: 10, z: 0 }},
-                    'B_东3' : {meshes: outerWraps.filter(b=>{return b.name.match(/(东3)/)!==null}), step: 0.05,  position: { x: 40, y: 20, z: 80 }, target: { x: 60, y: 10, z: 0 }},
-                    'B_伟伦': {meshes: outerWraps.filter(b=>{return b.name.match(/(伟伦)/)!==null}),step: 0.05,  position: { x: 0, y: 40, z: 40 }, target: { x: 0, y: 0, z: 0 }},
-                    'B_英东': {meshes: outerWraps.filter(b=>{return b.name.match(/(英东)/)!==null}),step: 0.035, position: { x: 20, y: 40, z: 80 }, target: { x: 0, y: 0, z: 0 }},
-                    'B_科教': {meshes: outerWraps.filter(b=>{return b.name.match(/(科教)/)!==null}),step: 0.035, position: { x: 20, y: 40, z: 90 }, target: { x: 0, y: 0, z: 0 }}
+                    'B_主楼': {meshes: outerWraps.filter(b=>{return b.name.match(/(主楼)/)!==null}),step: 0.067, 
+                    position: { x: -20, y: 50, z: 50 }, 
+                    target: { x: -20, y: 20, z: 0 }},
+                    'B_东1' : {meshes: outerWraps.filter(b=>{return b.name.match(/(东1)/)!==null}), step: 0.05,  
+                    position: { x: 40, y: 50, z: 100 }, 
+                    target: { x: 50, y: 10, z: 0 }},
+                    'B_东3' : {meshes: outerWraps.filter(b=>{return b.name.match(/(东3)/)!==null}), step: 0.05,  
+                    position: { x: 40, y: 20, z: 80 }, 
+                    target: { x: 60, y: 10, z: 0 }},
+                    'B_伟伦': {meshes: outerWraps.filter(b=>{return b.name.match(/(伟伦)/)!==null}),step: 0.05,  
+                    position: { x: 0, y: 40, z: 40 }, 
+                    target: { x: 0, y: 0, z: 0 }},
+                    'B_英东': {meshes: outerWraps.filter(b=>{return b.name.match(/(英东)/)!==null}),step: 0.035, 
+                    position: { x: 20, y: 40, z: 80 }, 
+                    target: { x: 0, y: 0, z: 0 }},
+                    'B_科教': {meshes: outerWraps.filter(b=>{return b.name.match(/(科教)/)!==null}),step: 0.035, 
+                    position: { x: 20, y: 40, z: 90 }, 
+                    target: { x: 0, y: 0, z: 0 }}
                 }
             }
-
-            
-            
             
             var option = map[name]
-            
-            cameraAnim(camera, option.position, option.target)
+           
+            // cameraAnim(camera, option.position, option.target)
             if(currentBuilding == null){    // 没有其他被选中建筑
-                
+                cameraAnim(camera, option.position, option.target)
                 growAnim(option.meshes, name, option.step)
             }else if(currentBuilding == name){ // 再次选中本建筑
           
                 currentBuilding = null
                 fallAnim(option.meshes, option.step)
             }else{// 当前由其他被选中建筑
-                
+                cameraAnim(camera, option.position, option.target)
                 fallAnim(map[currentBuilding].meshes, map[currentBuilding].step)
                 currentBuilding = name
                 growAnim(option.meshes, name, option.step)
@@ -788,8 +855,10 @@
     function cameraAnim(camera, position, target) {
         if(cameraTween !== null){
             cameraTween.stop()
+            cameraTween = null
         }
-       
+        // cameraMoving = true
+        console.log(target)
         cameraTween = tween({
             from: {
                 x: camera.position.x,
@@ -814,13 +883,14 @@
                 camera.position.x = o.x
                 camera.position.y = o.y
                 camera.position.z = o.z
+                // camera.lookAt(0, 0, 0)
+                camera.userData.target.x = o.tx,
+                camera.userData.target.y = o.ty,
+                camera.userData.target.z = o.tz
                 camera.lookAt(o.tx, o.ty, o.tz)
             },
             complete: ()=>{
-               
-                camera.userData.target.x = target.x
-                camera.userData.target.y = target.y
-                camera.userData.target.z = target.z
+                // cameraMoving = false
             }
         })
     }
