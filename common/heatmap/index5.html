@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+ <html>
+ <head>
+     <meta charset="UTF-8">
+     <title></title>
+     <style>
+    </style>
+ </head>
+ <body>
+ </body>
+<script src="./heatmap.js"></script>
+<script>
+    var wrap = document.createElement('div')
+    wrap.style.width = '600px'
+    wrap.style.height = '300px'
+    document.body.appendChild(wrap)
+    var heatmapInstance = h337.create({
+        container: wrap
+    })
+    
+    var points = []
+    var max = 0
+    var width = 600
+    var height = 300
+    var len = 200;
+    while (len--) {
+        var val = Math.floor(Math.random()*100)
+        max = Math.max(max, val)
+        var point = {
+            x: Math.floor(Math.random()*width),
+            y: Math.floor(Math.random()*height),
+            value: val
+        }
+        points.push(point)
+    }
+    var data = {
+        max: max,
+        data: points
+    };
+
+    heatmapInstance.setData(data); //数据绑定还可以使用
+ </script>
+ </html>

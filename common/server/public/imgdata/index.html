@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+</head>
+<body>
+    
+</body>
+<script>
+    var canvas = document.createElement('canvas');
+    var image = new Image()
+    image.crossOrigin = ''
+    // image.setAttribute('crossOrigin', 'anonymous');
+    var width = 600
+    var height = 300
+    image.src = './bottom.jpg';
+    image.onload = () => {
+        canvas.width = width;
+        canvas.height = height;
+        var ctx = canvas.getContext('2d');
+        ctx.drawImage(image, 0, 0, width, height);
+        var maskInex = []
+        var maskData = ctx.getImageData(0, 0, width, height).data
+        for (let i = 0; i < height; i++) {
+            for (let j = 0; j < width; j++) {
+                if (maskData[(i * width + j) * 4] == 0) { // 判断
+                    maskInex.push({  x: j, y: height - i })
+                }
+            }
+        }
+        // console.log(maskInex)
+        
+        var cut = 600, step = Math.floor(maskInex.length / cut)
+        var cutPoint = []
+        var max = 100
+        for(var i = 0;i < maskInex.length;i += step) {
+            // maskInex[i] = {"x":230,"y":167}
+            let item = maskInex[i]
+            let value = max * Math.random()*0.8
+            // value = value < 0 ? 0 : value
+            // value = value > 100 ? 100 : value
+            item.value = value
+            cutPoint.push(maskInex[i])
+        }
+        console.log(JSON.stringify(cutPoint))
+    }
+</script>
+</html>

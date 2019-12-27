@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>three.js webgl - postprocessing - unreal bloom</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<style>
+			body {
+				color: #fff;
+				font-family:Monospace;
+				font-size:13px;
+				text-align:center;
+				background-color: #fff;
+				margin: 0px;
+				overflow: hidden;
+			}
+			#info {
+				position: absolute;
+				top: 0px;
+				width: 100%;
+				padding: 5px;
+			}
+			#info p {
+				max-width: 600px;
+				margin-left: auto;
+				margin-right: auto;
+				padding: 0 2em;
+			}
+			a {
+				color: #2983ff;
+			}
+		</style>
+	</head>
+	<body>
+		<div id="container"></div>
+
+        <script src="../js/three.js"></script>
+        <script src="../js/controls/OrbitControls.js"></script>
+        <script src="../js/postprocessing/EffectComposer.js"></script>
+        <script src="../js/postprocessing/RenderPass.js"></script>
+        <script src="../js/postprocessing/ShaderPass.js"></script>
+        <script src="../js/shaders/CopyShader.js"></script>
+        <script src="../js/shaders/LuminosityHighPassShader.js"></script>
+		<script src="../js/postprocessing/UnrealBloomPass.js"></script>
+		<script>
+			var scene, camera, controls, pointLight
+			var composer, renderer
+			var params = {
+				exposure: 1,
+				bloomStrength: 0.5,
+				bloomThreshold: 0,
+				bloomRadius: 1
+			}
+			var container = document.getElementById( 'container' )
+			
+			renderer = new THREE.WebGLRenderer( { antialias: true } )
+			renderer.setPixelRatio( window.devicePixelRatio )
+			renderer.setSize( window.innerWidth, window.innerHeight )
+			renderer.toneMapping = THREE.ReinhardToneMapping
+			container.appendChild( renderer.domElement )
+
+			scene = new THREE.Scene();
+
+			camera = new THREE.PerspectiveCamera( 40, window.innerWidth / window.innerHeight, 1, 100 );
+			camera.position.set( - 5, 5, - 3.5 );
+			scene.add( camera );
+
+			controls = new THREE.OrbitControls( camera, renderer.domElement );
+			controls.maxPolarAngle = Math.PI * 0.5;
+			controls.minDistance = 1;
+			controls.maxDistance = 10;
+
+            var directionalLight = new THREE.DirectionalLight(0xffffff, 0.9);
+            directionalLight.position.set(400, 200, 300);
+            scene.add(directionalLight);
+
+			scene.add( new THREE.AmbientLight( 0x404040 ) );
+			pointLight = new THREE.PointLight( 0xffffff, 1 );
+			camera.add( pointLight );
+
+			var renderScene = new THREE.RenderPass( scene, camera );
+			var bloomPass = new THREE.UnrealBloomPass( new THREE.Vector2( window.innerWidth, window.innerHeight ), 1.5, 0.4, 0.85 );
+			bloomPass.threshold = params.bloomThreshold;
+			bloomPass.strength = params.bloomStrength;
+			bloomPass.radius = params.bloomRadius;
+			bloomPass.renderToScreen = true
+			composer = new THREE.EffectComposer( renderer );
+			composer.setSize( window.innerWidth, window.innerHeight );
+			composer.addPass( renderScene );
+			composer.addPass( bloomPass );
+
+            animate();
+            var sphereGeometry = new THREE.SphereGeometry(2,12,12)
+            var sphereMat = new THREE.MeshPhongMaterial()
+            scene.add(new THREE.Mesh(sphereGeometry,sphereMat))
+
+			window.onresize = function () {
+				var width = window.innerWidth;
+				var height = window.innerHeight;
+				camera.aspect = width / height;
+				camera.updateProjectionMatrix();
+				renderer.setSize( width, height );
+				composer.setSize( width, height );
+			};
+			function animate() {
+				requestAnimationFrame( animate );
+				renderer.render(scene, camera)
+				composer.render()
+			}
+		</script>
+	</body>
+</html>

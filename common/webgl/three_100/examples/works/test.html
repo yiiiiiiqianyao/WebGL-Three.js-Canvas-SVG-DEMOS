@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title></title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<style>
+			body {
+				color: #fff;
+				font-family:Monospace;
+				font-size:13px;
+				text-align:center;
+				background-color: #fff;
+				margin: 0px;
+				overflow: hidden;
+			}
+		</style>
+    </head>
+    <script type="x-shader/x-vertex" id="vertexshader">
+        varying vec2 vUv;
+        void main() {
+            vUv = uv;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+        }
+    </script>
+
+    <script type="x-shader/x-fragment" id="fragmentshader">
+        uniform sampler2D baseTexture;
+        uniform sampler2D bloomTexture;
+        varying vec2 vUv;
+        vec4 getTexture( sampler2D texelToLinearTexture ) {
+            return mapTexelToLinear( texture2D( texelToLinearTexture , vUv ) );
+        }
+        void main() {
+            gl_FragColor = ( getTexture( baseTexture ) + getTexture( bloomTexture ) );
+        }
+    </script>
+	<body>
+		<div id="container"></div>
+		<div id="info">
+		</div>
+        <script src="../js/three.js"></script>
+        <script src="../js/controls/OrbitControls.js"></script>
+        <script src="../js/postprocessing/EffectComposer.js"></script>
+        <script src="../js/postprocessing/RenderPass.js"></script>
+        <script src="../js/postprocessing/ShaderPass.js"></script>
+        <script src="../js/shaders/CopyShader.js"></script>
+        <script src="../js/shaders/LuminosityHighPassShader.js"></script>
+		<script src="../js/postprocessing/UnrealBloomPass.js"></script>
+		<!-- <script src="../js/shaders//FXAAShader.js"></script> -->
+		<script>
+            var ENTIRE_SCENE = 0, BLOOM_SCENE = 1
+            var bloomLayer = new THREE.Layers()
+			bloomLayer.set( BLOOM_SCENE )
+			
+			var darkMaterial = new THREE.MeshBasicMaterial( { color: "black" } )
+        	var materials = {}
+            
+			var scene, camera, controls
+			var composer, renderer, finalComposer, cube
+			var params = {
+				exposure: 1,
+				bloomStrength: 5,
+				bloomThreshold: 0,
+				bloomRadius: 0
+			}
+
+			var container = document.getElementById( 'container' )
+			renderer = new THREE.WebGLRenderer( { antialias: true,  alpha: true } )
+			renderer.setClearColor(0xffff00, 0.0)
+			renderer.setPixelRatio( window.devicePixelRatio )
+			renderer.setSize( window.innerWidth, window.innerHeight )
+			renderer.toneMapping = THREE.ReinhardToneMapping
+			container.appendChild( renderer.domElement )
+
+			scene = new THREE.Scene();
+
+			camera = new THREE.PerspectiveCamera( 40, window.innerWidth / window.innerHeight, 1, 100 );
+			camera.position.set( 20, 20, 20 )
+
+			controls = new THREE.OrbitControls( camera, renderer.domElement )
+
+			var renderScene = new THREE.RenderPass( scene, camera )
+			var bloomPass = new THREE.UnrealBloomPass( new THREE.Vector2( window.innerWidth, window.innerHeight ), 1.5, 0.4, 0.85 );
+			bloomPass.threshold = params.bloomThreshold
+			bloomPass.strength = params.bloomStrength
+			bloomPass.radius = params.bloomRadius
+            // bloomPass.renderToScreen = true
+            composer = new THREE.EffectComposer( renderer )
+			composer.setSize( window.innerWidth, window.innerHeight )
+			composer.addPass( renderScene )
+            composer.addPass( bloomPass )
+
+            
+            var finalPass = new THREE.ShaderPass(
+				new THREE.ShaderMaterial( {
+					uniforms: {
+						baseTexture: { value: null },
+						bloomTexture: { value: composer.readBuffer.texture }
+					},
+					vertexShader: document.getElementById( 'vertexshader' ).textContent,
+                    fragmentShader: document.getElementById( 'fragmentshader' ).textContent,
+					defines: {}
+				} ), "baseTexture"
+			);
+            finalPass.needsSwap = true
+                finalPass.renderToScreen = true
+            finalComposer = new THREE.EffectComposer( renderer )
+                
+            finalComposer.addPass( renderScene )
+            finalComposer.addPass( finalPass )
+			
+		
+            let sphereGeometry = new THREE.SphereGeometry(5,12,12)
+			let sphereMat = new THREE.MeshBasicMaterial()
+			let sphereMat2 = new THREE.MeshBasicMaterial({color:0xff0000})
+
+            let sphere1 = new THREE.Mesh(sphereGeometry,sphereMat)
+			sphere1.position.x = -10
+			
+            let sphere2 = new THREE.Mesh(sphereGeometry,sphereMat2)
+			sphere2.position.x = 10
+
+			cube = new THREE.Mesh(new THREE.BoxBufferGeometry( 2, 10, 1 ), sphereMat2)
+			cube.position.z = 5
+			// cube.layers.enable( BLOOM_SCENE )
+			scene.add(cube)
+			sphere2.layers.enable( BLOOM_SCENE )
+			
+            // scene.add(sphere1)
+            scene.add(sphere2)
+			animate()
+			window.onresize = function () {
+				var width = window.innerWidth
+				var height = window.innerHeight
+				camera.aspect = width / height
+				camera.updateProjectionMatrix()
+				renderer.setSize( width, height )
+                composer.setSize( width, height )
+				finalComposer.setSize( width, height )
+				
+			}
+			
+			function animate() {
+				requestAnimationFrame( animate )
+                // renderer.render(scene, camera)
+                darkenNonBloomed(cube)
+                darkenNonBloomed(sphere2)
+                composer.render()
+                restoreMaterial(cube)
+                restoreMaterial(sphere2)
+                // renderer.render(scene, camera)
+                finalComposer.render()
+			}
+
+			function darkenNonBloomed( obj ) {
+				if ( obj.isMesh && bloomLayer.test( obj.layers ) === false ) {
+					materials[ obj.uuid ] = obj.material;
+					obj.material = darkMaterial;
+				}
+			}
+			function restoreMaterial( obj ) {
+				if ( materials[ obj.uuid ] ) {
+					obj.material = materials[ obj.uuid ];
+					delete materials[ obj.uuid ];
+				}
+			}
+		</script>
+	</body>
+</html>

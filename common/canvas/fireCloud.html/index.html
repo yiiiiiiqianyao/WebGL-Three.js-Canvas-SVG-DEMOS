@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+</head>
+<body style="background-color: #000000;">
+    <canvas id="can" width="800" height="600" style="display: block;margin: 5% auto;border: 1px solid;"></canvas>
+</body>
+<script src="./perlin.js"></script>
+<script>
+    let canvas = document.getElementById('can')
+    let ctx = canvas.getContext('2d')
+
+    var pn = new Perlin('pn')
+    var count = 0
+    var len = 200
+    var width = 800/len
+    var height = 600/len
+
+
+    var pArr = []
+    animp()
+    function animp(){
+    // //     ctx.clearRect(0,0,800,600)
+    // //     count+=0.01
+        for(var y = 0;y < len;y++){
+            for(var x = 0;x < len;x++){
+                var g = pn.noise((x + count)/30,(y+count)/30,count*2)
+                pArr.push(g)
+    // //             ctx.globalAlpha = g
+    // //             ctx.fillStyle = `rgb(255,${g*200},${g*50})`
+    // //             ctx.fillRect(x *width/2, y * height/2, width, height)
+    // //             ctx.globalAlpha = 1
+            }
+        }
+    // //     requestAnimationFrame(anim)
+    }
+    
+
+
+    // let width = 2
+    // 200 * 200
+    // 0 - 255
+    // red -> yellow rgb(255,0,0) -> rgb(255,255,0)   numerical/100
+    let baseData = []
+    // let baseLength = 4000
+    // let len = 300
+    // 模拟生成高低色差
+    let colorLight = [] // max = 50
+    let lightNum = 100
+    let lightCircleRadius = 50
+    for(var m = 0;m < lightNum;m++){
+        colorLight.push({
+            x: Math.floor(Math.random()*600),
+            y: Math.floor(Math.random()*600)
+        })
+    }
+    //
+    // console.log(pArr)
+    for(var y = 0;y < len;y++){
+        for (var x =0;x < len;x++){
+            var count = 20
+            // for(var n = 0;n < lightNum; n++){
+            //     var cutX = Math.abs(x*width - colorLight[n].x)
+            //     var cutY = Math.abs(y*height - colorLight[n].y)
+            //     if( Math.sqrt(cutX*cutX+cutY*cutY) < lightCircleRadius){
+            //         count = 20 + (lightCircleRadius*1.5 - Math.sqrt(cutX*cutX+cutY*cutY))
+            //         break;
+            //     }
+            // }
+            
+            var numerical =  count + Math.floor(Math.random()*(100-count))
+            var g = 255*(numerical/100)
+            if(pArr[y*len + x]*255 > 100){
+                var color = `rgb(255,255,0)`
+                // ctx.globalAlpha = (numerical/100)/2
+                ctx.fillStyle = color
+                ctx.fillRect(x *width, y * height, width, height)
+                // ctx.globalAlpha = 1
+                // baseData.push({
+                //     numerical, color,x:x *width, y:y * width,  g
+                // })
+            }
+        }
+    }
+
+
+
+    // let tPointNum = 200
+    // let tParr = []
+    // while(tParr.length < 2000){
+    //     var x = Math.floor(Math.random()*200)
+    //     var y = Math.floor(Math.random()*200)
+    //     if(255 - baseData[x*200+y].g > 120){
+    //         tParr.push({
+    //             x:x*width, y:y*width, r: Math.floor(Math.random()*25)
+    //         })
+    //     }
+    // }
+    // for(var t = 0;t < tPointNum;t++){
+    //     tParr.push({
+    //         x: Math.floor(Math.random()*600),
+    //         y: Math.floor(Math.random()*600),
+    //         r: Math.floor(Math.random()*50)
+    //     })
+    // }
+
+    // anim()
+    // function anim(){
+    //     ctx.clearRect(0,0,600,600)
+    //     for(var y =0;y <200;y++){
+    //         for(var x =0;x < 200; x++){
+    //             var point = baseData[ y*200 + x ]
+                
+    //             for(var k = 0;k < tParr.length; k++){
+    //                 var cutX = Math.abs(tParr[k].x - point.x)
+    //                 var cutY = Math.abs(tParr[k].y - point.y)
+    //                 var cut = Math.sqrt(cutX*cutX+cutY*cutY)
+    //                 if( cut < tParr[k].r){
+    //                     ctx.globalAlpha = cut/tParr[k].r
+    //                     break
+    //                 }
+    //             }
+    //             ctx.fillStyle = `rgb(200,${point.g},100)`
+    //             ctx.fillRect(point.x, point.y, width, width)
+    //             ctx.globalAlpha = 1
+    //         }
+    //     }
+    //     // requestAnimationFrame(anim)
+    // }
+
+</script>
+</html>

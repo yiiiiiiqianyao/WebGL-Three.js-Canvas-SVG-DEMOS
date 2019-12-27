@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title></title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<style>
+			body {
+				color: #fff;
+				font-family:Monospace;
+				font-size:13px;
+				text-align:center;
+				background-color: #fff;
+				margin: 0px;
+				overflow: hidden;
+			}
+		</style>
+    </head>
+    <script id="simpleVertex" type="x-shader/x-vertex">
+        varying vec2 vUv;
+      
+        void main() {
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+    </script>
+      
+    <script id="horizontalBlurFrag" type="x-shader/x-fragment">
+        struct ScreenBoundingBox
+        {
+            vec2 TopRight;
+            vec2 BottomLeft;
+        };
+    
+        uniform ScreenBoundingBox screenBoundingBox;
+    
+        uniform sampler2D tDiffuse;
+        uniform float h;
+    
+        varying vec2 vUv;
+    
+        void main() {
+            // If the fragment is not within the bounding box, don't contribute to the blur output.
+            if(!all(greaterThan(vUv, screenBoundingBox.BottomLeft)) || !all(lessThan(vUv, screenBoundingBox.TopRight))) {
+                gl_FragColor = vec4(0.0, 0.0, 0.0, 0.0 );
+                return;
+            }
+    
+            vec4 sum = vec4( 0.0 );
+    
+            vec4 originalSample = texture2D( tDiffuse, vUv );
+    
+            sum += texture2D( tDiffuse, vec2( vUv.x - 3.2307 * h, vUv.y ) ) * 0.0702;
+            sum += texture2D( tDiffuse, vec2( vUv.x - 1.3846 * h, vUv.y ) ) * 0.3162;
+            sum += originalSample * 0.2270270270;
+            sum += texture2D( tDiffuse, vec2( vUv.x + 1.3846 * h, vUv.y ) ) * 0.3162;
+            sum += texture2D( tDiffuse, vec2( vUv.x + 3.2307 * h, vUv.y ) ) * 0.0702;
+    
+            gl_FragColor = sum;
+        }
+    </script>
+      
+    <script id="verticalBlurFrag" type="x-shader/x-fragment">
+        struct ScreenBoundingBox
+        {
+            vec2 TopRight;
+            vec2 BottomLeft;
+        };
+    
+        uniform ScreenBoundingBox screenBoundingBox;
+    
+        uniform sampler2D tDiffuse;
+        uniform float v;
+    
+        varying vec2 vUv;
+    
+        void main() {
+            // If the fragment is not within the bounding box, don't contribute to the blur output.
+            if(!all(greaterThan(vUv, screenBoundingBox.BottomLeft)) || !all(lessThan(vUv, screenBoundingBox.TopRight))) {
+                gl_FragColor = vec4(0.0, 0.0, 0.0, 0.0 );
+                return;
+            }
+    
+            vec4 sum = vec4( 0.0 );
+    
+            vec4 originalSample = texture2D( tDiffuse, vUv );
+    
+            sum += texture2D( tDiffuse, vec2( vUv.x, vUv.y - 3.2307 * v ) ) * 0.0702;
+            sum += texture2D( tDiffuse, vec2( vUv.x, vUv.y - 1.3846 * v ) ) * 0.3162;
+            sum += originalSample * 0.2270270270;
+            sum += texture2D( tDiffuse, vec2( vUv.x, vUv.y + 1.3846 * v ) ) * 0.3162;
+            sum += texture2D( tDiffuse, vec2( vUv.x, vUv.y + 3.2307 * v ) ) * 0.0702;
+    
+            gl_FragColor = sum;
+        }
+    </script>
+      
+    <script id="overlayFrag" type="x-shader/x-fragment">
+        uniform sampler2D tDiffuse;
+        uniform sampler2D tOverlay;
+    
+        varying vec2 vUv;
+    
+        void main() {
+            vec4 regularScene = texture2D( tDiffuse, vUv );
+            vec4 overlay = texture2D( tOverlay, vUv );
+    
+            float blurOpacity = 0.5;
+    
+            overlay.a *= blurOpacity;
+            gl_FragColor = vec4(regularScene.rgb * (1.0 - overlay.a) +  overlay.rgb * overlay.a, 1.0);
+        }
+    </script>
+	<body>
+		<div id="container"></div>
+		<div id="info">
+		</div>
+        <script src="../js/three.js"></script>
+        <script src="../js/controls/OrbitControls.js"></script>
+        <script src="../js/postprocessing/EffectComposer.js"></script>
+        <script src="../js/postprocessing/RenderPass.js"></script>
+        <script src="../js/postprocessing/ShaderPass.js"></script>
+        <script src="../js/shaders/CopyShader.js"></script>
+        <script src="../js/shaders/LuminosityHighPassShader.js"></script>
+        <script src="../js/postprocessing/UnrealBloomPass.js"></script>
+        <script src="../js/postprocessing/MaskPass.js"></script>
+		<!-- <script src="../js/shaders//FXAAShader.js"></script> -->
+		<script>
+        var camera = null;
+        var renderer = null;
+        var scene = null;
+        var blurScene = null;
+        var controls = null;
+        var blurComposer = null;
+        var sceneComposer = null;
+        var glowCube = null;
+
+        var screenBoundingBox = new ScreenBoundingBox(new THREE.Vector2(), new THREE.Vector2());
+        var glowCubeBoundingBoxVertices = null;
+
+        var container = document.getElementById( 'container' )
+        renderer = new THREE.WebGLRenderer( { antialias: true,  alpha: true } )
+        renderer.setClearColor(0xffff00, 0.0)
+        renderer.setPixelRatio( window.devicePixelRatio )
+        renderer.setSize( window.innerWidth, window.innerHeight )
+        renderer.toneMapping = THREE.ReinhardToneMapping
+        container.appendChild( renderer.domElement )
+
+        scene = new THREE.Scene();
+
+        camera = new THREE.PerspectiveCamera( 40, window.innerWidth / window.innerHeight, 1, 100 );
+        camera.position.set( 20, 20, 20 )
+
+        controls = new THREE.OrbitControls( camera, renderer.domElement )
+
+
+        // var VBlurShader = {
+        //     uniforms: {
+        //         tDiffuse: {
+        //             type: "t",
+        //             value: null
+        //         },
+        //         v: {
+        //             type: "f",
+        //             value: blurriness / v
+        //         },
+        //         screenBoundingBox: {
+        //             value: null
+        //         }
+        //     },
+        //     vertexShader: document.getElementById( 'simpleVertex' ).textContent,
+        //     fragmentShader: document.getElementById( 'verticalBlurFrag' ).textContent
+        // };
+
+
+
+        var renderScene = new THREE.RenderPass( scene, camera )
+        var bloomPass = new THREE.UnrealBloomPass( new THREE.Vector2( window.innerWidth, window.innerHeight ), 1.5, 0.4, 0.85 );
+        bloomPass.threshold = params.bloomThreshold
+        bloomPass.strength = params.bloomStrength
+        bloomPass.radius = params.bloomRadius
+        // bloomPass.renderToScreen = true
+        composer = new THREE.EffectComposer( renderer )
+        composer.setSize( window.innerWidth, window.innerHeight )
+        composer.addPass( renderScene )
+        composer.addPass( bloomPass )
+
+      
+		
+        animate()
+        window.onresize = function () {
+            var width = window.innerWidth
+            var height = window.innerHeight
+            camera.aspect = width / height
+            camera.updateProjectionMatrix()
+            renderer.setSize( width, height )
+            composer.setSize( width, height )
+            finalComposer.setSize( width, height )
+            
+        }
+        
+        function animate() {
+            requestAnimationFrame( animate )
+            // renderer.render(scene, camera)
+            darkenNonBloomed(cube)
+            darkenNonBloomed(sphere2)
+            composer.render()
+            restoreMaterial(cube)
+            restoreMaterial(sphere2)
+            // renderer.render(scene, camera)
+            finalComposer.render()
+        }
+
+        function darkenNonBloomed( obj ) {
+            if ( obj.isMesh && bloomLayer.test( obj.layers ) === false ) {
+                materials[ obj.uuid ] = obj.material;
+                obj.material = darkMaterial;
+            }
+        }
+        function restoreMaterial( obj ) {
+            if ( materials[ obj.uuid ] ) {
+                obj.material = materials[ obj.uuid ];
+                delete materials[ obj.uuid ];
+            }
+        }
+</script>
+</body>
+</html>

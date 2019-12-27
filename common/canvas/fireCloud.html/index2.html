@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+</head>
+<body style="background-color: #000000;">
+<body>
+    <canvas id="can" width="800" height="600" style="display: block;margin: 5% auto;border: 1px solid;"></canvas>
+</body>
+<script>
+    let canvas = document.getElementById('can')
+    let ctx = canvas.getContext('2d')
+    let width = canvas.width
+    let height = canvas.height
+
+    let speed = 0.1
+    let maxRadius = 16
+
+    let timer = null
+    let pointNum = 500
+    let globalAlpha = 0.5
+    ctx.globalAlpha = globalAlpha
+    // console.log(width, height)
+    let points = [
+        {
+            x: 100,
+            y: 100,
+            r: 0,
+            u: true, // u: true 变大
+            s: 0.1 + speed*Math.random(),
+            br: maxRadius/2 + (maxRadius/2)*Math.random()
+        }
+    ]
+    var newPoints = []
+
+    while(points.length < pointNum){
+        points.push({
+            x: width*Math.random(),
+            y: height * Math.random(),
+            r: 0,
+            u: true,
+            s: 0.1 + speed*Math.random(),
+            br: maxRadius/2 + (maxRadius/2)*Math.random()
+        })
+    }
+    let lessThanZero = 0
+    anim()
+    function anim(){
+        ctx.clearRect(0, 0, width, height)
+        if(newPoints.length > points.length){
+            points = [...points,...newPoints.splice(points.length,newPoints.length - points.length)]
+        }
+        drawAllPoints(points)
+        timer = requestAnimationFrame(anim)
+    }
+
+    function drawAllPoints(points){
+        // console.log(lessThanZero)
+        lessThanZero = 0
+        for(var i =0; i < points.length; i++){
+            if(points[i].r > points[i].br || points[i].r < -points[i].br/2) points[i].u = !points[i].u
+            if(points[i].r < 0){
+                lessThanZero++
+                if(newPoints.length > 0){
+                    var p = newPoints.splice(0,1)
+                    points[i] = {...p[0]}
+                    // console.log(newPoints.length)
+                }
+            }
+            drawPoint(ctx, points[i])
+        }
+    }
+
+    function drawPoint(ctx, point){
+        // if(point.s < 0.1)console.log('----')
+        ctx.beginPath()
+        if(point.u){ // up
+            point.r +=  point.s//(point.s + point.s*(1 - point.r / point.br))
+        }else{ // down
+            point.r -= point.s//(point.s + point.s*(1 - Math.abs(point.r) / point.br))
+        }
+
+        if(point.r > 0){
+            var g = ctx.createRadialGradient(point.x, point.y, 0, point.x, point.y, point.r)
+            g.addColorStop(0,"#FF6600");
+            g.addColorStop(0.5,"#FFFF00");
+            g.addColorStop(1,"transparent");
+            ctx.fillStyle = g
+            ctx.arc(point.x, point.y, point.r, 0, 2*Math.PI)
+            ctx.fill()
+        }
+       
+    }
+    
+    setInterval(function(){
+        // console.log('------')
+        getNewData()
+    },3000)
+    
+    function getNewData(){
+        newPoints = []
+        var newPointNum = Math.round(Math.random()*1000)
+        // var newPointNum = 500
+        // var newPointNum = 600
+        while(newPoints.length < newPointNum){
+            newPoints.push({
+                x: width*Math.random(),
+                y: height * Math.random(),
+                r: 0,
+                u: true,
+                s: 0.1 + speed*Math.random(),
+                br: maxRadius/2 + (maxRadius/2)*Math.random()
+            })
+        }
+        // replacePoints(newPointNum, newPoints)
+    }
+
+    function replacePoints(newPointNum, newPoints){
+        if(newPointNum > pointNum){
+            var cut = newPointNum - pointNum
+            var p1 = newPoints.splice(0,cut)
+            
+        }else{
+            // r()
+            function r(){
+                console.log(newPoints.length)
+                for(var i =0;i < points.length;i++){
+                    if(points[i].r < 0){
+                        points[i] = {...newPoints[0]}
+                        newPoints.splice(0,1)
+                    }
+                }
+                if(newPoints.length > 0){
+                    r()
+                }
+            }
+            // while(newPoints.length > 0){
+                // var count = 0
+                // for(var i =0;i < points.length;i++){
+                //     if(points[i].r < 0){
+                //         points[i] = newPoints[0]
+                //         newPoints.splice(0,1)
+                //     }
+                // }
+                // newPoints.splice(0,count)
+            // }
+            
+        }
+    }
+
+</script>
+</html>
