@@ -1,4 +1,4 @@
-# webGL - Three.js - SVG - Canvas Demos  
+# WebGL - Three.js - SVG - Canvas Demos  
 
 
 DEMO ADDRESS(old): https://2912401452.github.io/  
