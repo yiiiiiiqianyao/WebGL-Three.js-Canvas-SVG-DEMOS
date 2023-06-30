@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <link rel="shortcut icon" href="../favicon.ico" />
+    <link rel="bookmark" href="../favicon.ico" />
+    <title>Document</title>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+      }
+    </style>
+    <script src="../src/three.js"></script>
+    <script src="../src/controller/OrbitControls.js"></script>
+    <script src="../src/libs/stats.min.js"></script>
+  </head>
+  <body></body>
+  <script type="module">
+    var scene, camera, renderer, clock, controller, stats
+    var shader_material
+
+    const center = [108.92821356654167, 34.5393853360955] // 大地中心
+    const centerFlat = [215440491, 106744817] // 平面坐标中心
+    const zoomScale = 1.935 // 模拟
+    const zooms = {
+      3: 65315022,
+      4: 33488898,
+      5: 17177491,
+      6: 8814542,
+      7: 4465561,
+      8: 2293020,
+      9: 1178010,
+      10: 605497,
+      11: 307019,
+      12: 157938,
+      13: 81295,
+      14: 41871,
+      15: 21254,
+      16: 10958,
+      17: 5654,
+      18: 2919,
+      // mock
+      19: 2919 / zoomScale,
+      20: 2919 / zoomScale / zoomScale,
+      21: 2919 / zoomScale / zoomScale / zoomScale,
+      22: 2919 / zoomScale / zoomScale / zoomScale / zoomScale,
+      23: 2919 / zoomScale / zoomScale / zoomScale / zoomScale / zoomScale,
+      24: 2919 / zoomScale / zoomScale / zoomScale / zoomScale / zoomScale / zoomScale,
+      25: 2919 / zoomScale / zoomScale / zoomScale / zoomScale / zoomScale / zoomScale / zoomScale,
+      26: 2919 / zoomScale / zoomScale / zoomScale / zoomScale / zoomScale / zoomScale / zoomScale/ zoomScale,
+      27: 2919 / zoomScale / zoomScale / zoomScale / zoomScale / zoomScale / zoomScale / zoomScale/ zoomScale / zoomScale,
+      28: 2919 / zoomScale / zoomScale / zoomScale / zoomScale / zoomScale / zoomScale / zoomScale/ zoomScale / zoomScale / zoomScale,
+      29: 2919 / zoomScale / zoomScale / zoomScale / zoomScale / zoomScale / zoomScale / zoomScale/ zoomScale / zoomScale / zoomScale / zoomScale,
+      30: 2919 / zoomScale / zoomScale / zoomScale / zoomScale / zoomScale / zoomScale / zoomScale/ zoomScale / zoomScale / zoomScale / zoomScale / zoomScale,
+    }
+ 
+    init();
+    animate();
+
+    // - Functions -
+    function init() {
+      scene = new THREE.Scene();
+      clock = new THREE.Clock();
+      camera = new THREE.PerspectiveCamera( 53.285074947166564, window.innerWidth / window.innerHeight, 0.1, Math.pow(2919, 20));
+
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+      renderer.setClearColor(0xbfd1e5)
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(window.devicePixelRatio)
+  
+      stats = new Stats()
+      document.body.appendChild( stats.dom );
+
+      var material = new THREE.SpriteMaterial( { color: 0xff0000, sizeAttenuation: false} );
+      var sprite = new THREE.Sprite( material );
+  
+      var scale= 0.05;
+      // var scale= 0.005;
+      sprite.scale.set(scale, scale, scale)
+      sprite.position.set(0, 0, 0)
+      scene.add(sprite)
+      // lng -180  180 lat -85 85
+
+      let minX = Infinity, maxX = -Infinity;; 
+      for(let i = -180; i <= 180; i+= 5) {
+        for(let j = -85; j <= 85; j+= 5) {
+          var sp = sprite.clone();
+          const xy = aProjectFlat([i, j]);
+          minX = Math.min(xy[0], minX);
+          maxX = Math.max(xy[0], minX)
+
+          sp.position.set(xy[0] + Math.PI/2, xy[1], 0);
+          scene.add(sp)
+        }
+      }
+      console.log('minX', minX)
+      console.log('maxX', maxX)
+    
+      const zoom = 30
+      const cameraZ = zooms[zoom];
+      const cameraXY = aProjectFlat([180, -85]);
+
+      controller = new THREE.OrbitControls(camera, renderer.domElement);
+      controller.enableRotate = false
+      // controller.enableZoom = false
+      camera.position.set(0, 0, 10)
+      camera.position.set(cameraXY[0], cameraXY[1], cameraZ)
+      controller.target.set(cameraXY[0], cameraXY[1], 0)
+
+      var material2 = new THREE.SpriteMaterial( { color: 0x00ff00, sizeAttenuation: false} );
+      const nsp = new THREE.Sprite( material2 );
+      nsp.scale.set(scale, scale, scale)
+      const offset = 5 / zoom;
+      nsp.position.set(cameraXY[0] + offset, cameraXY[1] + offset, 0);
+      scene.add(nsp);
+      
+      console.log(camera.position)
+
+      document.body.appendChild(renderer.domElement);
+      window.onresize = onResize;
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      renderer.render(scene, camera);
+      stats.update();
+      
+      controller.update(clock.getDelta());
+    }
+
+    function onResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    function unProjectFlat(px) {
+      const a = 0.5 / Math.PI;
+      const b = 0.5;
+      const c = -0.5 / Math.PI;
+      let d = 0.5;
+      const scale = 256 << 20;
+      let [x, y] = px;
+      x = (x / scale - b) / a;
+      y = (y / scale - d) / c;
+      y = (Math.atan(Math.pow(Math.E, y)) - Math.PI / 4) * 2;
+      d = Math.PI / 180;
+      const lat = y / d;
+      const lng = x / d;
+      return [lng, lat];
+    }
+
+    function aProjectFlat(lnglat) {
+      const maxs = 85.0511287798;
+      const lat = Math.max(Math.min(maxs, lnglat[1]), -maxs);
+      const scale = 256 << 20;
+      let d = Math.PI / 180;
+      let x = lnglat[0] * d;
+      let y = lat * d;
+      y = Math.log(Math.tan(Math.PI / 4 + y / 2));
+
+      const a = 0.5 / Math.PI;
+      const b = 0.5;
+      const c = -0.5 / Math.PI;
+      d = 0.5;
+      x = scale * (a * x + b);
+      y = scale * (c * y + d);
+      return [Math.floor(x), Math.floor(y)];
+    }
+  </script>
+</html>

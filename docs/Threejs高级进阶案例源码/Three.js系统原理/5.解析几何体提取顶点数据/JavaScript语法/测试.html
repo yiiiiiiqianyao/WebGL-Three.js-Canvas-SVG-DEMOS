@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+
+<head>
+  <meta charset="utf-8">
+  <title></title>
+  <!--引入three.js三维引擎-->
+  <script src="http://www.yanhuangxueyuan.com/versions/threejsR92/build/three.js"></script>
+</head>
+
+<body>
+
+  <script>
+// WeakMap的作用是设置键值对，key可以是一个对象，
+// 如果value也是一个对象，就可以把两个对象关联起来
+
+var buffers = new WeakMap();
+
+var BufferGeometry = new THREE.BoxBufferGeometry(100,100,100)
+// 对象1作为key
+var posAttribute = BufferGeometry.attributes.position
+
+var obj = {
+  array: [0,1,10],
+  type: 'WebGL',
+}
+
+// 通过set方法把一个对象obj和对象posAttribute关联起来
+
+buffers.set( posAttribute, obj);
+buffers.set( posAttribute, 'fsdfsd');
+
+console.log(buffers.get(posAttribute));
+
+console.log(buffers);
+
+  </script>
+
+</body>
+
+</html>

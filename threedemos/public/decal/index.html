@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <style>
+        body{
+            margin: 0;
+            overflow: hidden;
+        }
+    </style>
+    <script src="../src/three.js"></script>
+    <script src="../src/controller/OrbitControls.js"></script>
+    <script src="./OBJLoader.js"></script>
+    <script src="./MTLLoader.js"></script>
+    <script src="./DecalGeometry.js"></script>
+
+</head>
+<body>
+    
+</body>
+
+<script>
+    var scene, camera, renderer, clock, controller, raycaster
+    var model
+    init()
+    animate()
+
+    // - Functions -
+    function init(){
+        scene = new THREE.Scene()
+        raycaster = new THREE.Raycaster();
+        clock = new THREE.Clock();
+        camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 10000)
+        camera.position.set(0, 380, 420)
+        renderer = new THREE.WebGLRenderer({    
+            antialias:true, // 开启抗锯齿处理
+            alpha:true
+        })
+        renderer.setSize(window.innerWidth,window.innerHeight)
+
+        var intersection = {
+			intersects: false,
+			point: new THREE.Vector3(),
+			normal: new THREE.Vector3()
+		};
+		var mouse = new THREE.Vector2();
+
+        var textureLoader = new THREE.TextureLoader();
+		var decalDiffuse = textureLoader.load( './decal-diffuse.png' );
+        var decalNormal = textureLoader.load( './decal-normal.jpg' );
+        
+        var decalMaterial = new THREE.MeshPhongMaterial( {
+			specular: 0x444444,
+			map: decalDiffuse,
+			normalMap: decalNormal,
+			normalScale: new THREE.Vector2( 1, 1 ),
+			shininess: 30,
+			transparent: true,
+			depthTest: true,
+			depthWrite: false,
+			polygonOffset: true,
+			polygonOffsetFactor: - 4,
+			wireframe: false
+        } );
+        
+        var decals = [];
+		var mouseHelper;
+		var position = new THREE.Vector3();
+		var orientation = new THREE.Euler();
+        var size = new THREE.Vector3( 10, 10, 10 );
+        
+        mouseHelper = new THREE.Mesh( new THREE.BoxBufferGeometry( 1, 1, 10 ), new THREE.MeshNormalMaterial() );
+        // mouseHelper.visible = false;
+        scene.add( mouseHelper );
+
+        new THREE.MTLLoader().load( './male02/male02.mtl', function ( materials ) {
+
+            materials.preload();
+            new THREE.OBJLoader() .setMaterials( materials )
+            .load( './male02/male02.obj', function ( objects ) {
+                scene.add(objects)
+                model = objects
+            });
+        } );
+
+
+        var directionalLight = new THREE.DirectionalLight(0xffffff, 0.9);
+        directionalLight.position.set(400, 200, 300);
+        scene.add(directionalLight);
+        var directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.9);
+        directionalLight2.position.set(-400, -200, -300);
+        scene.add(directionalLight2);
+        var ambient = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambient);
+
+        controller = new THREE.OrbitControls(camera,renderer.domElement)
+        document.body.appendChild(renderer.domElement)
+        window.onresize = onResize
+
+        window.addEventListener( 'mousedown', function (e) {
+           
+            mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
+            mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+            raycaster.setFromCamera( mouse, camera );
+            
+            var intersects = raycaster.intersectObject( model, true );
+            if ( intersects.length > 0 ) {
+                var p = intersects[ 0 ].point;
+                var mesh = intersects[0].object
+        
+                mouseHelper.position.copy( p );
+                
+                var n = intersects[ 0 ].face.normal.clone();
+                n.transformDirection( model.matrixWorld );
+                n.multiplyScalar( 10 );
+                n.add( intersects[ 0 ].point );
+
+                mouseHelper.lookAt( n );
+                
+                orientation.copy( mouseHelper.rotation );
+                
+                orientation.z = Math.random() * 2 * Math.PI;
+
+                var material = decalMaterial.clone();
+			    material.color.setHex( Math.random() * 0xffffff );
+
+                var m = new THREE.Mesh( new THREE.DecalGeometry( mesh, p.clone(), orientation, size ), material );
+                scene.add( m );
+            }
+        }, false );
+    }
+
+    function animate(){
+        requestAnimationFrame(animate)
+        renderer.render(scene, camera)
+    }
+
+    function onResize() {
+        camera.aspect = window.innerWidth / window.innerHeight
+        camera.updateProjectionMatrix()
+        renderer.setSize(window.innerWidth, window.innerHeight)
+    }
+</script>
+</html>

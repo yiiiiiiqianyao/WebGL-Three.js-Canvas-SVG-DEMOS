@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <script src="../src/webgl_lib/webgl-utils.js"></script>
+    <script src="../src/webgl_lib/webgl-debug.js"></script>
+    <script src="../src/webgl_lib/cuon-utils.js"></script>
+    <script src="../src/webgl_lib/cuon-matrix.js"></script>
+    <script src="../src//webgl_lib//gl-matrix.js"></script>
+    <script src="../src/utils.js"></script>
+    <style>
+        #canvas{
+            display: block;
+            margin: 0 auto;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas" width="800px" height="800px"></canvas>
+</body>
+<script>
+    var OFFER_SCREEN_WIDTH = 512
+    var OFFER_SCREEN_HEIGHT = 512
+    var mat4 = glMatrix.mat4
+
+    var canvas = document.getElementById('canvas')
+    canvas.width = 800
+    canvas.height = 800
+    
+    // 获取 webgl 绘图上下文
+    var gl = getWebGLContext(canvas)
+    if(!gl) { 
+        console.log('not support')
+    }
+    gl.enable(gl.DEPTH_TEST)
+    gl.enable(gl.BLEND) // 开启混合
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA) // 指定混合函数
+
+    var cubeProgram = createProgram(gl, getCubeVSHADER(), getCubeFSHADER());
+    
+    var cameraPos = [3, 3, 7]
+    var viewMatrix = new Matrix4();
+
+    
+    // eyeX, eyeY, eyeZ, centerX, centerY, centerZ, upX, upY, upZ
+    viewMatrix.setLookAt(
+        10, 5, 10, 
+        0, 0, 0, 
+        0, 1, 0);
+
+
+
+    var projMatrix = mat4.create()
+    mat4.perspective(projMatrix, 60 * Math.PI / 180, canvas.width/canvas.height, 0.1, 100);
+
+    let modelMatrix = mat4.create()
+    console.log(mat4)
+    modelMatrix = mat4.translate(modelMatrix, modelMatrix, [3, 0, 0])
+    modelMatrix = mat4.rotateY(modelMatrix, modelMatrix, 10)
+
+    // modelMatrix.rotate(30, 0, 1, 0)
+    // modelMatrix.setRotate(20, 0, 1, 0)
+    // modelMatrix.translate(3, 0, 0)
+    // modelMatrix.rotate(30, 0, 1, 0)
+
+    let modelMatrix2 = mat4.create()
+    
+    // modelMatrix2.translate(3, 0, 0)
+    // modelMatrix2.setRotate(0.1, 0, 1, 0)
+
+
+   
+    gl.useProgram(cubeProgram); // 上下文对象绑定程序对象
+
+
+    var u_projMatrix = bindUnifrom4fv('u_projMatrix', projMatrix, cubeProgram)
+    var u_modelMatrix = bindUnifrom4fv('u_modelMatrix', modelMatrix, cubeProgram)
+    var u_viewMatrix = bindUnifrom4fv('u_viewMatrix', viewMatrix.elements, cubeProgram)
+
+    var { buffer: buffer1, attr: attr1 } = bindAttriBufferOfffset('a_Position', CubeVCN, 3, cubeProgram, 9, 0)
+    var { buffer: buffer2, attr: attr2 } = bindAttriBufferOfffset('a_Color', CubeVCN, 3, cubeProgram, 9, 3)
+
+    var { indexBuffer, indices } = bindElementBuffer(cubeIndices) // 通用的 cube 索引
+  
+ 
+    let a = 0
+    animate()
+    
+    function animate() {
+        // a += 0.001
+        // modelMatrix = mat4.rotateY(modelMatrix, modelMatrix, 0.1)
+
+        gl.uniformMatrix4fv(u_modelMatrix, false, modelMatrix);
+        gl.drawElements(gl.TRIANGLES, cubeIndices.length, gl.UNSIGNED_BYTE, 0);
+
+        // modelMatrix2.rotate(-1, 0, 1, 0)
+        // modelMatrix2.setRotate(-1, 0, 1, 0)
+        // gl.uniformMatrix4fv(u_modelMatrix, false, modelMatrix2.elements);
+        // gl.drawElements(gl.TRIANGLES, cubeIndices.length, gl.UNSIGNED_BYTE, 0);
+   
+        requestAnimationFrame(animate)
+    }
+
+    function updateParams() {
+        
+    }
+
+    // 为 attribute 变量绑定 buffer 缓冲区并赋值（从一份数据中获取多份缓冲数据）
+    function bindAttriBufferOfffset(attrName, vertices, count, program, all, offfset) {
+        let buffer = gl.createBuffer()
+        if(!buffer) {
+            console.log("failed create vertex buffer")
+        }
+        gl.bindBuffer(gl.ARRAY_BUFFER, buffer) // 将缓冲区对象绑定到目标
+        gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW) // 向缓冲区对象中写入数据
+
+        let attr = gl.getAttribLocation(program, attrName);
+        gl.vertexAttribPointer(attr, count, gl.FLOAT, false, all * FSIZE, offfset * FSIZE);
+        gl.enableVertexAttribArray(attr);
+        return { buffer, attr }
+    }
+
+    function bindUnifrom4fv(unifromName, data, program) {
+        let uniform4f = gl.getUniformLocation(program, unifromName);
+        if (uniform4f < 0) {
+            console.log("无法获取矩阵变量的存储位置");
+        }
+        gl.uniformMatrix4fv(uniform4f, false, data);
+        return uniform4f
+    }
+
+    function bindElementBuffer(indices) {
+        let indexBuffer = gl.createBuffer();
+        if (!indexBuffer) {
+            console.log("无法创建缓冲区对象");
+        }
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
+        return { indexBuffer, indices }
+    }
+
+    function getCubeVSHADER() {
+        return `
+
+            #define ambientRatio 0.5
+            #define diffuseRatio 0.3
+            #define specularRatio 0.4
+
+            attribute vec4 a_Position;
+            attribute vec3 a_Color;
+
+            uniform mat4 u_projMatrix;
+            uniform mat4 u_modelMatrix;
+            uniform mat4 u_viewMatrix;
+
+            varying vec3 v_Color;
+
+            void main(){
+
+                gl_Position = u_projMatrix * u_viewMatrix * u_modelMatrix * a_Position;
+        
+                v_Color = a_Color;
+            }
+        `
+    }
+
+    function getCubeFSHADER() {
+        return `
+            #ifdef GL_ES
+            precision mediump float;
+            #endif
+            // varying vec2 v_Uv;
+            // uniform sampler2D u_Sampler;
+            varying vec3 v_Color;
+            void main(){
+                // gl_FragColor = texture2D(u_Sampler, v_Uv);
+                // gl_FragColor = vec4(v_Color, 1.0);
+                gl_FragColor = vec4(v_Color, 1.0);
+            }
+        `
+    }
+
+    
+</script>
+</html>

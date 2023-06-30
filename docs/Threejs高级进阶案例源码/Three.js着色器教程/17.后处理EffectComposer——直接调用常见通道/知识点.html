@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+<meta charset="utf-8">
+<title></title>
+  <link href="http://www.yanhuangxueyuan.com/markdown.css" rel="stylesheet" type="text/css">
+  </head>
+  <body>
+<h1 id="-effectcomposer-">后处理EffectComposer——直接调用常见通道</h1>
+<p>上节课讲解的是自定义通道的着色器代码，本节课讲解直接调用一个特定功能的通道模块，通道使用的着色器代码已经配置好，不需要自己编写。</p>
+<h3 id="glitchpass-">GlitchPass通道</h3>
+<p>效果：随机产生电脉冲</p>
+<p><code>GlitchPass</code>通道依赖<code>THREE.DigitalGlitch</code>提供的uniforms对象、顶点着色器代码和片元着色器代码。
+<code>THREE.DigitalGlitch</code>的路径<code>three.js-master\examples\js\shaders\DigitalGlitch.js</code></p>
+<pre><code class="lang-javascript"><span class="hljs-keyword">var</span> renderPass = <span class="hljs-keyword">new</span> THREE.RenderPass(scene, camera);
+<span class="hljs-keyword">var</span> GlitchPass = <span class="hljs-keyword">new</span> THREE.GlitchPass(<span class="hljs-number">64</span>);
+GlitchPass.renderToScreen = <span class="hljs-keyword">true</span>;
+<span class="hljs-keyword">var</span> composer = <span class="hljs-keyword">new</span> THREE.EffectComposer(renderer);
+composer.addPass(renderPass);
+composer.addPass(GlitchPass);
+</code></pre>
+<h3 id="filmpass-">FilmPass通道</h3>
+<p>模拟电视屏效果</p>
+<pre><code class="lang-javascript"><span class="hljs-keyword">var</span> renderPass = <span class="hljs-keyword">new</span> THREE.RenderPass(scene, camera);
+<span class="hljs-keyword">var</span> FilmPass = <span class="hljs-keyword">new</span> THREE.FilmPass(<span class="hljs-number">0.3</span>, <span class="hljs-number">0.4</span>, <span class="hljs-number">512</span>, <span class="hljs-keyword">false</span>);
+FilmPass.renderToScreen = <span class="hljs-keyword">true</span>;
+<span class="hljs-keyword">var</span> composer = <span class="hljs-keyword">new</span> THREE.EffectComposer(renderer);
+composer.addPass(renderPass);
+composer.addPass(FilmPass);
+</code></pre>
+<h3 id="outlinepass-">OutlinePass通道</h3>
+<p>一个模型外面添加一个高亮的外边框</p>
+<pre><code class="lang-javascript"><span class="hljs-keyword">var</span> renderPass = <span class="hljs-keyword">new</span> THREE.RenderPass(scene, camera);
+<span class="hljs-keyword">var</span> OutlinePass = <span class="hljs-keyword">new</span> THREE.OutlinePass(<span class="hljs-keyword">new</span> THREE.Vector2(<span class="hljs-built_in">window</span>.innerWidth, <span class="hljs-built_in">window</span>.innerHeight), scene, camera);
+OutlinePass.renderToScreen = <span class="hljs-literal">true</span>;
+<span class="hljs-keyword">var</span> composer = <span class="hljs-keyword">new</span> THREE.EffectComposer(renderer);
+composer.addPass(renderPass);
+composer.addPass(OutlinePass);
+
+<span class="hljs-comment">//设置需要添加外边框的网格模型</span>
+<span class="hljs-comment">//交互的时候可以设置一个鼠标事件，点击选中了某个模型，就直接把某个网格模型作为值的元素</span>
+OutlinePass.selectedObjects = [mesh];
+</code></pre>
+
+
+  </body>
+</html>

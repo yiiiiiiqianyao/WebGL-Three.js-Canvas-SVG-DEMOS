@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <link rel="shortcut icon" href="../favicon.ico" />
+    <link rel="bookmark" href="../favicon.ico" />
+    <title>Document</title>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+      }
+    </style>
+    <script src="../src/three.js"></script>
+    <script src="./Earcut.js"></script>
+    <script src="./ShapeUtils.js"></script>
+    <script src="../src/controller/OrbitControls.js"></script>
+    <script src="./brasil.js"></script>
+  </head>
+  <body></body>
+  <script type="x-shader/x-vertex" id="vertexShader">
+    varying vec2 vUv;
+    void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  </script>
+  <script type="x-shader/x-vertex" id="fragmentShader">
+    varying vec2 vUv;
+    uniform vec3 color;
+    void main() {
+      gl_FragColor = vec4(color, vUv.x);
+    }
+  </script>
+  <script>
+    var scene, camera, renderer, clock, controlller;
+    var shader_material
+
+    init();
+    animate();
+
+    // - Functions -
+    function init() {
+      scene = new THREE.Scene();
+      clock = new THREE.Clock();
+      camera = new THREE.PerspectiveCamera(
+        45,
+        window.innerWidth / window.innerHeight,
+        0.1,
+        100000
+      );
+      camera.position.set(1000, 1000, 1000);
+      renderer = new THREE.WebGLRenderer({
+        antialias: true, // 开启抗锯齿处理
+        alpha: true,
+      });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+
+      shader_material = new THREE.ShaderMaterial( {
+        vertexShader: document.getElementById( 'vertexShader' ).textContent,
+        fragmentShader: document.getElementById( 'fragmentShader' ).textContent,
+        side:THREE.DoubleSide,              // 双面可见
+      } );
+
+      var material = new THREE.MeshNormalMaterial({
+        side: THREE.DoubleSide
+      });
+      var group = new THREE.Group()
+      group.rotation.x = -Math.PI/2
+      scene.add(group)
+
+      var geometry = new THREE.SphereBufferGeometry( 0.5, 12, 12 );
+      var material = new THREE.MeshBasicMaterial( {
+        color: 0xff0000, 
+        side: THREE.DoubleSide,
+        wireframe: true
+      } );
+
+      var material2 = new THREE.MeshBasicMaterial( {
+        color: 0x00ff00, 
+        side: THREE.DoubleSide,
+        wireframe: true
+      } );
+      var sphere = new THREE.Mesh(geometry, material2)
+      let shapeVertices = []
+      // shapeVertices = [
+      //   new THREE.Vector3(0, 10, 0),
+      //   new THREE.Vector3(10, 10, 0),
+
+      //   new THREE.Vector3(10, 6, 3),
+      //   new THREE.Vector3(5, 6, 0),
+      //   new THREE.Vector3(5, 3, 0),
+      //   new THREE.Vector3(10, 3, -3),
+
+      //   new THREE.Vector3(10, 0, 0),
+      //   new THREE.Vector3(0, 0, 0),
+
+      // ]
+      for(let i = 0;i < brasil.length;i+=3) {
+        shapeVertices.push(
+          new THREE.Vector3(
+          brasil[i], 
+          brasil[i+1], 
+          brasil[i+2]
+          // brasil[i].x, 
+          // brasil[i].y, 
+          // brasil[i].z
+        ))
+        let sphereClone = sphere.clone()
+        // sphereClone.position.set(brasil[i].x, brasil[i].y, brasil[i].z)
+        sphereClone.position.set(brasil[i], brasil[i+1], brasil[i+2])
+        group.add(sphereClone)
+      }
+      var geometry = initBufferPlaneGeometry(shapeVertices)
+      console.log(geometry)
+      // var plane = new THREE.Mesh(geometry, shader_material)
+      var plane = new THREE.Mesh(geometry, material)
+      plane.rotation.x = -Math.PI/2
+      scene.add(plane)
+
+      var axisHelper = new THREE.AxesHelper(10);
+      scene.add(axisHelper);
+
+      controlller = new THREE.OrbitControls(camera, renderer.domElement);
+      document.body.appendChild(renderer.domElement);
+      window.onresize = onResize;
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      renderer.render(scene, camera);
+      controlller.update(clock.getDelta());
+    }
+
+    function onResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    function initBufferPlaneGeometry(shapeVertices) {
+      let geometry = new THREE.BufferGeometry()
+
+
+			// if ( ShapeUtils.isClockWise( shapeVertices ) === false ) {
+      //   shapeVertices = shapeVertices.reverse();
+      // }
+      
+      const indices = [];
+      const vertices = [];
+      const normals = [];
+      const uvs = [];
+      
+      for ( let i = 0, l = shapeVertices.length; i < l; i ++ ) {
+        const vertex = shapeVertices[ i ];
+        // console.log(vertex)
+        vertices.push( vertex.x, vertex.y, vertex.z);
+        // vertices.push( vertex.x, -vertex.y, vertex.z );
+        // vertices.unshift( vertex.x, vertex.y, vertex.z );
+     
+        // vertices.push( vertex.x, vertex.y, 0 );
+        // let nv = vertex.clone().normalize()
+        normals.push( 0, 0, 1 );
+        // normals.push( nv.x, nv.y, nv.z );
+        uvs.push( vertex.x, vertex.y ); // world uvs
+      } 
+
+      const faces = ShapeUtils.triangulateShape( shapeVertices, [] );
+      for ( let i = 0, l = faces.length; i < l; i ++ ) {
+
+        const face = faces[ i ];
+        const a = face[ 0 ];
+        const b = face[ 1 ];
+        const c = face[ 2 ];
+        indices.push( a, b, c );
+      }
+      
+      geometry.setIndex( indices );
+      geometry.addAttribute( 'position', new THREE.Float32BufferAttribute( vertices, 3 ) );
+      geometry.addAttribute( 'normal', new THREE.Float32BufferAttribute( normals, 3 ) );
+      geometry.addAttribute( 'uv', new THREE.Float32BufferAttribute( uvs, 2 ) );
+      
+      return geometry
+    }
+
+    function initGeometry(vertices) {
+      var geometry = new THREE.Geometry();
+      let v = [], f = []
+      // geometry.vertices.push(
+      //   new THREE.Vector3( -10,  10, 0 ),
+      //   new THREE.Vector3( -10, -10, 0 ),
+      //   new THREE.Vector3(  10, -10, 0 )
+      // );
+
+      // geometry.faces.push( new THREE.Face3( 0, 1, 2 ) );
+
+
+
+      geometry.computeBoundingSphere();
+    }
+
+   
+  </script>
+</html>

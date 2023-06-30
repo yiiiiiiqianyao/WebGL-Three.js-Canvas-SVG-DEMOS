@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+<meta charset="utf-8">
+<title></title>
+  <link href="http://www.yanhuangxueyuan.com/markdown.css" rel="stylesheet" type="text/css">
+  </head>
+  <body>
+<h1 id="-">着色器——自动提取光源对象信息</h1>
+<p>Three.js有点光源、环境光等等各种常见光源对象，一个应用中会有多个光源对象，在渲染的过程中，Threejs渲染器会自动从这些光源对象提取光源的颜色、位置等信息传值给着色器中的uniform变量。</p>
+<p>本节课通过自定义着色器材质<code>ShaderMaterial</code>API来演示光源对象的自动化传值过程。</p>
+<h3 id="-">着色器</h3>
+<p>片元着色器中声明点光源、平行光源、方向光源等等光源对应的所有uniform变量。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// 大多数着色器模块依赖该模块，该模块定义了大多数通用的常量、变量和函数</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;common&gt;</span></span>
+<span class="hljs-comment">// 光照计算的一些相关算法函数</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;bsdfs&gt;</span></span>
+<span class="hljs-comment">// 声明点光源、环境光、方向光等等光源的uniform变量</span>
+<span class="hljs-comment">// &lt;lights_pars_begin&gt;模块依赖&lt;bsdfs&gt;和&lt;common&gt;</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;lights_pars_begin&gt;</span></span>
+</code></pre>
+<h3 id="-">访问光源信息</h3>
+<p>lights_pars_begin中声明一些光源相关的变量，比如一个光源对象的所有属性对应一个自定义结构体，所有方向光光源对象作为着色器中一个数组变量的元素。</p>
+<p>访问第一个方向光源的方向<code>directionalLights[0].direction</code>,访问第二个方向光光源的颜色<code>directionalLights[1].color</code></p>
+<h3 id="uniforms-">uniforms属性</h3>
+<p>调用<code>THREE.UniformsLib[&quot;lights&quot;]</code>设置ShaderMaterial材质对象的uniforms属性。该属性设置后，光源对象相关的值value都是空的，只要设置<code>material.lights = true;</code>，这些光源对象相关的uniform变量对应的值value，Threejs渲染器系统会自动帮你从Threejs光源对象中提取相关的信息。具体的提取过程可以阅读<code>three.js-master\src\renderers\webgl</code>目录下<code>WebGLLights.js</code>等源码模块了解。</p>
+
+<div class="">
+  <a href="http://www.yanhuangxueyuan.com/">作者技术博客</a>
+</div>
+  </body>
+</html>

@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <link rel="shortcut icon" href="../favicon.ico" />
+    <link rel="bookmark" href="../favicon.ico" />
+    <title>Document</title>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+      }
+    </style>
+    <script src="../src/three.js"></script>
+    <script src="../src/controller/OrbitControls.js"></script>
+  </head>
+  <body>
+    <video id="video" src="./video.mp4" style="z-index: 1;position: absolute;top: 0;left: 0;"
+      width = 600
+      height = 300
+      controls
+      autoplay
+      loop
+      preload="auto"
+    ></video>
+  </body>
+ 
+  <script id="post-vert" type="x-shader/x-vertex">
+    varying vec4 v_PositionFromLight;
+    uniform mat4 u_MvpMatrixFromLight;
+    varying vec2 vUv;
+    
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      v_PositionFromLight = u_MvpMatrixFromLight * vec4(position, 1.0);
+    }
+  </script>
+  <script id="post-frag" type="x-shader/x-fragment">
+    varying vec2 vUv;
+    uniform float cameraNear;
+    uniform float cameraFar;
+    uniform sampler2D tDepth;
+    uniform sampler2D videoTexture;
+    varying vec4 v_PositionFromLight;
+
+    float viewZToOrthographicDepth( const in float viewZ, const in float near, const in float far ) {
+      return ( viewZ + near ) / ( near - far );
+    }
+
+    float perspectiveDepthToViewZ( const in float invClipZ, const in float near, const in float far ) {
+      return ( near * far ) / ( ( far - near ) * invClipZ - far );
+    }
+
+    float readDepth( sampler2D depthSampler, vec2 coord ) {
+      float fragCoordZ = texture2D( depthSampler, coord ).x;
+      float viewZ = perspectiveDepthToViewZ( fragCoordZ, cameraNear, cameraFar );
+      return viewZToOrthographicDepth( viewZ, cameraNear, cameraFar );
+    }
+
+    void main() {
+      vec3 shadowCoord = (v_PositionFromLight.xyz/v_PositionFromLight.w)/2.0 + 0.5;
+      float depth = readDepth( tDepth, shadowCoord.xy ); // 第一次的深度图深度
+
+      // v_PositionFromLight.z = 30 | virtualCamera.position.z = 30
+
+      float vd = v_PositionFromLight.z / (cameraFar - cameraNear); // 当前片元根据光源坐标系计算出的深度值
+
+      float visibility = (depth < vd  ) ? 0.1 : 1.0;
+      vec4 backColor = vec4(1.0, 0.0, 0.0, 1.0);
+      vec4 backColor2 = vec4(1.0, 1.0, 0.0, 1.0);
+      vec4 video = texture2D( videoTexture, vUv );
+      //gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+      //gl_FragColor.rgb = gl_FragColor.rgb * visibility;
+      (depth < vd)?(gl_FragColor=video):(gl_FragColor=backColor2);
+    }
+  </script>
+
+  <script>
+    var scene, camera, renderer, clock, controlller;
+    var shadowMaterial, textureShader, textureShader2
+
+    var target, target2, helper
+
+    init();
+    animate();
+
+    // - Functions -
+    function init() {
+      scene = new THREE.Scene();
+      clock = new THREE.Clock();
+      camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 0.01, 50 );
+      camera.position.set(20, 0, 20);
+
+      virtualCamera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 0.01, 50 );
+      virtualCamera.position.z = 30;
+
+      renderer = new THREE.WebGLRenderer({
+        antialias: true, // 开启抗锯齿处理
+        alpha: true,
+      });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+
+      target = new THREE.WebGLRenderTarget( window.innerWidth, window.innerHeight );
+      target.texture.format = THREE.RGBFormat;
+      target.texture.minFilter = THREE.NearestFilter;
+      target.texture.magFilter = THREE.NearestFilter;
+      target.texture.generateMipmaps = false;
+      target.stencilBuffer = false;
+      target.depthBuffer = true;
+      target.depthTexture = new THREE.DepthTexture();
+      target.depthTexture.type = THREE.UnsignedShortType;
+
+      scene = new THREE.Scene();
+
+      var frontGeometry = new THREE.PlaneBufferGeometry( 5, 2.5 );
+      var frontMaterial = new THREE.MeshBasicMaterial( {color: 0x00ff00, transparent: true, opacity: 0.2} );
+      var frontPlane = new THREE.Mesh( frontGeometry, frontMaterial );
+      frontPlane.position.z = 10
+      scene.add( frontPlane );
+
+      renderer.autoClear = false
+      renderer.setRenderTarget( target );
+      renderer.render(scene, virtualCamera)
+      renderer.autoClear = true
+      renderer.setRenderTarget( null );
+
+      var video = document.getElementById('video')
+      var videoTexture = new THREE.VideoTexture( video );
+      videoTexture.minFilter = THREE.LinearFilter;
+      videoTexture.magFilter = THREE.LinearFilter;
+      videoTexture.format = THREE.RGBFormat;
+
+      var videoPlaneGeometry = new THREE.PlaneBufferGeometry( 10, 5 );
+      var videoMaterial = new THREE.MeshBasicMaterial( { map: videoTexture } );
+      var videoPlane = new THREE.Mesh( videoPlaneGeometry, videoMaterial );
+      videoPlane.position.x = 10
+      scene.add( videoPlane );
+      
+      var mvpMatrix = virtualCamera.projectionMatrix.clone().multiply(virtualCamera.matrixWorldInverse)
+      var postMaterial = new THREE.ShaderMaterial( {
+        vertexShader: document.querySelector( '#post-vert' ).textContent.trim(),
+        fragmentShader: document.querySelector( '#post-frag' ).textContent.trim(),
+        uniforms: {
+          cameraNear: { value: virtualCamera.near },
+          cameraFar: { value: virtualCamera.far },
+          tDepth: { value: target.depthTexture },
+          videoTexture: { value: videoTexture },
+          u_MvpMatrixFromLight: { value: mvpMatrix }
+        }
+      } );
+
+      var backGeometry = new THREE.PlaneBufferGeometry( 10, 10 );
+      var backPlane = new THREE.Mesh( backGeometry, postMaterial );
+      scene.add( backPlane );
+
+      var helper = new THREE.CameraHelper( virtualCamera );
+        scene.add( helper );
+
+      controlller = new THREE.OrbitControls(camera, renderer.domElement);
+      document.body.appendChild(renderer.domElement);
+      window.onresize = onResize;
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      renderer.render(scene, camera);
+      controlller.update(clock.getDelta());
+    }
+
+    function onResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+  </script>
+</html>

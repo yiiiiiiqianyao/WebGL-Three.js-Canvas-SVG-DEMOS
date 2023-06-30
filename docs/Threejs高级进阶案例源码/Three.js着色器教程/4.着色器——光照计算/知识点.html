@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <title></title>
+      <link href="http://www.yanhuangxueyuan.com/markdown.css" rel="stylesheet" type="text/css">
+  </head>
+  <body>
+    <h1 id="three-js-">Three.js着色器——光照计算</h1>
+    <p>为了更好的渲染效果，一般都会对网格模型进行光照计算,光照计算的相关算法是对生活中光线漫反射、镜面反射等光学现象的模拟，如果你不了解光照计算的一些算法可以去学习一下原生的WebGL教程和图形学方面的知识。</p>
+    <p>前面说过Three.js的材质对象本质上都是着色器代码，有些材质支持光照计算，有些材质不支持光照计算，比如基础网格材质<code>MeshBasicMaterial</code>,有些材质支持光照计算，支持光照计算的材质具体的算法也不尽相同,兰伯特网格材质<code>MeshPhongMaterial</code>、高光网格材质<code>MeshPhongMaterial</code>、标准网格材质<code>MeshStandardMaterial</code>
+    。</p>
+    <h2 id="-">平行光模型</h2>
+    <p>本节课通过一个平行光的案例来进一步让大家认识着色器材质对象ShaderMaterial的使用。</p>
+    <h3 id="-">顶点着色器</h3>
+    <h5 id="-">系统自动声明的变量</h5>
+    <p>使用ShaderMaterial构造函数自定义着色器的时候,顶点法向量变量<code>normal</code>和顶点位置变量&#39;position&#39;一样不用手动声明，Three.js渲染器系统会通过WebGLPrograms.js模块自动声明<code>attribute vec3 normal;</code>。</p>
+    <ul>
+    <li><code>geometry.attributes.position</code>对应着色器中<code>position</code>变量</li>
+    <li><code>geometry.attributes.normal</code>对应着色器中<code>normal</code>变量</li>
+    </ul>
+    <pre><code class="lang-JavaScript"><span class="hljs-keyword">var</span> geometry = <span class="hljs-keyword">new</span> THREE.BoxBufferGeometry(<span class="hljs-number">0.5</span>, <span class="hljs-number">0.5</span>, <span class="hljs-number">0.5</span>);
+    <span class="hljs-comment">// 查看几何体的顶点位置、顶点法向量数据</span>
+    <span class="hljs-built_in">console</span>.log(geometry.attributes);
+    </code></pre>
+    <p>法向量矩阵<code>normalMatrix</code>和模型矩阵<code>modelMatrix</code>一样不需要手动声明系统会自动声明，可以直接在main函数中使用。顶点的位置进行了旋转等变换，顶点的法向量方向肯定会发生变化，所以需要一个法向量矩阵对顶点法向量进行变换，Threejs渲染器模块会根据顶点位置的相关变换矩阵计算<code>normalMatrix</code>的值。</p>
+    <pre><code class="lang-JavaScript"><span class="hljs-tag">&lt;<span class="hljs-name">script</span> <span class="hljs-attr">id</span>=<span class="hljs-string">"vertexShader"</span> <span class="hljs-attr">type</span>=<span class="hljs-string">"x-shader/x-vertex"</span>&gt;</span><span class="javascript">
+      <span class="hljs-comment">//varying声明顶点法向量插值后变量</span>
+      varying vec3 v_normal;
+      <span class="hljs-keyword">void</span> main(){
+        <span class="hljs-comment">// normalMatrix法向量矩阵：模型的顶点进行了模型变换，顶点的法向量要跟着变化</span>
+        <span class="hljs-comment">// 顶点的法向量执行插值计算</span>
+        v_normal=normalMatrix*normal;
+        <span class="hljs-comment">// 模型矩阵modelMatrix</span>
+        gl_Position = modelMatrix*vec4( position, <span class="hljs-number">1.0</span> );
+      }
+    </span><span class="hljs-tag">&lt;/<span class="hljs-name">script</span>&gt;</span>
+    </code></pre>
+    <h3 id="-">片元着色器</h3>
+    <p>片元着色器代码中包含了平行光漫反射计算的光照模型算法。光线的入射角不同反射的强度不同，一个立方的表面法线方向不相同，与平行光的夹角不同，每个面的明暗就不同。关于光照模型更多的知识可以学习原生WebGL教程和图形学。</p>
+    <pre><code class="lang-JavaScript"><span class="hljs-tag">&lt;<span class="hljs-name">script</span> <span class="hljs-attr">id</span>=<span class="hljs-string">"fragmentShader"</span> <span class="hljs-attr">type</span>=<span class="hljs-string">"x-shader/x-fragment"</span>&gt;</span><span class="javascript">
+      <span class="hljs-comment">// 声明一个颜色变量表示网格模型颜色</span>
+      uniform vec3 u_color;
+      <span class="hljs-comment">// 顶点法向量插值后的结果，一个片元数据对应一个法向量数据</span>
+      varying vec3 v_normal;
+      <span class="hljs-comment">// uniform声明平行光颜色变量</span>
+      uniform vec3 u_lightColor;
+      <span class="hljs-comment">//平行光方向变量</span>
+      uniform vec3 u_lightDirection;
+      <span class="hljs-keyword">void</span> main() {
+        <span class="hljs-comment">// 法向量归一化</span>
+        vec3 norlmal2 = normalize(v_normal);
+        <span class="hljs-comment">// 计算平行光方向向量和片元法向量的点积</span>
+        <span class="hljs-comment">// 不同的入射角度反射强度不同</span>
+        float dot = dot(u_lightDirection, norlmal2);
+        <span class="hljs-comment">// 计算反射后的颜色  光线颜色*物体颜色*dot</span>
+        vec3 reflectedLight = u_lightColor * u_color * dot;
+        <span class="hljs-comment">// 反射颜色赋值给内置变量gl_FragColor</span>
+        gl_FragColor = vec4(reflectedLight,<span class="hljs-number">1.0</span>);
+      }
+    </span><span class="hljs-tag">&lt;/<span class="hljs-name">script</span>&gt;</span>
+    </code></pre>
+    <h3 id="uniforms-">uniforms定义</h3>
+    <pre><code class="lang-JavaScript"><span class="hljs-comment">// 定义材质对象的uniforms属性，传递着色器中uniform变量对应的值</span>
+    uniforms: {
+      <span class="hljs-comment">// 网格模型颜色</span>
+      u_color: {
+        <span class="hljs-keyword">value</span>: <span class="hljs-keyword">new</span> THREE.Color(<span class="hljs-number">0xff0000</span>)
+      },
+      <span class="hljs-comment">// 平行光光源颜色</span>
+      u_lightColor: {
+        <span class="hljs-keyword">value</span>: <span class="hljs-keyword">new</span> THREE.Color(<span class="hljs-number">0xffffff</span>)
+      },
+      <span class="hljs-comment">// 平行光的方向</span>
+      u_lightDirection: {
+        <span class="hljs-keyword">value</span>: <span class="hljs-keyword">new</span> THREE.Vector3(<span class="hljs-number">-1.0</span>, <span class="hljs-number">-1.0</span>, <span class="hljs-number">1.0</span>).normalize()
+      },
+    },
+    </code></pre>
+
+    <div class="">
+      <a href="http://www.yanhuangxueyuan.com/">作者技术博客</a>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <title></title>
+      <link href="http://www.yanhuangxueyuan.com/markdown.css" rel="stylesheet" type="text/css">
+  </head>
+  <body>
+    <h1 id="-attribute-">顶点变量attribute传值</h1>
+    <p>几何体顶点数据的属性名和顶点着色器中attribute变量名一个一样的，这是自动传值的前提。</p>
+    <h3 id="-buffergeometry-"><code>BufferGeometry</code></h3>
+    <p>了解<code>BufferGeometry</code>的数据结构，了解顶点数据的属性名。</p>
+    <pre><code class="lang-JavaScript"><span class="hljs-comment">//创建一个缓冲区类型立方体</span>
+    <span class="hljs-keyword">var</span> geometry = <span class="hljs-keyword">new</span> THREE.BoxBufferGeometry(<span class="hljs-number">100</span>, <span class="hljs-number">100</span>,<span class="hljs-number">100</span>);
+    <span class="hljs-built_in">console</span>.log(<span class="hljs-string">'几何体所有顶点数据'</span>,geometry.attributes);
+    </code></pre>
+    <h3 id="webglprogram-js">WebGLProgram.js</h3>
+    <p>查看WebGLProgram.js源码中顶点相关的attribute变量名名称。</p>
+    <pre><code class="lang-JavaScript"><span class="hljs-comment">// WebGLProgram.js源码</span>
+      <span class="hljs-comment">// 声明顶点着色器代码用到的顶点变量attribute</span>
+      <span class="hljs-string">'attribute vec3 position;'</span>,<span class="hljs-comment">//顶点位置数据</span>
+      <span class="hljs-string">'attribute vec3 normal;'</span>,<span class="hljs-comment">//顶点法向量数据</span>
+      <span class="hljs-string">'attribute vec2 uv;'</span>,<span class="hljs-comment">//顶点UV坐标数据</span>
+    </code></pre>
+    <h3 id="webgl-api">WebGL API</h3>
+    <p>通过WebGL方法gl.getAttribLocation()可以从程序对象program获得attribute变量的索引地址，用于传值</p>
+    <pre><code class="lang-JavaScript"><span class="hljs-keyword">var</span> aposLocation = gl.getAttribLocation(program,<span class="hljs-string">'apos'</span>);
+    <span class="hljs-keyword">var</span> a_color = gl.getAttribLocation(program,<span class="hljs-string">'a_color'</span>);
+    <span class="hljs-keyword">var</span> a_normal = gl.getAttribLocation(program,<span class="hljs-string">'a_normal'</span>);
+    </code></pre>
+    <p>通过gl.vertexAttribPointer()方法把顶点缓冲区顶点数据传值给变量a_normal</p>
+    <pre><code class="lang-JavaScript"> <span class="hljs-comment">// 创建缓冲区normalBuffer，传入顶点法向量数据normalData</span>
+    <span class="hljs-keyword">var</span> normalBuffer=gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER,normalBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER,normalData,gl.STATIC_DRAW);
+    <span class="hljs-comment">// 传值</span>
+    gl.vertexAttribPointer(a_normal,<span class="hljs-number">3</span>,gl.FLOAT,<span class="hljs-keyword">false</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>);
+    gl.enableVertexAttribArray(a_normal);
+    </code></pre>
+    <h3 id="webglprogram-js">WebGLProgram.js</h3>
+    <p>通过gl.getProgramParameter()计算程序对象对应着色器中uniform变量和attribute变量的个数。</p>
+    <pre><code class="lang-JavaScript"><span class="hljs-comment">// 表示顶点数据attribute变量数量</span>
+    <span class="hljs-keyword">var</span> n = gl.getProgramParameter( program, gl.ACTIVE_ATTRIBUTES );
+    <span class="hljs-comment">// uniform变量个数</span>
+    <span class="hljs-keyword">var</span> n = gl.getProgramParameter( program, gl.ACTIVE_UNIFORMS );
+    </code></pre>
+    <p>通过gl.getActiveAttrib( program, i )获得程序对象着色器第i+1个attribute变量的相关信息，返回值是一个对象，对象<code>.name</code>属性是attribute属性的变量名。</p>
+    <pre><code class="lang-JavaScript"><span class="hljs-attribute">var</span> <span class="hljs-literal">info</span> = gl.getActiveAttrib( program, i );
+    </code></pre>
+    <pre><code class="lang-JavaScript"><span class="hljs-keyword">var</span> info = gl.getActiveAttrib( program, <span class="hljs-number">0</span> );
+    <span class="hljs-built_in">console</span>.log(<span class="hljs-string">'第1个attribute变量的信息'</span>,info);
+    <span class="hljs-built_in">console</span>.log(<span class="hljs-string">'attribute变量名字'</span>,info.name);
+    </code></pre>
+    <p>通过gl.getActiveUniform( program, i )获得程序对象着色器第i+1个uniform变量的相关信息，返回值是一个对象，对象<code>.name</code>属性是uniform属性的变量名。</p>
+    <pre><code class="lang-JavaScript"><span class="hljs-attribute">var</span> <span class="hljs-literal">info</span> = gl.getActiveUniform( program, i );
+    </code></pre>
+    <p>通过getAttributes方法从程序对象获得attribute变量的索引地址</p>
+    <pre><code class="lang-JavaScript"><span class="hljs-comment">// 通过该函数获得着色器中所有attribute变量的索引地址</span>
+    <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">fetchAttributeLocations</span>(<span class="hljs-params"> gl, program </span>) </span>{
+        <span class="hljs-keyword">var</span> attributes = {};
+      <span class="hljs-comment">// 获得程序对象attribute变量个数</span>
+        <span class="hljs-keyword">var</span> n = gl.getProgramParameter( program, gl.ACTIVE_ATTRIBUTES );
+
+      <span class="hljs-comment">// 循环遍历获得所有attribute变量</span>
+        <span class="hljs-keyword">for</span> ( <span class="hljs-keyword">var</span> i = <span class="hljs-number">0</span>; i &lt; n; i ++ ) {
+        <span class="hljs-comment">// 获得程序对象着色器第i+1个attribute变量的相关信息，返回值是一个对象</span>
+            <span class="hljs-keyword">var</span> info = gl.getActiveAttrib( program, i );
+        <span class="hljs-comment">// `.name`属性是attribute属性的变量名</span>
+            <span class="hljs-keyword">var</span> name = info.name;
+        <span class="hljs-comment">// 获得attribute变量索引地址，用于传值</span>
+            attributes[ name ] = gl.getAttribLocation( program, name );
+        }
+      <span class="hljs-comment">// 返回一个对象，包含了全部attribute变量的索引地址</span>
+        <span class="hljs-keyword">return</span> attributes;
+    }
+    <span class="hljs-comment">// 通过WebGLProgram的getAttributes方法调用fetchAttributeLocations函数</span>
+    <span class="hljs-keyword">this</span>.getAttributes = <span class="hljs-function"><span class="hljs-keyword">function</span> (<span class="hljs-params"></span>) </span>{
+      <span class="hljs-keyword">if</span> ( cachedAttributes === <span class="hljs-literal">undefined</span> ) {
+        cachedAttributes = fetchAttributeLocations( gl, program );
+      }
+      <span class="hljs-keyword">return</span> cachedAttributes;
+    };
+    </code></pre>
+    <h3 id="webglrenderer-js">WebGLRenderer.js</h3>
+    <p><code>setupVertexAttributes</code>函数封装了<code>gl.vertexAttribPointer()</code>用于attribute变量传值。</p>
+    <pre><code class="lang-JavaScript">
+    <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">setupVertexAttributes</span>(<span class="hljs-params">material, program, geometry</span>) </span>{
+        <span class="hljs-comment">// 获得几何体相关顶点数据</span>
+        <span class="hljs-keyword">var</span> geometryAttributes = geometry.attributes;
+        <span class="hljs-comment">// 获得着色器中所有attribute变量的索引地址</span>
+        <span class="hljs-keyword">var</span> programAttributes = program.getAttributes();
+
+        <span class="hljs-comment">// 遍历programAttributes对象</span>
+        <span class="hljs-keyword">for</span> (<span class="hljs-keyword">var</span> name <span class="hljs-keyword">in</span> programAttributes) {
+            <span class="hljs-comment">// 获得名为name的attribute变量索引地址</span>
+            <span class="hljs-keyword">var</span> programAttribute = programAttributes[name];
+            <span class="hljs-comment">// gl.getAttribLocation()本质上的返回值是数字，表示第几个attribute变量</span>
+            <span class="hljs-keyword">if</span> (programAttribute &gt;= <span class="hljs-number">0</span>) {
+                <span class="hljs-comment">// 根据name确定对应的包含顶点数据的BufferAttribute对象</span>
+                <span class="hljs-comment">// 比如geometry.attributes.position</span>
+                <span class="hljs-keyword">var</span> geometryAttribute = geometryAttributes[name];
+
+                <span class="hljs-keyword">if</span> (geometryAttribute !== <span class="hljs-literal">undefined</span>) {
+
+                    <span class="hljs-keyword">var</span> normalized = geometryAttribute.normalized;
+                    <span class="hljs-keyword">var</span> size = geometryAttribute.itemSize;
+                    <span class="hljs-comment">// WebGLAttributes.js封装的get方法，返回值是对象：</span>
+                    <span class="hljs-comment">//  {</span>
+                    <span class="hljs-comment">// buffer: buffer,</span>
+                    <span class="hljs-comment">// type: type,</span>
+                    <span class="hljs-comment">// bytesPerElement: array.BYTES_PER_ELEMENT,</span>
+                    <span class="hljs-comment">// version: attribute.version</span>
+                    <span class="hljs-comment">// }</span>
+                    <span class="hljs-keyword">var</span> attribute = attributes.get(geometryAttribute);
+
+                    <span class="hljs-keyword">if</span> (attribute === <span class="hljs-literal">undefined</span>) <span class="hljs-keyword">continue</span>;
+                    <span class="hljs-comment">// 获得WebGLAttributes.js创建的顶点缓冲区</span>
+                    <span class="hljs-keyword">var</span> buffer = attribute.buffer;
+                    <span class="hljs-comment">// 顶点缓冲区数据类型</span>
+                    <span class="hljs-keyword">var</span> type = attribute.type;
+                    <span class="hljs-comment">// 类型数组中每个元素所占用的字节数</span>
+                    <span class="hljs-keyword">var</span> bytesPerElement = attribute.bytesPerElement;
+            ...
+                    <span class="hljs-comment">// 绑定激活当前顶点缓冲区</span>
+                    _gl.bindBuffer(_gl.ARRAY_BUFFER, buffer);
+                    <span class="hljs-comment">// programAttribute：attribute变量索引地址</span>
+                    _gl.vertexAttribPointer(programAttribute, size, type, normalized, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>);
+                    ...
+                }
+            }
+    }
+
+    <span class="hljs-keyword">this</span>.renderBufferDirect = <span class="hljs-function"><span class="hljs-keyword">function</span>(<span class="hljs-params">camera, fog, geometry, material, object, group</span>) </span>{
+      <span class="hljs-keyword">var</span> program = setProgram(camera, fog, material, object);
+        <span class="hljs-comment">// 调用函数setupVertexAttributes自动传值</span>
+      setupVertexAttributes(material, program, geometry);
+    }
+    </code></pre>
+
+    <div class="">
+      <a href="http://www.yanhuangxueyuan.com/">作者技术博客</a>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,234 @@
+
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Stencil Buffer</title>
+<script id="shader-vs" type="x-shader/x-vertex">
+precision highp float;
+attribute vec3 aPos;
+attribute vec4 aColor;
+varying vec4 vColor;
+void main(void){
+    gl_Position = vec4(aPos, 1);
+    vColor = aColor;
+}
+</script>
+<script id="shader-fs" type="x-shader/x-fragment">
+precision highp float;
+varying vec4 vColor;
+void main(void) {
+    gl_FragColor = vColor;
+}
+</script>
+<script id="shader-vs-2" type="x-shader/x-vertex">
+precision highp float;
+attribute vec3 aPos;
+attribute vec2 aTextureCoords;
+varying vec2 vTextureCoord;
+void main(void){
+    gl_Position = vec4(aPos, 1.0);
+    vTextureCoord = aTextureCoords;
+}
+</script>
+<script id="shader-fs-2" type="x-shader/x-fragment">
+precision highp float;
+varying vec2 vTextureCoord;
+uniform sampler2D uSampler;
+void main(void) {
+    gl_FragColor = texture2D(uSampler, vec2(vTextureCoord.s, vTextureCoord.t));
+    if (gl_FragColor.a == 0.0) {
+        discard; // 通过对像素点的舍弃来表示不需要的部分
+    }
+
+    //if (vTextureCoord.s >= 0.4 && vTextureCoord.s <= 0.6) {
+    //    discard;
+    //}
+}
+</script>
+</head>
+<body>
+<canvas id="canvas" width="400" height="400" ></canvas>
+<script>
+var gl;
+var canvas = document.getElementById('canvas');
+var glProgram = null;
+var glProgram2 = null;
+var samplerUniform = null;
+var maskTexture;
+
+function getGLContext() {
+    var glContextNames = ['webgl', 'experimental-webgl'];
+    for (var i = 0; i < glContextNames.length; i ++) {
+        try {
+            gl = canvas.getContext(glContextNames[i], {
+                stencil: true
+            });
+        } catch (e) {}
+        if (gl) {
+            gl.clearColor(74 / 255, 115 / 255, 94 / 255, 1.0);
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
+            gl.viewport(0, 0, canvas.width, canvas.height);
+            gl.enable(gl.STENCIL_TEST);
+            break;
+        }
+    }
+}
+
+function initShaders(vsShaderId, fsShaderId) {
+    //get shader source
+    var vs_source = document.getElementById(vsShaderId).innerHTML;
+    var fs_source = document.getElementById(fsShaderId).innerHTML;
+
+    //compile shaders
+    var vertexShader = makeShader(vs_source, gl.VERTEX_SHADER);
+    var fragmentShader = makeShader(fs_source, gl.FRAGMENT_SHADER);
+
+    //create program
+    var glProgram = gl.createProgram();
+
+    //attach and link shaders to the program
+    gl.attachShader(glProgram, vertexShader);
+    gl.attachShader(glProgram, fragmentShader);
+    gl.linkProgram(glProgram);
+
+    if (!gl.getProgramParameter(glProgram, gl.LINK_STATUS)) {
+        alert("Unable to initialize the shader program.");
+    }
+
+    //use program
+    // gl.useProgram(glProgram);
+    return glProgram;
+}
+
+function makeShader(src, type) {
+    //compile the vertex shader
+    var shader = gl.createShader(type);
+    gl.shaderSource(shader, src);
+    gl.compileShader(shader);
+
+    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+        alert("Error compiling shader: " + gl.getShaderInfoLog(shader));
+    }
+    return shader;
+}
+
+function setupBufferAndDraw(){
+    // draw the mask image as stencil
+    gl.useProgram(program2);
+    gl.colorMask(0, 0, 0, 0);
+    drawImageMaskSencil()
+    // drawImageMaskSencil(0.4, 0.1)
+
+
+    // draw the clipped triangle
+    gl.useProgram(program);
+    gl.colorMask(1, 1, 1, 1);
+    drawTriangles()
+}
+
+function drawImageMaskSencil(offsetX = 0, offsetY = 0) {
+    var maskVertex = [
+         -1 + offsetX, -1 + offsetY, 0,
+         1 + offsetX,  -1 + offsetY, 0,
+         1 + offsetX,   1 + offsetY, 0,
+         -1 + offsetX, -1 + offsetY, 0,
+         1 + offsetX,   1 + offsetY, 0,
+         -1 + offsetX,  1 + offsetY, 0
+    ];
+    var maskTexCoords = [
+        0, 0,
+        1, 0,
+        1, 1,
+        0, 0,
+        1, 1,
+        0, 1
+    ];
+    var maskBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, maskBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(maskVertex), gl.STATIC_DRAW);
+
+    var aMaskVertexPosition = gl.getAttribLocation(program2, 'aPos');
+    gl.vertexAttribPointer(aMaskVertexPosition, 3, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(aMaskVertexPosition);
+
+    // texture coordinate data
+    var maskTexCoordBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, maskTexCoordBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(maskTexCoords), gl.STATIC_DRAW);
+
+    var vertexTexCoordAttribute = gl.getAttribLocation(program2, "aTextureCoords");
+    gl.enableVertexAttribArray(vertexTexCoordAttribute);
+    gl.vertexAttribPointer(vertexTexCoordAttribute, 2, gl.FLOAT, false, 0, 0);
+
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, maskTexture);
+    gl.uniform1i(samplerUniform, 0);
+
+    // Always pass test
+    gl.stencilFunc(gl.ALWAYS, 1, 0xff);
+    gl.stencilOp(gl.KEEP, gl.KEEP, gl.REPLACE);
+    gl.stencilMask(0xff);
+    gl.clear(gl.STENCIL_BUFFER_BIT);
+
+    gl.drawArrays(gl.TRIANGLES, 0, maskVertex.length / 3);
+    
+    // Pass test if stencil value is 1
+    gl.stencilFunc(gl.EQUAL, 1, 0xff);
+    gl.stencilMask(0x00);
+}
+
+function drawTriangles() {
+    var color = [
+        1, 0, 0, 1,
+        0, 1, 0, 1,
+        0, 0, 1, 1
+    ];
+    var colorBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(color), gl.STATIC_DRAW);
+    var aColorPosition = gl.getAttribLocation(program, 'aColor');
+    gl.vertexAttribPointer(aColorPosition, 4, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(aColorPosition);
+
+    var vertex = [
+        -.5, -.2,  0,
+        .5,  -.2,  0,
+        0,   .6,   0
+    ];
+    var vertexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertex), gl.STATIC_DRAW);
+    var aVertexPosition = gl.getAttribLocation(program, 'aPos');
+    gl.vertexAttribPointer(aVertexPosition, 3, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(aVertexPosition);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.drawArrays(gl.TRIANGLES, 0, vertex.length / 3);
+}
+
+function createTexture(source) {
+    var texture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, source);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.bindTexture(gl.TEXTURE_2D, null);
+    return texture;
+}
+
+window.onload = function () {
+    getGLContext();
+    program = initShaders('shader-vs', 'shader-fs');        // 用于绘制模版的程序对象 （加载png的贴图作为蒙版）
+    program2 = initShaders('shader-vs-2', 'shader-fs-2');   // 用于绘制正常的渲染对象
+    samplerUniform = gl.getUniformLocation(program2, 'uSampler');
+    var img = new Image();
+    img.onload = function () {
+        maskTexture = createTexture(this);
+        setupBufferAndDraw();
+    };
+    img.src = './mask-png8.png';
+}
+</script>
+</body>
+</html>

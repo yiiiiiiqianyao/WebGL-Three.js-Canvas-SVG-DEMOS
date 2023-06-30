@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+<meta charset="utf-8">
+<title></title>
+  <link href="http://www.yanhuangxueyuan.com/markdown.css" rel="stylesheet" type="text/css">
+  </head>
+  <body>
+<h1 id="three-js-">Three.js矩阵</h1>
+<p>如果你有线性代数的基础，自然对象<strong>矩阵</strong>并不陌生，如果对大学所学的线性代数具体知识已经忘记了也没有关系，Three.js的矩阵库对常见的矩阵运算都进行了封装，如果不是为了封装或扩展3D引擎，只是开发一些常见3D项目，你只需要有一些基本的概念，会调用矩阵对象Matrix相关的方法就可以。</p>
+<h3 id="three-js-api">Three.js矩阵相关API</h3>
+<ul>
+<li>3x3矩阵<a href="http://www.yanhuangxueyuan.com/threejs/docs/index.html#api/math/Matrix3">Matrix3</a></li>
+<li>4x4矩阵<a href="http://www.yanhuangxueyuan.com/threejs/docs/index.html#api/math/Matrix4">Matrix4</a></li>
+</ul>
+<h4 id="-">创建向量对象</h4>
+<p>通过矩阵对象的<code>elements</code>属性可以访问矩阵元素的具体指，如果创建的时候构造函数没有设置具体的值，构造函数实例化的时候会自动设置一个默认值。
+4x4矩阵<code>Matrix4</code></p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// 创建一个4x4矩阵对象</span>
+<span class="hljs-keyword">var</span> mat4 = <span class="hljs-keyword">new</span> THREE.Matrix4()
+<span class="hljs-comment">// 默认值单位矩阵</span>
+<span class="hljs-comment">// 1, 0, 0, 0,</span>
+<span class="hljs-comment">// 0, 1, 0, 0,</span>
+<span class="hljs-comment">// 0, 0, 1, 0,</span>
+<span class="hljs-comment">// 0, 0, 0, 1</span>
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">'查看矩阵对象默认值'</span>, mat4.elements);
+</code></pre>
+<h4 id="-elements-set-">属性<code>elements</code>和方法<code>.set()</code></h4>
+<p>需要通过<code>Matrix4</code>对象表示的一个4x4矩阵</p>
+<pre><code class="lang-JavaScript"> | 1  0  0  5 |
+ | 0  1  0  3 |
+ | 0  0  1  9 |
+ | 0  0  0  1 |
+</code></pre>
+<p>通过<code>.set()</code>方法重置矩阵的元素值，执行<code>.set()</code>方法，本质上改变的就是矩阵<code>elements</code>属性值，这里注意set方法的参数顺序是按行设置一个矩阵的元素值。</p>
+<pre><code class="lang-JavaScript">mat4.<span class="hljs-keyword">set</span>(
+  <span class="hljs-number">1</span>, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-number">5</span>,
+  <span class="hljs-number">0</span>, <span class="hljs-number">1</span>, <span class="hljs-number">0</span>, <span class="hljs-number">3</span>,
+  <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-number">1</span>, <span class="hljs-number">9</span>,
+  <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-number">1</span>
+)
+</code></pre>
+<p>通过<code>elements</code>属性重置矩阵的元素值，elements的属性值是一个矩阵对象，里面的元素按列设置一个矩阵的元素值。</p>
+<pre><code class="lang-JavaScript">mat4.elements=[
+  1, 0, 0, 0,
+  0, 1, 0, 0,
+  0, 0, 1, 0,
+  5, 3, 9, 1
+]
+</code></pre>
+<h4 id="-transpose-">转置矩阵<code>.transpose()</code></h4>
+<p>矩阵对象执行方法<code>.transpose()</code>按照一定算法改变的自身<code>.elements</code>属性值。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// 创建一个4X4矩阵</span>
+<span class="hljs-keyword">var</span> mat4 = <span class="hljs-keyword">new</span> THREE.Matrix4();
+mat4.<span class="hljs-keyword">set</span>(<span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">5</span>,<span class="hljs-number">0</span>,<span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">3</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">1</span>,<span class="hljs-number">9</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">1</span>);
+<span class="hljs-comment">//转置矩阵</span>
+mat4.transpose();
+console.log(<span class="hljs-string">'查看mat4的转置矩阵'</span>,mat4.elements);
+</code></pre>
+<p>为了不改变原矩阵，可以先执行克隆<code>.clone</code>方法返回一个和原矩阵完全一样的矩阵。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// 创建一个4X4矩阵</span>
+<span class="hljs-keyword">var</span> mat4 = <span class="hljs-keyword">new</span> THREE.Matrix4();
+mat4.<span class="hljs-keyword">set</span>(<span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">5</span>,<span class="hljs-number">0</span>,<span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">3</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">1</span>,<span class="hljs-number">9</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">1</span>);
+<span class="hljs-comment">// 先克隆，避免改变原矩阵mat4</span>
+<span class="hljs-keyword">var</span> mat4T = mat4.clone()
+<span class="hljs-comment">//转置矩阵，</span>
+mat4T.transpose();
+console.log(<span class="hljs-string">'查看mat4的转置矩阵'</span>,mat4T.elements);
+</code></pre>
+<h4 id="-multiplyscalar-"><code>.multiplyScalar()</code></h4>
+<p>矩阵的每个元素乘以<code>.multiplyScalar()</code>方法的参数。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// 创建一个4X4矩阵</span>
+<span class="hljs-keyword">var</span> mat4 = <span class="hljs-keyword">new</span> THREE.Matrix4();
+mat4.<span class="hljs-keyword">set</span>(<span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">5</span>,<span class="hljs-number">0</span>,<span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">3</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">1</span>,<span class="hljs-number">9</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">1</span>);
+<span class="hljs-comment">// 矩阵乘以标量</span>
+mat4.multiplyScalar(<span class="hljs-number">10</span>);
+console.log(<span class="hljs-string">'查看矩阵乘以标量后的结果'</span>, mat4.elements);
+</code></pre>
+<h4 id="-">矩阵乘法</h4>
+<ul>
+<li><code>c.multiplyMatrices(a,b)</code>:参数中两个矩阵相乘axb，结果保存在c中</li>
+<li><code>a.multiply(b)</code>:矩阵相乘axb，结果保存在a</li>
+<li><code>a.premultiply(b)</code>:矩阵相乘bxa，结果保存在a</li>
+</ul>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// 矩阵乘法运算</span>
+<span class="hljs-keyword">var</span> mat41 = <span class="hljs-keyword">new</span> THREE.Matrix4()
+mat41.<span class="hljs-keyword">set</span>(<span class="hljs-number">1</span>,<span class="hljs-number">2</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">8</span>,<span class="hljs-number">0</span>,<span class="hljs-number">3</span>,<span class="hljs-number">5</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>)
+<span class="hljs-keyword">var</span> mat42 = <span class="hljs-keyword">new</span> THREE.Matrix4()
+mat42.<span class="hljs-keyword">set</span>(<span class="hljs-number">1</span>,<span class="hljs-number">2</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">2</span>,<span class="hljs-number">3</span>,<span class="hljs-number">0</span>,<span class="hljs-number">7</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">8</span>,<span class="hljs-number">0</span>,<span class="hljs-number">3</span>,<span class="hljs-number">5</span>,<span class="hljs-number">0</span>)
+<span class="hljs-comment">// mat43保存计算结果</span>
+<span class="hljs-keyword">var</span> mat43 = <span class="hljs-keyword">new</span> THREE.Matrix4()
+<span class="hljs-comment">// 矩阵乘法运算：mat41xmat42</span>
+mat43.multiplyMatrices(mat41,mat42)
+console.log(<span class="hljs-string">'查看mat43'</span>, mat43.elements);
+</code></pre>
+<h4 id="-getinverse-">逆矩阵<code>getInverse</code></h4>
+<p>计算逆矩阵需要注意矩阵首先是可逆的，如果矩阵不可逆执行该方法会报错</p>
+<p>计算可逆矩阵的逆矩阵</p>
+<pre><code class="lang-JavaScript"><span class="hljs-keyword">var</span> mat4 = <span class="hljs-keyword">new</span> THREE.Matrix4();
+<span class="hljs-comment">// 可逆矩阵</span>
+mat4.elements=[<span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">5</span>,<span class="hljs-number">3</span>,<span class="hljs-number">9</span>,<span class="hljs-number">1</span>]
+<span class="hljs-comment">// mat4I用来保存mat4逆矩阵计算结果</span>
+<span class="hljs-keyword">var</span> mat4I = <span class="hljs-keyword">new</span> THREE.Matrix4();
+mat4I.getInverse(mat4, <span class="hljs-literal">true</span>);
+<span class="hljs-comment">// 控制台查看矩阵的逆矩阵</span>
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">'mat4I'</span>, mat4I.elements);
+</code></pre>
+<p>不可逆矩阵报错</p>
+<pre><code class="lang-JavaScript"><span class="hljs-keyword">var</span> mat4 = <span class="hljs-keyword">new</span> THREE.Matrix4();
+<span class="hljs-comment">// 不可逆矩阵</span>
+mat4.elements = [<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">5</span>,<span class="hljs-number">3</span>,<span class="hljs-number">9</span>,<span class="hljs-number">1</span>];
+<span class="hljs-comment">// mat4I用来保存mat4逆矩阵计算结果</span>
+<span class="hljs-keyword">var</span> mat4I = <span class="hljs-keyword">new</span> THREE.Matrix4();
+mat4I.getInverse(mat4, <span class="hljs-literal">true</span>);
+<span class="hljs-comment">// 控制台查看矩阵的逆矩阵</span>
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">'mat4I'</span>, mat4I.elements);
+</code></pre>
+<h4 id="-determinant-">行列式<code>.determinant()</code></h4>
+<p>通过<code>.determinant()</code>方法计算矩阵行列式的值</p>
+<pre><code class="lang-JavaScript"><span class="hljs-keyword">var</span> mat = <span class="hljs-keyword">new</span> THREE.Matrix4()
+mat.<span class="hljs-keyword">set</span>(<span class="hljs-number">1</span>,<span class="hljs-number">2</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">2</span>,<span class="hljs-number">3</span>,<span class="hljs-number">0</span>,<span class="hljs-number">7</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">8</span>,<span class="hljs-number">0</span>,<span class="hljs-number">3</span>,<span class="hljs-number">5</span>,<span class="hljs-number">0</span>)
+<span class="hljs-comment">// 计算矩阵行列式的值</span>
+<span class="hljs-keyword">var</span> determinant = mat.determinant()
+console.log(<span class="hljs-string">'行列式'</span>, determinant);
+</code></pre>
+<h4 id="-">对象属性值</h4>
+<p>相关矩阵属性可以参考网格模型Mesh的基类Object3D。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-keyword">var</span> mesh = <span class="hljs-keyword">new</span> THREE.Mesh();
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">'本地矩阵'</span>, mesh.matrix);
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">'世界矩阵'</span>, mesh.matrixWorld);
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">'模型视图矩阵'</span>, mesh.modelViewMatrix);
+<span class="hljs-comment">// .normalMatrix属性值是3X3矩阵Matrix3</span>
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">'法线矩阵'</span>, mesh.normalMatrix);
+</code></pre>
+<p>相机对象的投影矩阵属性<code>.projectionMatrix</code>和视图矩阵属性<code>.matrixWorldInverse</code>。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// 创建相机对象</span>
+<span class="hljs-keyword">var</span> camera = <span class="hljs-keyword">new</span> THREE.OrthographicCamera(<span class="hljs-number">-20</span>, <span class="hljs-number">20</span>, <span class="hljs-number">10</span>, <span class="hljs-number">-10</span>, <span class="hljs-number">1</span>, <span class="hljs-number">1000</span>);
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">'视图矩阵'</span>, camera.matrixWorldInverse);
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">'投影矩阵'</span>, camera.projectionMatrix);
+</code></pre>
+<div class="">
+  <a href="http://www.yanhuangxueyuan.com/">作者技术博客</a>
+</div>
+
+  </body>
+</html>

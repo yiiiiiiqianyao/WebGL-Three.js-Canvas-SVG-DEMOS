@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+<meta charset="utf-8">
+<title></title>
+  <link href="http://www.yanhuangxueyuan.com/markdown.css" rel="stylesheet" type="text/css">
+  </head>
+  <body>
+<h1 id="-material-shader-">材质对象Material对应的着色器Shader代码</h1>
+<p>前面课程中讲解过每一种材质对象都对应着一个着色器代码，这节课来讲解Three.js渲染器解析材质对象<code>Material</code>，如何获得对应的着色器代码和uniforms对象。</p>
+<ul>
+<li>点材质PointsMaterial：顶点着色器文件points_vert.glsl、片元着色器文件points_frag.glsl</li>
+<li>基础网格材质MeshBasicMaterial：顶点着色器文件meshbasic_vert.glsl、片元着色器文件meshbasic_frag.glsl</li>
+<li>高光网格材质MeshPhongMaterial：顶点着色器文件meshphong_vert.glsl、片元着色器文件meshphong_frag.glsl</li>
+</ul>
+<p>学习本节课的内容需要先简单阅读以下源码：</p>
+<ul>
+<li>WebGLPrograms.js源码</li>
+<li><code>\renderers\shaders</code>目录下的着色器源码文件和js源码文件</li>
+</ul>
+<h3 id="-">材质对象封装</h3>
+<p>通过材质对象的<code>.type</code>属性，可以判断材质对象是哪种材质对象，一个材质对象具有一个惟一的type类型。</p>
+<h3 id="javascript-">JavaScript语法</h3>
+<p>把字符串作为属性名访问对象的属性。</p>
+<pre><code class="lang-JavaScript">  <span class="hljs-keyword">var</span> shaderIDs = {
+  MeshBasicMaterial: <span class="hljs-string">'basic'</span>,
+  MeshLambertMaterial: <span class="hljs-string">'lambert'</span>,
+  MeshPhongMaterial: <span class="hljs-string">'phong'</span>,
+  };
+  <span class="hljs-comment">// 查看shaderIDs对象MeshBasicMaterial属性的值</span>
+  <span class="hljs-built_in">console</span>.log(shaderIDs.MeshBasicMaterial);
+  <span class="hljs-built_in">console</span>.log(<span class="hljs-string">'查看属性值'</span>,shaderIDs[ <span class="hljs-string">'MeshBasicMaterial'</span> ]);
+</code></pre>
+<h3 id="shaders-">shaders目录简介</h3>
+<p>着色器代码文件目录是<code>three.js-master\src\renderers\shaders</code>，shaders目录下有两个着色器代码的文件ShaderChunk和ShaderLib。</p>
+<p>ShaderChunk目录下的着色器代码文件.glsl都是具有特定功能的模块，ShaderLib目录下的着色器文件会通过<code>#include &lt;ShaderChunk中着色器文件名&gt;</code>调用ShaderChunk目录下特定功能的着色器代码块构建出来具有具有特定功能的顶点着色器文件和片元着色器文件。</p>
+<ul>
+<li>点材质PointsMaterial：顶点着色器文件points_vert.glsl、片元着色器文件points_frag.glsl</li>
+<li>基础网格材质MeshBasicMaterial：顶点着色器文件meshbasic_vert.glsl、片元着色器文件meshbasic_frag.glsl</li>
+<li>高光网格材质MeshPhongMaterial：顶点着色器文件meshphong_vert.glsl、片元着色器文件meshphong_frag.glsl</li>
+</ul>
+<p>ShaderChunk.js：用来获得ShaderChunk和ShaderLib文件中的着色器代码</p>
+<p>ShaderLib.js：设置好点、线、网格材质对应的uniforms变量值、顶点着色器代码、片元着色器代码</p>
+<p>UniformsLib.js、UniformsUtils.js：着色器中uniform变量对应的值</p>
+<h3 id="webglrenderer-js">WebGLRenderer.js</h3>
+<p>通过<code>WebGLPrograms</code>对象的方法<code>.getParameters()</code>返回一个parameters对象，返回的parameters对象的<code>shaderID</code>属性保留了材质对象类型type的信息，通过材质对象信息可以在ShaderLib对象中获得材质对象对应的着色器代码。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-keyword">import</span> {ShaderLib} <span class="hljs-keyword">from</span> <span class="hljs-string">'./shaders/ShaderLib.js'</span>;
+<span class="hljs-keyword">import</span> {WebGLPrograms} <span class="hljs-keyword">from</span> <span class="hljs-string">'./webgl/WebGLPrograms.js'</span>;
+programCache = <span class="hljs-keyword">new</span> WebGLPrograms(_this, extensions, capabilities);
+
+<span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">initMaterial</span>(<span class="hljs-params">material, fog, object</span>) </span>{
+
+  <span class="hljs-comment">// 返回一个parameters对象，具有shaderID属性，通过shaderID的属性值可以获得材质对象对应的着色器代码。</span>
+  <span class="hljs-keyword">var</span> parameters = programCache.getParameters(material, lights.state, shadowsArray, ...object);
+
+  <span class="hljs-comment">// 通过shaderID键对应的值，作为ShaderLib对象的键名获得相应的值，uniforms对象、定点着色器代码、片元着色器代码</span>
+  <span class="hljs-keyword">var</span> shader = ShaderLib[parameters.shaderID];
+
+  materialProperties.shader = {
+  name: material.type,
+  uniforms: UniformsUtils.clone(shader.uniforms),
+  vertexShader: shader.vertexShader,
+  fragmentShader: shader.fragmentShader
+  };
+  <span class="hljs-comment">// 处理着色器代码、编译着色器代码、返回程序对象program</span>
+  program = programCache.acquireProgram(material, materialProperties.shader, parameters, code);
+}
+</code></pre>
+<h3 id="webglprograms-js">WebGLPrograms.js</h3>
+<p>构造函数<code>WebGLPrograms</code>封装了<code>.getParameters()</code>、<code>.getProgramCode()</code>、<code>.acquireProgram()</code>等方法和<code>.programs</code>属性。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">WebGLPrograms</span>(<span class="hljs-params"> renderer, extensions, capabilities </span>) </span>{
+  <span class="hljs-keyword">var</span> shaderIDs = {
+  MeshDepthMaterial: <span class="hljs-string">'depth'</span>,
+  MeshDistanceMaterial: <span class="hljs-string">'distanceRGBA'</span>,
+  MeshNormalMaterial: <span class="hljs-string">'normal'</span>,
+  MeshBasicMaterial: <span class="hljs-string">'basic'</span>,
+  MeshLambertMaterial: <span class="hljs-string">'lambert'</span>,
+  MeshPhongMaterial: <span class="hljs-string">'phong'</span>,
+  MeshToonMaterial: <span class="hljs-string">'phong'</span>,
+  MeshStandardMaterial: <span class="hljs-string">'physical'</span>,
+  MeshPhysicalMaterial: <span class="hljs-string">'physical'</span>,
+  LineBasicMaterial: <span class="hljs-string">'basic'</span>,
+  LineDashedMaterial: <span class="hljs-string">'dashed'</span>,
+  PointsMaterial: <span class="hljs-string">'points'</span>,
+  ShadowMaterial: <span class="hljs-string">'shadow'</span>
+};
+<span class="hljs-keyword">this</span>.getParameters = <span class="hljs-function"><span class="hljs-keyword">function</span> (<span class="hljs-params">material, lights,...</span>)</span>{
+  <span class="hljs-comment">// 通过材质对象.type值，从shaderIDs提取相应的属性值</span>
+  <span class="hljs-keyword">var</span> shaderID = shaderIDs[ material.type ];
+
+  <span class="hljs-keyword">var</span> parameters = {
+<span class="hljs-comment">// 该属性用于判断材质对象</span>
+  shaderID: shaderID,
+  precision: precision,
+  vertexColors: material.vertexColors,
+  numSpotLights: lights.spot.length,
+  numRectAreaLights: lights.rectArea.length,
+  numHemiLights: lights.hemi.length,
+  };
+
+<span class="hljs-keyword">return</span> parameters;
+}
+}
+</code></pre>
+
+<div class="">
+  <a href="http://www.yanhuangxueyuan.com/">作者技术博客</a>
+</div>
+  </body>
+</html>

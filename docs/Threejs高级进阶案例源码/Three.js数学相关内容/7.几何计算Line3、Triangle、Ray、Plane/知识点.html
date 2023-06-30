@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+<meta charset="utf-8">
+<title></title>
+  <link href="http://www.yanhuangxueyuan.com/markdown.css" rel="stylesheet" type="text/css">
+  </head>
+  <body>
+
+<h1 id="-api">几何计算相关API</h1>
+<p>Threejs封装了一些和几何计算相关的API，比如线段Line3、三角形Triangle、射线Ray、平面Plane...</p>
+<h3 id="-line3-">线段<code>Line3</code></h3>
+<p>通过起始点定义一条线段。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// 创建一个线段对象Line3</span>
+<span class="hljs-keyword">var</span> line3 = <span class="hljs-keyword">new</span> THREE.Line3();
+<span class="hljs-comment">// 线段起点坐标</span>
+line3.start = <span class="hljs-keyword">new</span> THREE.Vector3(<span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>);
+<span class="hljs-comment">// 线段终点坐标</span>
+line3.end = <span class="hljs-keyword">new</span> THREE.Vector3(<span class="hljs-number">10</span>, <span class="hljs-number">10</span>, <span class="hljs-number">10</span>);
+</code></pre>
+<p>计算线段中点，或者说计算两点的中点</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// 创建一个三维向量对象表示线段中点</span>
+<span class="hljs-keyword">var</span> center = <span class="hljs-keyword">new</span> THREE.Vector3();
+<span class="hljs-comment">// 执行getCenter方法计算线段中点，结果保存到参数</span>
+line3.getCenter(center)
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">'查看线段中点'</span>, center);
+</code></pre>
+<p>计算线段的距离，或者说计算两点之间的距离</p>
+<pre><code class="lang-JavaScript">// 计算线段长度
+var L = line3.distance();
+console.<span class="hljs-keyword">log</span>(<span class="hljs-string">'查看线段距离'</span>, L);
+<span class="hljs-regexp">//</span> 计算线段长度平方
+var L2 = line3.distanceS<span class="hljs-string">q()</span>;
+console.<span class="hljs-keyword">log</span>(<span class="hljs-string">'查看线段距离平方'</span>, L2);
+</code></pre>
+<p>可以通过向量对象<code>Vector3</code>的<code>.distanceTo()</code>方法计算两点之间距离</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// 线段起点坐标</span>
+<span class="hljs-keyword">var</span> p1 = <span class="hljs-keyword">new</span> THREE.Vector3(<span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>);
+<span class="hljs-comment">// 线段终点坐标</span>
+<span class="hljs-keyword">var</span> p2 = <span class="hljs-keyword">new</span> THREE.Vector3(<span class="hljs-number">10</span>, <span class="hljs-number">10</span>, <span class="hljs-number">10</span>);
+<span class="hljs-comment">// Vector3的方法distanceTo()计算两点之间距离</span>
+<span class="hljs-keyword">var</span> length = p1.distanceTo(p2)
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">'两点之间距离'</span>, length);
+</code></pre>
+<h3 id="-ray-">射线<code>Ray</code></h3>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// 创建射线对象Ray</span>
+<span class="hljs-keyword">var</span> ray = <span class="hljs-keyword">new</span> THREE.Ray()
+<span class="hljs-comment">// 设置射线起点</span>
+ray.origin = <span class="hljs-keyword">new</span> THREE.Vector3(<span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">3</span>);
+<span class="hljs-comment">// 设置射线方向</span>
+ray.direction = <span class="hljs-keyword">new</span> THREE.Vector3(<span class="hljs-number">1</span>,<span class="hljs-number">1</span>,<span class="hljs-number">1</span>).normalize();
+</code></pre>
+<p>通过射线<code>Ray</code>的<code>.intersectTriangle()</code>方法判断射线和一个三角形区域是否相交,如果相交返回交点坐标，不相交返回null。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// 三角形三个点坐标</span>
+<span class="hljs-keyword">var</span> p1 = <span class="hljs-keyword">new</span> THREE.Vector3(<span class="hljs-number">20</span>, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>);
+<span class="hljs-keyword">var</span> p2 = <span class="hljs-keyword">new</span> THREE.Vector3(<span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-number">10</span>);
+<span class="hljs-keyword">var</span> p3 = <span class="hljs-keyword">new</span> THREE.Vector3(<span class="hljs-number">0</span>, <span class="hljs-number">30</span>, <span class="hljs-number">0</span>);
+<span class="hljs-comment">// 相交返回交点，不相交返回null</span>
+<span class="hljs-keyword">var</span> result = ray.intersectTriangle(p1,p2,p3)
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">'查看是否相交'</span>, result);
+</code></pre>
+<p>通过射线<code>Ray</code>的<code>.intersectsBox(Box3)</code>方法判断射线和一个包围盒Box3是否相交，通过射线<code>Ray</code>的<code>.intersectsSphere(Sphere)</code>方法判断射线和一个包围球Sphere是否相交...</p>
+<h3 id="-triangle-">三角形<code>Triangle</code></h3>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// 创建一个三角形对象</span>
+<span class="hljs-keyword">var</span> Triangle = <span class="hljs-keyword">new</span> THREE.Triangle()
+<span class="hljs-comment">// 三角形顶点1</span>
+Triangle.a = <span class="hljs-keyword">new</span> THREE.Vector3(<span class="hljs-number">20</span>, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>);
+<span class="hljs-comment">// 三角形顶点2</span>
+Triangle.b = <span class="hljs-keyword">new</span> THREE.Vector3(<span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-number">10</span>);
+<span class="hljs-comment">// 三角形顶点3</span>
+Triangle.c = <span class="hljs-keyword">new</span> THREE.Vector3(<span class="hljs-number">0</span>, <span class="hljs-number">30</span>, <span class="hljs-number">0</span>);
+</code></pre>
+<p>通过三角形对象<code>Triangle</code>的<code>.getArea()</code>方法可以计算一个三角形区域的面积，如果你想计算一个网格模型的表面，就可以遍历网格模型对应几何体所有的三角形区域计算面积然后累加。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// .getArea()方法返回三角形面积</span>
+<span class="hljs-keyword">var</span> S = Triangle.getArea();
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">'三角形面积'</span>, S);
+</code></pre>
+<p>通过三角形对象<code>Triangle</code>的<code>.getMidpoint()</code>方法计算三角形重心，封装的算法就是三个顶点坐标的算术平均值。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-keyword">var</span> Midpoint = <span class="hljs-keyword">new</span> THREE.Vector3();
+<span class="hljs-comment">// 计算三角形重心，结果保存在参数Midpoint</span>
+Triangle.getMidpoint(Midpoint);
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">'三角形重心'</span>, Midpoint);
+</code></pre>
+<p>通过三角形对象<code>Triangle</code>的<code>.getNormal()</code>方法计算三角形法线方向，封装的算法简单说就是两条边构成的向量叉乘后获得垂直三角形面的向量。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-keyword">var</span> normal = <span class="hljs-keyword">new</span> THREE.Vector3();
+<span class="hljs-comment">// 计算三角形法线方向，结果保存在参数normal</span>
+Triangle.getNormal(normal);
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">'三角形法线'</span>, normal);
+</code></pre>
+<h3 id="-plane-">平面<code>Plane</code></h3>
+<p>通过平面法线方向<code>.normal</code>和平面到坐标原点距离<code>.constant</code>来定义一个平面对象<code>Plane</code></p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// 创建一个平面对象Plane</span>
+<span class="hljs-keyword">var</span> plane = <span class="hljs-keyword">new</span> THREE.Plane();
+<span class="hljs-comment">// 设置平面法线方向</span>
+plane.normal = <span class="hljs-keyword">new</span> THREE.Vector3(<span class="hljs-number">0</span>, <span class="hljs-number">1</span>, <span class="hljs-number">0</span>);
+<span class="hljs-comment">// 坐标原点到平面的距离，区分正负</span>
+plane.constant = <span class="hljs-number">30</span>;
+</code></pre>
+<p>执行平面对象方法<code>.setFromCoplanarPoints(a,b,c)</code>通过三个顶点坐标来设置一个平面对象<code>Plane</code>，三个点按照逆时针顺序来确定平面对象的法向量normal方向。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// 创建一个平面对象Plane</span>
+<span class="hljs-keyword">var</span> plane = <span class="hljs-keyword">new</span> THREE.Plane();
+<span class="hljs-comment">// 三个点坐标</span>
+<span class="hljs-keyword">var</span> p1 = <span class="hljs-keyword">new</span> THREE.Vector3(<span class="hljs-number">20</span>, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>);
+<span class="hljs-keyword">var</span> p2 = <span class="hljs-keyword">new</span> THREE.Vector3(<span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-number">10</span>);
+<span class="hljs-keyword">var</span> p3 = <span class="hljs-keyword">new</span> THREE.Vector3(<span class="hljs-number">0</span>, <span class="hljs-number">30</span>, <span class="hljs-number">0</span>);
+<span class="hljs-comment">// 通过三个点定义一个平面</span>
+plane.setFromCoplanarPoints(p1,p2,p3);
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">'plane.normal'</span>, plane.normal);
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">'plane.constant'</span>, plane.constant);
+</code></pre>
+<p>通过平面对象的<code>.distanceToPoint(point)</code>方法计算点到平面的垂线距离。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-keyword">var</span> point = <span class="hljs-keyword">new</span> THREE.Vector3(<span class="hljs-number">20</span>, <span class="hljs-number">100</span>, <span class="hljs-number">330</span>);
+<span class="hljs-comment">// 计算空间中一点到平面的垂直距离</span>
+<span class="hljs-keyword">var</span> L = plane.distanceToPoint(point);
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">'点到平面距离'</span>, L);
+</code></pre>
+<div class="">
+  <a href="http://www.yanhuangxueyuan.com/">作者技术博客</a>
+</div>
+  </body>
+</html>

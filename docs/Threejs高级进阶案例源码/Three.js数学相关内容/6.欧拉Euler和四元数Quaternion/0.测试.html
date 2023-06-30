@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+
+<head>
+  <meta charset="utf-8">
+  <title></title>
+  <!--引入three.js三维引擎-->
+  <script src="http://www.yanhuangxueyuan.com/versions/threejsR92/build/three.js"></script>
+</head>
+
+<body>
+  <script>
+
+    var quaternion = new THREE.Quaternion();
+    // 旋转轴new THREE.Vector3(0,1,0)
+    // 旋转角度Math.PI/2
+    quaternion.setFromAxisAngle(new THREE.Vector3(0,1,0),Math.PI/2)
+    console.log('查看四元数结构',quaternion);
+    console.log('查看四元数w分量',quaternion.w);
+
+  </script>
+
+</body>
+
+</html>

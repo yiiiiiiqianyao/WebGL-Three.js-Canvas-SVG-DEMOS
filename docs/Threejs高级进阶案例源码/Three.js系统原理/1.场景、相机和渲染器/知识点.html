@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+<meta charset="utf-8">
+<title></title>
+  <link href="http://www.yanhuangxueyuan.com/markdown.css" rel="stylesheet" type="text/css">
+  </head>
+  <body>
+
+<h1 id="-">场景、相机和渲染器</h1>
+<p>Three.js整个系统主要包含场景<code>Scene</code>、相机<code>Camera</code>和WebGL渲染器<code>WebGLRenderer</code>三大块，其中场景又包含模型和光源。WebGL渲染器的主要作用就是把相机对应场景渲染出来，显示在网页Cnavas画布上。</p>
+<p><img width="400" src="http://www.yanhuangxueyuan.com/Three.js_course/icon/threejs.png" alt="场景相机渲染器">
+<img width="500" src="http://www.yanhuangxueyuan.com/Three.js_course/icon/threejs2.png" alt="场景相机渲染器2"></p>
+<h3 id="three-js-">Three.js源码</h3>
+<p>Three.js各个构造函数对应的源码位于three.js-master中src文件中，<code>three.js-master\build</code>目录下的three.js文件是通过src目录下的所有代码块打包而来。</p>
+<p>想了解学习3D引擎Three.js整个系统的原理，自然需要Three.js引擎<code>three.js-master\src</code>目录下的所有源码。</p>
+<h3 id="javascript-webgl-">JavaScript和WebGL基础</h3>
+<p>Three.js是通过JavaScript语言对WebGL API和着色器代码封装后得到的3D引擎，阅读Three.js源码自然需要有一定的JavaScript和WebGL基础。</p>
+<p>了解Three.js每个API对应构造函数是如何封装，构造函数的参数是如何设置属性的，对象的属性和方法是如何封装的，对象的方法是如何改变对象属性的，类与类之间的继承关系，这些都需要你对JavaScript的语言有很深的了解。</p>
+<p><code>three.js-master\src\renderers</code>目录下都是与WebGL渲染器<code>WebGLRenderer</code>相关的代码块，WebGL渲染器代码主要对WebGL API和着色器代码进行了封装。
+<code>three.js-master\src\renderers\shaders</code>目录下ShaderChunk和ShaderLib文件主要是一系列具有特定功能的着色器GLSL代码块。
+开发者编程常用的WebGL渲染器对应的源码就是<code>renderers</code>目录下<code>WebGLRenderer.js</code>文件，该文件会调用<code>renderers</code>目录下shader和webgl两个文件中的代码。</p>
+<h3 id="-">类封装案例</h3>
+<p>比如Mesh.js文件部分源码</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// 引入Mesh.js依赖的js文件</span>
+...
+<span class="hljs-keyword">import</span> { Vector3 } <span class="hljs-keyword">from</span> <span class="hljs-string">'../math/Vector3.js'</span>;
+<span class="hljs-keyword">import</span> { Matrix4 } <span class="hljs-keyword">from</span> <span class="hljs-string">'../math/Matrix4.js'</span>;
+<span class="hljs-keyword">import</span> { Object3D } <span class="hljs-keyword">from</span> <span class="hljs-string">'../core/Object3D.js'</span>;
+...
+<span class="hljs-comment">// 声明一个构造函数Mesh</span>
+<span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">Mesh</span>(<span class="hljs-params"> geometry, material </span>) </span>{
+  <span class="hljs-comment">// 通过call方法，Meshlz可以批量继承Object3D类的方法和属性</span>
+  <span class="hljs-comment">// 网格模型`Mesh`的基类是`Object3D`</span>
+Object3D.call( <span class="hljs-keyword">this</span> );
+
+<span class="hljs-keyword">this</span>.type = <span class="hljs-string">'Mesh'</span>;
+
+  <span class="hljs-comment">// 如果构造函数没有参数，系统设置属性默认</span>
+  <span class="hljs-comment">// 如果系统有参数，直接把参数设置为属性对应的属性值</span>
+  <span class="hljs-keyword">this</span>.geometry = geometry !== <span class="hljs-literal">undefined</span> ? geometry : <span class="hljs-keyword">new</span> BufferGeometry();
+<span class="hljs-keyword">this</span>.material = material !== <span class="hljs-literal">undefined</span> ? material : <span class="hljs-keyword">new</span> MeshBasicMaterial( { color: <span class="hljs-built_in">Math</span>.random() * <span class="hljs-number">0xffffff</span> } );
+
+}
+</code></pre>
+<h3 id="-">源码阅读技巧</h3>
+<ul>
+<li><p>编辑器查找关键词，比如查找src目录下的那个.js文件封装了WebGL API<code>gl.drawArrays()</code>，
+比如查找一个对象的方法方法<code>.cross()</code>。</p>
+</li>
+<li><p>src目录下源码和three.js文档目录是一一对应关系，比如src目录下math文件中都是Three.js文档Math分类下API对应的源码文件。</p>
+</li>
+</ul>
+<h3 id="-render-webgl-api-gl-drawarrays-">渲染器<code>.render()</code>方法和WebGL API<code>gl.drawArrays()</code></h3>
+<p><img width="500" src="http://www.yanhuangxueyuan.com/Three.js_course/icon/render.png" alt="场景相机渲染器2"></p>
+<p>如果你有原生WebGL基础，阅读Threejs源码将会很容易理解一些对象的方法和属性，比如
+Three.js渲染器的渲染方法<code>.render()</code>，执行该方法就相当于执行WebGL 绘制方法<code>gl.drawArrays()</code>。</p>
+<p>在原生WebGL代码中，执行绘制方法<code>gl.drawArrays()</code>就会在Cnvas画布上绘制一帧图片，自然Threejs的渲染方法<code>.render()</code>同理，周期性执行
+绘制方法<code>gl.drawArrays()</code>可以更新帧缓冲区数据，也就是更新Canvas画布显示图像，<code>.render()</code>方法同理可以实现一样的效果。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// 渲染函数</span>
+<span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">render</span>(<span class="hljs-params"></span>) </span>{
+  renderer.render(scene, camera); <span class="hljs-comment">//执行渲染操作</span>
+  mesh.rotateY(<span class="hljs-number">0.01</span>);<span class="hljs-comment">//每次绕y轴旋转0.01弧度</span>
+  requestAnimationFrame(render);<span class="hljs-comment">//请求再次执行渲染函数render，渲染下一帧</span>
+}
+render();
+</code></pre>
+<p>WebGLBufferRenderer.js文件封装了原生WebGL方法<code>gl.drawArrays()</code>。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// WebGLBufferRenderer.js文件源码</span>
+<span class="hljs-comment">// 提供了一个render方法，在WebGLRenderer.js中会调用</span>
+<span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">WebGLBufferRenderer</span>(<span class="hljs-params"> gl, extensions, info </span>) </span>{
+  ...
+<span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">render</span>(<span class="hljs-params"> start, count </span>) </span>{
+<span class="hljs-comment">// 封装了原生WebGL API：gl.drawArrays()</span>
+gl.drawArrays( mode, start, count );
+info.update( count, mode );
+}
+  ...
+  <span class="hljs-keyword">this</span>.render = render;
+}
+</code></pre>
+<p>WebGL渲染器源码文件WebGLRenderer.js中的渲染方法<code>.render()</code>调用了WebGLBufferRenderer.js文件封装的原生WebGL方法<code>gl.drawArrays()</code>。</p>
+<p>gl.drawArrays——&gt;WebGLBufferRenderer.js——&gt;renderBufferDirect——&gt;renderObject——&gt;renderObjects——&gt;render</p>
+<pre><code class="lang-JavaScript"><span class="hljs-keyword">import</span> {WebGLBufferRenderer} <span class="hljs-keyword">from</span> <span class="hljs-string">'./webgl/WebGLBufferRenderer.js'</span>;
+bufferRenderer = <span class="hljs-keyword">new</span> WebGLBufferRenderer(_gl, extensions, info);
+<span class="hljs-keyword">var</span> renderer = bufferRenderer;
+</code></pre>
+<pre><code class="lang-JavaScript"><span class="hljs-keyword">this</span>.renderBufferDirect = <span class="hljs-function"><span class="hljs-keyword">function</span>(<span class="hljs-params">camera, fog, geometry, material, object, group</span>) </span>{
+...
+renderer.render(drawStart, drawCount);
+...
+}
+</code></pre>
+<pre><code class="lang-JavaScript"><span class="hljs-function">function <span class="hljs-title">renderObject</span>(<span class="hljs-params"><span class="hljs-keyword">object</span>, scene, camera, geometry, material, <span class="hljs-keyword">group</span></span>) </span>{
+_this.renderBufferDirect(camera, scene.fog, geometry, material, <span class="hljs-keyword">object</span>, <span class="hljs-keyword">group</span>);
+}
+</code></pre>
+<pre><code class="lang-JavaScript"><span class="hljs-function">function <span class="hljs-title">renderObjects</span>(<span class="hljs-params">renderList, scene, camera...</span>) </span>{
+  ...
+  renderObject(<span class="hljs-keyword">object</span>, scene, camera, geometry, material, <span class="hljs-keyword">group</span>);
+  ...
+}
+</code></pre>
+<pre><code class="lang-JavaScript"><span class="hljs-keyword">this</span>.render = <span class="hljs-function"><span class="hljs-keyword">function</span>(<span class="hljs-params">scene, camera...</span>) </span>{
+  ...
+  renderObjects(opaqueObjects, scene, camera);
+  ...
+}
+</code></pre>
+<div class="">
+  <a href="http://www.yanhuangxueyuan.com/">作者技术博客</a>
+</div>
+  </body>
+</html>

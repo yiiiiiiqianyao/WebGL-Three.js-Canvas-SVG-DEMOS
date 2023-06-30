@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>作者博客：百度"three.js 郭隆邦"</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      /* 隐藏body窗口区域滚动条 */
+    }
+  </style>
+  <!--引入three.js三维引擎-->
+  <script src="http://www.yanhuangxueyuan.com/versions/threejsR92/build/three.js"></script>
+  <!-- 引入threejs扩展控件OrbitControls.js -->
+  <script src="http://www.yanhuangxueyuan.com/versions/threejsR92/examples/js/controls/OrbitControls.js"></script>
+</head>
+
+<body>
+  <script>
+    /**
+     * 创建场景对象Scene
+     */
+    var scene = new THREE.Scene();
+    /**
+     * 创建网格模型
+     */
+    var geometry = new THREE.BoxGeometry(100, 100, 100); //创建一个立方体几何对象Geometry
+    var material = new THREE.MeshLambertMaterial({
+      color: 0xffff00
+    }); //材质对象Material
+    var mesh = new THREE.Mesh(geometry, material); //网格模型对象Mesh
+    scene.add(mesh); //网格模型添加到场景中
+    /**
+     * 光源设置
+     */
+    //点光源
+    var point = new THREE.PointLight(0xffffff);
+    point.position.set(400, 200, 300); //点光源位置
+    scene.add(point); //点光源添加到场景中
+    //环境光
+    var ambient = new THREE.AmbientLight(0x444444);
+    scene.add(ambient);
+    /**
+     * 相机设置
+     */
+    var width = window.innerWidth; //窗口宽度
+    var height = window.innerHeight; //窗口高度
+    var k = width / height; //窗口宽高比
+    var s = 150; //三维场景显示范围控制系数，系数越大，显示的范围越大
+    //创建相机对象
+    var camera = new THREE.OrthographicCamera(-s * k, s * k, s, -s, 1, 1000);
+    camera.position.set(200, 300, 200); //设置相机位置
+    camera.lookAt(scene.position); //设置相机方向(指向的场景对象)
+
+
+    // 创建一个WebGL渲染目标对象WebGLRenderTarget
+    // 设置渲染结果(一帧图像)的像素为500x500
+    var target = new THREE.WebGLRenderTarget(500, 500);
+
+
+    /**
+     * 创建场景对象Scene2
+     */
+    var scene2 = new THREE.Scene();
+    var geometry2 = new THREE.BoxGeometry(100, 100, 100);
+    var material2 = new THREE.MeshLambertMaterial({
+      // WebGL渲染目标对象属性.texture返回一张纹理贴图，也就是scene在camera下的渲染结果
+      map: target.texture,
+    }); //材质对象
+    var mesh2 = new THREE.Mesh(geometry2, material2); //网格模型对象
+    scene2.add(mesh2); //网格模型添加到场景中
+    /**
+     * 场景scene2光源设置
+     */
+    //点光源
+    var point2 = new THREE.PointLight(0xffffff);
+    point2.position.set(400, 200, 300); //点光源位置
+    scene2.add(point2); //点光源添加到场景中
+    //环境光
+    var ambient2 = new THREE.AmbientLight(0x444444);
+    scene2.add(ambient2);
+    /**
+     * 场景scene2对应的相机对象camera2
+     */
+    var camera2 = new THREE.OrthographicCamera(-s * k, s * k, s, -s, 1, 1000);
+    camera2.position.set(200, 300, 300); //设置相机位置
+    camera2.lookAt(scene2.position); //设置相机方向(指向的场景对象)
+
+    /**
+     * 创建渲染器对象
+     */
+    var renderer = new THREE.WebGLRenderer();
+    renderer.setSize(width, height); //设置渲染区域尺寸
+    document.body.appendChild(renderer.domElement); //body元素中插入canvas对象
+
+
+    // 渲染函数
+    function render() {
+      // 设置当前渲染场景的背景
+      renderer.setClearColor(0xff0000, 1);
+      //渲染到自定义的帧缓冲区(WebGL渲染目标对象)
+      // 设置特定target的时候，render渲染结果不会显示在canvas画布上
+      renderer.render(scene, camera,target); //执行渲染操作
+      // 设置当前渲染场景的背景
+      renderer.setClearColor(0x000000, 1);
+      // 参数3没有指定渲染目标，渲染到canvas画布对应的帧缓冲区，绘制节显示到画布上
+      renderer.render(scene2, camera2); //执行渲染操作
+      // mesh.rotateY(0.01);//每次绕y轴旋转0.01弧度
+      requestAnimationFrame(render);//请求再次执行渲染函数render，渲染下一帧
+    }
+    render();
+    //操作场景scene2对应的相机对象camera2
+    var controls = new THREE.OrbitControls(camera2);
+  </script>
+</body>
+
+</html>

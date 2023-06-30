@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <style>
+        body{
+            margin: 0;
+            overflow: hidden;
+        }
+    </style>
+    <script src="./d3.min.js"></script>
+
+    <script src="../src/three.js"></script>
+    <script src="../src/controller/OrbitControls.js"></script>
+
+    <!-- 控制绘制发光 -->
+    <script src="../src/libs/EffectComposer.js"></script>
+    <script src="../src/libs/RenderPass.js"></script>
+    <script src="../src/libs/ShaderPass.js"></script>
+    <script src="../src/libs/CopyShader.js"></script>
+    <script src="../src/libs/LuminosityHighPassShader.js"></script>
+    <script src="../src/libs/UnrealBloomPass.js"></script>
+
+    <!-- 控制绘制有宽度的线段 -->
+    <script src="../map/LineSegmentsGeometry.js"></script>
+    <script src="../map/LineGeometry.js"></script>
+    <script src="../map/LineMaterial.js"></script>
+    <script src="../map/LineSegments2.js"></script>
+    <script src="../map/Line2.js"></script>
+</head>
+<body>
+    
+</body>
+
+
+<script>
+    var scene, camera, renderer, clock, controller // 场景的基本元素
+    var shadermaterial, shapeShaderMaterial, topMaterial // 面积图的材质
+    var composer, mixer, // 发光配置
+		params = {
+            exposure: 1,
+            bloomStrength: 1,
+            bloomThreshold: 0.5,
+            bloomRadius: 2
+        }
+    var time = 0, uniforms
+
+    init()
+    animate()
+
+    // - Functions -
+    function init(){
+        scene = new THREE.Scene();
+        clock = new THREE.Clock();
+        camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100000)
+        camera.position.set(10, 10, 10)
+        renderer = new THREE.WebGLRenderer({
+            antialias: true, // 开启抗锯齿处理
+            alpha: true
+        })
+        renderer.localClippingEnabled = true;
+        renderer.setSize(window.innerWidth,window.innerHeight)
+
+        var vertexShader = `
+            varying vec2 vUv;
+            void main(void)
+            {
+                vUv = uv;
+                gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+            }
+        `;
+        var fragmentShader = `
+        uniform float ratio;
+        uniform float length;
+        uniform vec4 color;
+        uniform vec4 start;
+        uniform vec4 end;
+
+        varying vec2 vUv;
+
+        float blendColor(float src, float dist, float alpha) {
+            return src * alpha + dist * (1.0 - alpha);
+        }
+        void main(void)
+        {
+            vec4 rColor = vec4(color); // 因为不能改变传入的值 
+            float startX = fract(ratio)*(1.0+length)-length;
+            float endX = startX + length;
+            float uX = (vUv.x);//>0.0?(vUv.x - length):0.0;
+            if (startX < uX && uX < startX+length) {
+                float opacity = (uX - startX)/length;
+                vec4 diff = start - end;
+                vec4 tempColor = end + diff * opacity;
+                rColor.x = blendColor(rColor.x, tempColor.x, rColor.w);
+                rColor.y = blendColor(rColor.y, tempColor.y, rColor.w);
+                rColor.z = blendColor(rColor.z, tempColor.z, rColor.w);
+                rColor.w = rColor.w + tempColor.w * (1.0 - rColor.w);
+            }
+            gl_FragColor = rColor;
+        }
+        `;
+
+        let startR = 1.0, startG = 0.0, startB= 0.0, startA = 1.0
+        let endR = 1.0, endG = 1.0, endB = 0.0, endA = 1.0
+
+        var geometry = new THREE.PlaneBufferGeometry( 20, 20, 100 )
+        var length = 0.2
+        
+        uniforms = {
+                ratio: { type: 'f', value: 0 },
+                length: { type: 'f', value: length },
+                color: { type: 'v4', value: new THREE.Vector4(0, 0, 1, 0.2)},
+                start: { type: 'v4', value: new THREE.Vector4(0.0, 0.0, 1.0, 0.6)},
+                end: { type: 'v4', value: new THREE.Vector4(1.0, 1.0, 1.0, 0.0)}
+            }
+
+        var shadermaterial = new THREE.ShaderMaterial({
+            uniforms,
+            vertexShader,
+            fragmentShader,
+            transparent: true,
+            depthTest: false,
+        });
+
+        var plane = new THREE.Mesh( geometry, shadermaterial )
+        plane.rotation.x = -Math.PI/2
+        scene.add(plane)
+
+        
+        controller = new THREE.OrbitControls(camera,renderer.domElement)
+        document.body.appendChild(renderer.domElement)
+        window.onresize = onResize
+    }
+
+    function animate(){
+        requestAnimationFrame(animate)
+        renderer.render(scene, camera)
+        uniforms.ratio.value += 0.002
+        controller.update(clock.getDelta())
+    }
+
+    function onResize() {
+        camera.aspect = window.innerWidth / window.innerHeight
+        camera.updateProjectionMatrix()
+        renderer.setSize(window.innerWidth, window.innerHeight)
+    }
+</script>
+</html>

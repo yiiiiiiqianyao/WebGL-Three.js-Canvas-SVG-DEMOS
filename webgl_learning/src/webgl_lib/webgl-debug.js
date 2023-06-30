@@ -236,7 +236,7 @@ function makeDebugContext(ctx, opt_onErrorFunc) {
     }
     return ctx.NO_ERROR;
   };
-
+  
   return wrapper;
 }
 

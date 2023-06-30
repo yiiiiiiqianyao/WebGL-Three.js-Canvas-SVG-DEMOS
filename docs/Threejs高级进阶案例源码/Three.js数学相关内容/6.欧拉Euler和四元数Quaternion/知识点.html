@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+<meta charset="utf-8">
+<title></title>
+  <link href="http://www.yanhuangxueyuan.com/markdown.css" rel="stylesheet" type="text/css">
+  </head>
+  <body>
+
+<h1 id="-euler-quaternion">欧拉对象Euler和四元数Quaternion</h1>
+<p>欧拉对象和四元数主要用来表达对象的旋转信息。</p>
+<p>关键词：欧拉<code>Euler</code>、四元数<code>Quaternion</code>、矩阵<code>Matrix4</code></p>
+<h3 id="-euler-">欧拉对象<code>Euler</code></h3>
+<p>构造函数：<code>Euler(x,y,z,order)</code>
+参数xyz分别表示绕xyz轴旋转的角度值，角度单位是弧度。参数order表示旋转顺序,默认值<code>XYZ</code>，也可以设置为<code>YXZ</code>、<code>YZX</code>等值</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// 创建一个欧拉对象，表示绕着xyz轴分别旋转45度，0度，90度</span>
+<span class="hljs-keyword">var</span> Euler = <span class="hljs-keyword">new</span> THREE.Euler( <span class="hljs-built_in">Math</span>.PI/<span class="hljs-number">4</span>,<span class="hljs-number">0</span>, <span class="hljs-built_in">Math</span>.PI/<span class="hljs-number">2</span>);
+</code></pre>
+<p>设置欧拉对象的</p>
+<pre><code class="lang-JavaScript"><span class="hljs-keyword">var</span> Euler = <span class="hljs-keyword">new</span> THREE.Euler();
+Euler.x = <span class="hljs-built_in">Math</span>.PI/<span class="hljs-number">4</span>;
+Euler.y = <span class="hljs-built_in">Math</span>.PI/<span class="hljs-number">2</span>;
+Euler.z = <span class="hljs-built_in">Math</span>.PI/<span class="hljs-number">4</span>;
+</code></pre>
+<h3 id="-quaternion-">四元数<code>Quaternion</code></h3>
+<p>四元数对象<code>Quaternion</code>使用x、y、z和w四个分量表示。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-keyword">var</span> quaternion = <span class="hljs-keyword">new</span> THREE.Quaternion();
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">'查看四元数结构'</span>,quaternion);
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">'查看四元数w分量'</span>,quaternion.w);
+</code></pre>
+<h3 id="-setfromaxisangle-">四元数方法<code>.setFromAxisAngle()</code></h3>
+<p>四元数的方法<code>.setFromAxisAngle(axis, angle)</code>通过旋转轴axis和旋转角度angle设置四元数数据，也就是x、y、z和w四个分量。</p>
+<p>绕单位向量Vector3(x,y,z)表示的轴旋转θ度</p>
+<p>k = sinθ/2</p>
+<p>q=( x<em>k , y</em>k , z*k, cosθ/2)</p>
+<pre><code class="lang-JavaScript"><span class="hljs-keyword">var</span> quaternion = <span class="hljs-keyword">new</span> THREE.Quaternion();
+<span class="hljs-comment">// 旋转轴new THREE.Vector3(0,1,0)</span>
+<span class="hljs-comment">// 旋转角度Math.PI/2</span>
+quaternion.setFromAxisAngle(<span class="hljs-keyword">new</span> THREE.Vector3(<span class="hljs-number">0</span>,<span class="hljs-number">1</span>,<span class="hljs-number">0</span>),<span class="hljs-built_in">Math</span>.PI/<span class="hljs-number">2</span>)
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">'查看四元数结构'</span>,quaternion);
+</code></pre>
+<h3 id="-multiply-">四元数乘法<code>.multiply()</code></h3>
+<p>对象的一个旋转可以用一个四元数表示，两次连续旋转可以理解为两次旋转对应的四元数对象进行乘法运算。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// 四元数q1、q2分别表示一个旋转，两个四元数进行乘法运算，相乘结果保存在q2中</span>
+<span class="hljs-comment">// 在q1表示的旋转基础在进行q2表示的旋转操作</span>
+q1.quaternion.multiply( q2 );
+</code></pre>
+<h3 id="-">欧拉、四元数和矩阵转化</h3>
+<p>欧拉对象、四元数对象和旋转矩阵可以相关转化，都可以表示旋转变换。</p>
+<h4 id="-matrix4-makerotationfromquaternion-q-"><code>Matrix4.makeRotationFromQuaternion(q)</code></h4>
+<p>通过矩阵对象<code>Matrix4</code>的<code>.makeRotationFromQuaternion(q)</code>方法可以把四元数转化对应的矩阵对象。</p>
+<h4 id="-quaternion-setfromeuler-euler-"><code>quaternion.setFromEuler(Euler)</code></h4>
+<p>通过欧拉对象设置四元数对象</p>
+<h4 id="-euler-setfromquaternion-quaternion-"><code>Euler.setFromQuaternion(quaternion)</code></h4>
+<p>四元数转化为欧拉对象</p>
+<h3 id="object3d">Object3D</h3>
+<p><code>Object3D</code>对象角度属性<code>.rotation</code>的值是欧拉对象<code>Euler</code>,四元数属性<code>.quaternion</code>的值是四元数对象<code>Quaternion</code>。</p>
+<p>执行<code>Object3D</code>对象旋转方法，会同时改变对象的角度属性和四元数属性。四元数属性和位置<code>.position</code>、缩放属性<code>.scale</code>一样会转化为对象的本地矩阵属性<code>.matrix</code>,本地矩阵属性值包含了旋转矩阵、缩放矩阵、平移矩阵。</p>
+<p><code>Object3D</code>对象角度属性<code>.rotation</code>和四元数属性<code>.quaternion</code>是相互关联的一个改变会同时改变另一个。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// 一个网格模型对象，基类是Object3D</span>
+<span class="hljs-keyword">var</span> mesh = <span class="hljs-keyword">new</span> THREE.Mesh()
+<span class="hljs-comment">// 绕z轴旋转</span>
+mesh.rotateZ(<span class="hljs-built_in">Math</span>.PI)
+
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">'查看角度属性rotation'</span>,mesh.rotation);
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">'查看四元数属性quaternion'</span>,mesh.quaternion);
+</code></pre>
+<p><code>.rotateOnAxis(axis, angle)</code>表示绕绕着任意方向某个轴axis旋转一定角度angle，绕X、Y和Z轴旋转对应的方法分别是<code>rotateX()</code>、<code>rotateY()</code>和<code>rotateZ()</code>,绕着XYZ特定轴旋转的方法是基于<code>.rotateOnAxis()</code>方法实现的。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// Object3D.js源码</span>
+rotateOnAxis: <span class="hljs-function"><span class="hljs-keyword">function</span> (<span class="hljs-params"></span>) </span>{
+  <span class="hljs-keyword">var</span> q1 = <span class="hljs-keyword">new</span> Quaternion();
+<span class="hljs-comment">// 旋转轴axis，旋转角度angle</span>
+  <span class="hljs-keyword">return</span> <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">rotateOnAxis</span>(<span class="hljs-params"> axis, angle </span>) </span>{
+<span class="hljs-comment">// 通过旋转轴和旋转角度设置四元数的xyzw分量</span>
+q1.setFromAxisAngle( axis, angle );
+<span class="hljs-comment">// Object3D对象的四元数属性和四元数q1相乘</span>
+<span class="hljs-keyword">this</span>.quaternion.multiply( q1 );
+
+<span class="hljs-keyword">return</span> <span class="hljs-keyword">this</span>;
+
+  };
+
+}(),
+</code></pre>
+<div class="">
+  <a href="http://www.yanhuangxueyuan.com/">作者技术博客</a>
+</div>
+  </body>
+</html>

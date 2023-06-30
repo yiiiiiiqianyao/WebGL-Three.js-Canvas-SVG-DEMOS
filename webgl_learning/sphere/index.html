@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <script src="../src/webgl_lib/webgl-utils.js"></script>
+    <script src="../src/webgl_lib/webgl-debug.js"></script>
+    <script src="../src/webgl_lib/cuon-utils.js"></script>
+    <script src="../src/webgl_lib/cuon-matrix.js"></script>
+    <script src="../src/utils.js"></script>
+    <script src="./gl-matrix-min.js"></script>
+    <script src="./utils.js"></script>
+    <script src="./iconsphere.js"></script>
+    <style>
+        #canvas{
+            display: block;
+            margin: 0 auto;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas" width="800px" height="800px"></canvas>
+</body>
+<script>
+    var OFFER_SCREEN_WIDTH = 512
+    var OFFER_SCREEN_HEIGHT = 512
+
+    var canvas = document.getElementById('canvas')
+    canvas.width = 800
+    canvas.height = 800
+    
+    // 获取 webgl 绘图上下文
+    var gl = getWebGLContext(canvas)
+    
+    const { triangles, vertices, uv } = icomesh(5, true)
+
+    gl.enable(gl.DEPTH_TEST)
+    gl.enable(gl.BLEND) // 开启混合
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA) // 指定混合函数
+
+    var cubeProgram = createProgram(gl, getCubeVSHADER(), getCubeFSHADER()); // 根据说着色器代码构建程序对象
+    gl.useProgram(cubeProgram); // 上下文对象绑定程序对象
+
+    var viewMatrix = new Matrix4();
+    // eyeX, eyeY, eyeZ, targetX, targetY, targetZ, upX, upY, upZ
+    viewMatrix.setLookAt(
+        3, 3, 7, 
+        0, 0, 0, 
+        0, 1, 0);
+    var projMatrix = new Matrix4();
+    projMatrix.setPerspective(30, canvas.width/canvas.height, 1, 100);
+    let modelMatrix = new Matrix4()
+    modelMatrix.rotate(-90, 0, 1, 0)
+
+    var modeViewProjMatrix = projMatrix.clone().multiply(viewMatrix.clone().multiply(modelMatrix.clone()));
+
+
+    var u_ModelViewMatrix = bindUnifrom4fv('u_ModelViewMatrix', modeViewProjMatrix.elements, cubeProgram)
+    var u_modelMatrix = bindUnifrom4fv('u_modelMatrix', modelMatrix.elements, cubeProgram)
+    
+    var { buffer: buffer1, attr: attr1 } = bindAttriBuffer('a_Position', vertices, 3, cubeProgram)
+
+    var { buffer: buffer3, attr: attr3 } = bindAttriBuffer('a_Uvs', uv, 2, cubeProgram)
+
+    var { indexBuffer, indices } = bindElementBuffer(triangles)
+
+    gl.drawElements(gl.TRIANGLES, triangles.length, gl.UNSIGNED_BYTE, 0);
+    
+
+    // animate()
+    function animate() {
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+
+        gl.useProgram(cubeProgram); 
+
+        modelMatrix.rotate(-1, 0, 1, 0)
+        var modeViewMatrix = projMatrix.clone().multiply(viewMatrix.clone().multiply(modelMatrix));
+        gl.uniformMatrix4fv(u_ModelViewMatrix, false, modeViewMatrix.elements);
+        gl.uniformMatrix4fv(u_modelMatrix, false, modelMatrix.elements);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, buffer1)
+        gl.vertexAttribPointer(attr1, 3, gl.FLOAT, false, 0, 0);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, buffer3)
+        gl.vertexAttribPointer(attr3, 2, gl.FLOAT, false, 0, 0);
+
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer)
+
+        gl.drawElements(gl.TRIANGLES, triangles.length, gl.UNSIGNED_BYTE, 0);
+
+        requestAnimationFrame(animate)
+    }
+
+    function bindAttriBuffer(attrName, vertices, count, program) {
+        let buffer = gl.createBuffer()
+        if(!buffer) {
+            console.log("failed create vertex buffer")
+        }
+        gl.bindBuffer(gl.ARRAY_BUFFER, buffer) // 将缓冲区对象绑定到目标
+        gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW) // 向缓冲区对象中写入数据
+
+        let attr = gl.getAttribLocation(program, attrName);
+        gl.vertexAttribPointer(attr, count, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(attr);
+        return { buffer, attr }
+    }
+
+    function bindUnifrom4fv(unifromName, data, program) {
+        let uniform4f = gl.getUniformLocation(program, unifromName);
+        if (uniform4f < 0) {
+            console.log("无法获取矩阵变量的存储位置");
+        }
+        gl.uniformMatrix4fv(uniform4f, false, data);
+        return uniform4f
+    }
+
+    function bindElementBuffer(indices) {
+        let indexBuffer = gl.createBuffer();
+        if (!indexBuffer) {
+            console.log("无法创建缓冲区对象");
+        }
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
+        return { indexBuffer, indices }
+    }
+
+    function getCubeVSHADER() {
+        return `
+            attribute vec4 a_Position;
+            attribute vec2 a_Uvs;
+            uniform mat4 u_ModelViewMatrix;
+            uniform mat4 u_modelMatrix;
+            varying vec2 v_Uvs;
+            varying vec3 v_Position;
+            void main(){
+                gl_Position = u_ModelViewMatrix * a_Position;
+                v_Uvs = a_Uvs;
+                v_Position = (u_modelMatrix * a_Position).xyz;
+                // v_Position = a_Position.xyz;
+            }
+        `
+    }
+
+    function getCubeFSHADER() {
+        return `
+           
+
+            #define SPHERE_NUM 2
+
+            #ifdef GL_ES
+            precision mediump float;
+            #endif
+
+            struct Sphere {
+                vec3 center;
+                float radius;
+                vec3 surfaceColor;
+            };
+
+            uniform Sphere u_Spheres[SPHERE_NUM];
+
+            bool intersect(in vec3 rayorig, in vec3 raydir,  vec3 center, in float radius, out float t0, out float t1) {
+                vec3 l = center - rayorig;
+                float tca = dot(l, raydir);
+                if (tca < 0.0) return false;
+                float d2 = dot(l, l) - tca * tca;
+                if (d2 > radius * radius) return false;
+                float thc = sqrt(radius * radius - d2);
+                t0 = tca - thc;
+                t1 = tca + thc;
+                
+
+                return true;
+            }
+
+            vec3 trace(in vec3 rayorig, in vec3 raydir) {
+                // vec3 color = vec3(0.0); // 最终返回
+                vec3 color = vec3(1.0, 0.0, 0.0); // 最终返回
+                Sphere intersectedSphere;
+                bool intersected = false;
+                float tnear = 10000.0;
+                for (int i = 0; i < SPHERE_NUM; i++) {
+                    float t0 = 10000.0;
+                    float t1 = 10000.0;
+                    if (intersect(rayorig, raydir, u_Spheres[i].center, u_Spheres[i].radius, t0, t1)) {
+                        if (t0 < 0.0) t0 = t1;
+                        if (t0 < tnear) {
+                            // 保存最近的交点
+                            tnear = t0;
+                            intersectedSphere = u_Spheres[i];
+                            intersected = true;
+                        }
+                    }
+                }
+
+                // if (!intersected) return color;
+                vec3 hitPoint = rayorig + raydir * tnear;
+                vec3 lightPosition = vec3(0.0, 0.0, 5.0);
+                vec3 lightDirection = normalize(lightPosition - hitPoint);
+                for (int j = 0; j < SPHERE_NUM; j++) {
+                    float t0, t1;
+                    if (intersect(hitPoint, lightDirection, u_Spheres[j].center, u_Spheres[j].radius, t0, t1)) {
+                        return color;
+                    }
+                }
+                // color += intersectedSphere.surfaceColor;
+                color += vec3(0.0, 1.0, 0.0);
+
+
+                return color;
+            }
+
+            varying vec2 v_Uvs;
+            varying vec3 v_Position;
+            void main(){
+                vec3 eye = vec3(3.0, 3.0, 7.0);
+                vec3 eyeDirection = normalize(v_Position - eye);
+
+
+                // vec3 eyeDirection = normalize(v_Position - u_EyePosition);
+
+                // trace(u_EyePosition, eyeDirection, 1)
+
+                vec3 c = trace(eye, eyeDirection);
+                
+                gl_FragColor = vec4(v_Uvs, 0.0, 1.0);
+                // gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+
+                gl_FragColor = vec4(c, 1.0);
+            }
+        `
+    }
+
+</script>
+</html>

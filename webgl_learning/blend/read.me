@@ -1,0 +1,23 @@
+//1.开启隐藏面消除功能:
+gl.enable(gl.DEPTH_TEST)。
+
+//2.绘制所有不透明的物体(a == 1.0)
+
+//3.锁定深度缓冲区的写入操作，使之只读 (深度缓冲区用于隐藏面消除):
+gl.depthMask(false);
+
+//4.绘制所有半透明的物体 a < 1.0，注意将物体按深度排序，a 最小最先绘制
+
+//5.释放深度缓冲区，使之可读可写: 
+gl.depthMask(true)
+
+
+if(i < 4){ // 非透明物体
+    gl.depthMask(true);
+    gl.disable(gl.BLEND);
+} else { //透明物体
+    gl.depthMask(false);
+    gl.enable(gl.BLEND);
+    gl.blendFunc( gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA );
+}
+drawBufferInfo(gl, vao);

@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+<meta charset="utf-8">
+<title></title>
+  <link href="http://www.yanhuangxueyuan.com/markdown.css" rel="stylesheet" type="text/css">
+  </head>
+  <body>
+<h1 id="three-js-">Three.js着色器——矩阵变换</h1>
+<p>本节课讲解如何通过<code>ShaderMaterial</code>编写顶点矩阵变换的代码，Three.js的渲染器解析场景和相机参数进行渲染的时候，会从模型对象获得几何体顶点对应的模型矩阵<code>modelMatrix</code>，从相机对象获得视图矩阵<code>viewMatrix</code>和投影矩阵<code>projectionMatrix</code>，在着色器中通过获得模型矩阵、视图矩阵、投影矩阵对顶点位置坐标进行矩阵变换。</p>
+<p>本节课不会详细去解释模型矩阵、视图矩阵、投影矩阵的具体算法，主要是讲解这些矩阵在three.js自定义着色器的时候，如何更好的使用。</p>
+<h2 id="-">模型变换</h2>
+<p>模型矩阵包含了一个几何体的旋转、平移、缩放变换。</p>
+<p>如果你有基本的图形学和线性代数知识，应该知道几何平移、缩放、旋转变换都是几何变换的一部分，几何变换可以使用线性代数的矩阵来表示，平移对应一个平移矩阵，旋转一个对应旋转矩阵，一个几何体经过了多次旋转、平移等几何变换，每一个变换都有一个对应的矩阵可以表示，所有几何变换对应矩阵的乘积就是一个复合矩阵，可以称为<strong>模型矩阵</strong><code>modelMatrix</code>。</p>
+<h3 id="-">着色器使用模型矩阵</h3>
+<p>使用ShaderMaterial编写着色器代码的时候，模型矩阵<code>modelMatrix</code>不用程序员手动声明，Three.js渲染器
+系统渲染的时候会自动往ShaderMaterial顶点着色器字符串中插入一句<code>uniform mat4 modelMatrix;</code></p>
+<pre><code class="lang-JavaScript"><span class="hljs-tag">&lt;<span class="hljs-name">script</span> <span class="hljs-attr">id</span>=<span class="hljs-string">"vertexShader"</span> <span class="hljs-attr">type</span>=<span class="hljs-string">"x-shader/x-vertex"</span>&gt;</span><span class="javascript">
+  <span class="hljs-comment">// uniform mat4 modelMatrix;//不需要声明</span>
+  <span class="hljs-keyword">void</span> main(){
+<span class="hljs-comment">// 模型矩阵modelMatrix对顶点位置坐标进行模型变换</span>
+gl_Position = modelMatrix*vec4( position, <span class="hljs-number">1.0</span> );
+  }
+</span><span class="hljs-tag">&lt;/<span class="hljs-name">script</span>&gt;</span>
+</code></pre>
+<h3 id="-modelmatrix-"><code>modelMatrix</code>变量数据传递</h3>
+<p>查看网格模型Mesh的基类<code>Object3D</code>可知道网格模型有一个本地矩阵属性<code>.matrix</code>，<code>.matrix</code>的属性值是一个Three.js的矩阵对象<code>Matrix4</code>。对网格模型进行平移、旋转、缩放等几何变换都会改变网格模型本地矩阵属性<code>.matrix</code>的属性值。</p>
+<pre><code class="lang-JavaScript">mesh.rotateY(<span class="hljs-built_in">Math</span>.PI/<span class="hljs-number">6</span>);
+mesh.rotateX(<span class="hljs-built_in">Math</span>.PI/<span class="hljs-number">6</span>);
+</code></pre>
+<p>如果网格模型mesh有一个父对象，父对象的几何变换同样会传递到网格模型，也就是说顶点着色器中默认的模型矩阵变量<code>modelMatrix</code>对应的不是网格模型自身的几何变换，而是网格模型的自身以及它所有父对象的几何变换，一个网格模型自身以及父对象所有的几何变换，会体现在自己的世界矩阵属性<code>.matrixWorld</code>上。</p>
+<p>一个网格模型mesh都包含一个几何体Geometry，一个几何体中有一系列的顶点位置数据，这些顶点位置数据需要传递给着色器中顶点位置变量position，同样着色器中<code>uniform</code>关键字声明的模型矩阵变量modelMatrix也需要传递矩阵数据。</p>
+<p>Three.js渲染器渲染的时候会自动从一个Threejs的模型对象提取它世界矩阵属性<code>.matrixWorld</code>的属性值，然后传递给着色器的模型矩阵变量modelMatrix，这个过程不需要程序员设置，Three.js系统会自动完成。如果你编写WebGL原生代码都知道需要调用WebGL的相关API完成数据的传递过程，比较麻烦，对于开发者来说不太友好，为了开发者更好的编写着色器代码，Three.js引擎封装了这些WebGL API。</p>
+<h2 id="-">视图矩阵和投影矩阵</h2>
+<p>相机对象本质上就是存储视图矩阵和投影矩阵的信息的一个对象，基类<code>Camera</code>的<code>.matrixWorldInverse</code>属性对应的就是着色器中视图矩阵变量<code>viewMatrix</code>，基类<code>Camera</code>的投影矩阵属性<code>.projectionMatrix</code>对应着色器中的投影矩阵变量<code>projectionMatrix</code>。</p>
+<p>使用ShaderMaterial构造函数自定义顶点着色器的时候，视图矩阵<code>viewMatrix</code>和投影矩阵<code>projectionMatrix</code>一样不需要手动声明，WebGL渲染器会通过<code>WebGLProgram.js</code>模块自动声明这两个变量，在顶点着色器代码中插入<code>uniform mat4 viewMatrix;</code>和<code>uniform mat4 projectionMatrix;</code>。</p>
+<p>Three.js渲染器执行<code>renderer.render(scene, camera)</code>的时候，会解析相机对象的信息，把相机的矩阵数据自动传递给着色器中的视图矩阵变量<code>viewMatrix</code>和投影矩阵变量<code>projectionMatrix</code>。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-tag">&lt;<span class="hljs-name">script</span> <span class="hljs-attr">id</span>=<span class="hljs-string">"vertexShader"</span> <span class="hljs-attr">type</span>=<span class="hljs-string">"x-shader/x-vertex"</span>&gt;</span><span class="javascript">
+  <span class="hljs-keyword">void</span> main(){
+gl_Position = projectionMatrix*viewMatrix*modelMatrix*vec4( position, <span class="hljs-number">1.0</span> );
+  }
+</span><span class="hljs-tag">&lt;/<span class="hljs-name">script</span>&gt;</span>
+</code></pre>
+<p>模型矩阵和视图矩阵构成的复合矩阵称为模型视图矩阵，简称模视矩阵<code>modelViewMatrix</code>,模视矩阵和模型、视图、投影矩阵的使用方式是一样，系统会在着色器代码自动声明该变量，同时把相关的矩阵数据传递给该变量。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-tag">&lt;<span class="hljs-name">script</span> <span class="hljs-attr">id</span>=<span class="hljs-string">"vertexShader"</span> <span class="hljs-attr">type</span>=<span class="hljs-string">"x-shader/x-vertex"</span>&gt;</span><span class="javascript">
+  <span class="hljs-keyword">void</span> main(){
+gl_Position = projectionMatrix*modelViewMatrix*vec4( position, <span class="hljs-number">1.0</span> );
+  }
+</span><span class="hljs-tag">&lt;/<span class="hljs-name">script</span>&gt;</span>
+</code></pre>
+<h3 id="webgl-">WebGL坐标系</h3>
+<p>在原生WebGL编程的时候，WebGL坐标系的z轴垂直canvas画布，x和y轴分别对应于canvas画布的水平和竖直方向，你可以发现能够显示在canvas画布上的顶点坐标范围是[-1,1]，如果顶点的xyz某个分量上的坐标值不在-1~1区间内会被剪裁掉不显示。</p>
+<p>平时编写Three.js应用程序程序，默认情况下，在Three.js系统中一个模型对应的顶点要经过模型、视图和投影变换后才会在canvas画布上显示出来，如果一个顶点的坐标向量经过一系列的矩阵变换后超出了[-1,1]范围，就不会显示在canvas画布上，平时编程的时候，你可以能会遇到相机参数设置不合适看不到场景中模型的情况，因为视图、投影矩阵的值是由相机的具体参数决定的，相机参数不合适，视图、投影矩阵就会对模型进行不合理的缩放和偏移，导致canvas画布上看不到场景中的模型。</p>
+
+<div class="">
+  <a href="http://www.yanhuangxueyuan.com/">作者技术博客</a>
+</div>
+  </body>
+</html>

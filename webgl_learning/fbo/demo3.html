@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<!-- Ported from the OpenGL Samples Pack https://github.com/g-truc/ogl-samples/blob/master/tests/gl-320-primitive-line-msaa.cpp -->
+<head>
+    <title>WebGL 2 Samples - fbo_multisample</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <!-- <link rel="stylesheet" href="style.css"> -->
+</head>
+<script src="../src/webgl_lib/webgl-utils.js"></script>
+<script src="../src/webgl_lib/webgl-debug.js"></script>
+<script src="../src/webgl_lib/cuon-utils.js"></script>
+<script src="../src/webgl_lib/cuon-matrix.js"></script>
+<script src="../src/utils.js"></script>
+
+<body>
+    <canvas id="webgl" width="512" height="512"></canvas>
+</body>
+
+
+<script>
+    // HelloQuad.js (c) 2012 matsuda
+    // Vertex shader program
+    
+    //顶点坐标，纹理坐标，模型视图矩阵，将顶点着色器中的纹理坐标传递给片元v_TexCoord纹理坐标
+    var m_VSHADER_SOURCE =
+        'attribute vec4 a_Position;\n' +
+        'varying vec2 v_TexCoord;\n' +
+        'attribute vec2 a_TexCoord;\n' +
+    
+        'void main() {\n' +
+        '  gl_Position = a_Position;\n' +
+        '  v_TexCoord = a_TexCoord;\n' +
+        '}\n';
+    
+    // 采样器，纹理坐标，纹理着色片元
+    var m_FSHADER_SOURCE =
+    
+        '#ifdef GL_ES\n' +
+        'precision mediump float;\n' +
+        '#endif\n' +
+        'uniform sampler2D u_Sampler;\n' +
+        'varying vec2 v_TexCoord;\n' +
+        'void main() {\n' +
+        '  gl_FragColor = texture2D(u_Sampler, v_TexCoord);\n' +
+        '}\n'
+    
+    
+    var VSHADER_SOURCE =
+        'attribute vec4 a_Position;\n' +
+        'void main() {\n' +
+        '  gl_Position = a_Position;\n' +
+        '}\n';
+    
+    // Fragment shader program
+    var FSHADER_SOURCE =
+        'void main() {\n' +
+        '  gl_FragData[0] = vec4(1.0, 0.0, 0.0, 1.0);\n' +
+    
+        '}\n';
+    // Size of off screen
+    
+    var FRAMEBUFFER_SIZE
+    var  enabelMsaa = false;
+    main()
+    function main() {
+        // Retrieve <canvas> element
+        var canvas = document.getElementById('webgl');
+        canvas.width = 512
+        canvas.height = 512
+        var gl = canvas.getContext('webgl2')
+        FRAMEBUFFER_SIZE = {
+            x: canvas.width,
+            y: canvas.height
+        };
+    
+        // Get the rendering context for WebGL
+        // var gl = getWebGLContext(canvas);
+       
+        // var ext = gl.getExtension('WEBGL_draw_buffers')
+        if (!gl) {
+            console.log('Failed to get the rendering context for WebGL');
+            return;
+        }
+        let initProgram =  initShaders(gl, VSHADER_SOURCE, FSHADER_SOURCE)
+    
+        var fbo = initFramebufferObject(gl);
+    
+        let colorfbo = gl.createFramebuffer();
+    
+        {
+            gl.bindFramebuffer(gl.FRAMEBUFFER, colorfbo);
+            let texture = gl.createTexture(); // Create a texture object
+            gl.bindTexture(gl.TEXTURE_2D, texture); // Bind the object to target
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, FRAMEBUFFER_SIZE.x, FRAMEBUFFER_SIZE.y, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+            colorfbo.texture = texture; // Store the texture object
+            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
+            gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        }
+    
+        // Write the positions of vertices to a vertex shader
+        gl.bindFramebuffer(gl.FRAMEBUFFER,fbo)
+        var n = initVertexBuffers(gl);
+    
+        // gl.viewport(0, 0, OFFSCREEN_WIDTH, OFFSCREEN_HEIGHT); // Set a viewport for FBO
+        //设置背景色
+        // gl.clearColor(0.2, 0.2, 0.4, 1.0); // Set clear color (the color is slightly changed)
+        //清空颜色和深度缓冲区
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);  // Clear FBO
+    
+        if(enabelMsaa){
+            gl.drawArrays(gl.LINE_LOOP, 0, n);
+        }
+        else{
+            gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+            gl.drawArrays(gl.LINE_LOOP, 0, n);
+            return
+        }
+        gl.bindFramebuffer(gl.READ_FRAMEBUFFER, fbo);
+        gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER,colorfbo );
+        gl.clearBufferfv(gl.COLOR, 0, [0.0, 0.0, 0.0, 1.0]);
+        gl.blitFramebuffer(
+            0, 0, FRAMEBUFFER_SIZE.x, FRAMEBUFFER_SIZE.y,
+            0, 0, FRAMEBUFFER_SIZE.x, FRAMEBUFFER_SIZE.y,
+            gl.COLOR_BUFFER_BIT, gl.NEAREST
+        );
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);        // Change the drawing destination to color buffer
+        gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);  // Clear FBO
+    
+        {
+            let initProgram =  initShaders(gl, m_VSHADER_SOURCE, m_FSHADER_SOURCE)
+            n = initVertexBuffers2(gl)
+            gl.activeTexture(gl.TEXTURE0);
+            gl.bindTexture(gl.TEXTURE_2D, colorfbo.texture)
+            gl.drawArrays(gl.TRIANGLE_STRIP, 0, n);
+        }
+    
+    
+    
+    }
+    function initFramebufferObject(gl,ext) {
+        var framebuffer, texture, depthBuffer;
+    
+        //  1.创建FBO 帧缓冲区
+        framebuffer = gl.createFramebuffer();
+        // 2.创建texture1  texture = gl.createTexture()，并挂载到framebuffer.texture属性上
+        {
+            texture = gl.createTexture(); // Create a texture object
+            gl.bindTexture(gl.TEXTURE_2D, texture); // Bind the object to target
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, FRAMEBUFFER_SIZE.x, FRAMEBUFFER_SIZE.y, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+            framebuffer.texture = texture; // Store the texture object
+        }
+        // 4.将帧缓冲区绑定到程序上
+        gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+        //5.输出到对应的纹理中
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
+    
+    
+        // 7.创建渲染缓冲区 gl.createRenderbuffer()，输出深度值
+        {
+            depthBuffer = gl.createRenderbuffer(); // Create a renderbuffer object
+            gl.bindRenderbuffer(gl.RENDERBUFFER, depthBuffer); // Bind the object to target
+    
+            gl.renderbufferStorageMultisample(gl.RENDERBUFFER, 4, gl.RGBA8, FRAMEBUFFER_SIZE.x, FRAMEBUFFER_SIZE.y);
+            //将帧缓冲区绑定到渲染缓冲区上
+            gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.RENDERBUFFER, depthBuffer);
+        }
+        //8.解除帧缓冲区绑定  解除 渲染缓冲区绑定，解除纹理绑定
+        {  // 解除帧缓冲区绑定
+            gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+            //解除纹理
+            gl.bindTexture(gl.TEXTURE_2D, null);
+            //解除 渲染缓冲区
+            gl.bindRenderbuffer(gl.RENDERBUFFER, null);
+    
+    
+        }
+    
+    
+        return framebuffer;
+    }
+    
+    function initVertexBuffers(gl) {
+        var vertexCount = 18;
+        var data = new Float32Array(vertexCount * 2);
+        var angle;
+        var radius = 1;
+        ///圆上的分割点
+        for(var i = 0; i < vertexCount; i++ )
+        {
+            angle = Math.PI * 2 * i / vertexCount;
+            data[2 * i] = radius * Math.sin(angle);
+            data[2 * i + 1] = radius * Math.cos(angle);
+        }
+        // console.log(data)
+        // -- Init buffers
+        var vertexDataBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, vertexDataBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
+        var a_Position = gl.getAttribLocation(gl.program, 'a_Position');
+        gl.vertexAttribPointer(a_Position, 2, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(a_Position);
+    
+        return vertexCount;
+    }
+    
+    function initVertexBuffers2(gl) {
+        var verticesTexCoords = new Float32Array([
+            // Vertex coordinates, texture coordinate
+            -1,  1,   0.0, 1.0,
+            -1, -1,   0.0, 0.0,
+            1,  1,   1.0, 1.0,
+            1, -1,   1.0, 0.0,
+        ]);
+        var n = 4; // The number of vertices
+    
+        // Create the buffer object
+        var vertexTexCoordBuffer = gl.createBuffer();
+        if (!vertexTexCoordBuffer) {
+            console.log('Failed to create the buffer object');
+            return -1;
+        }
+    
+        // Bind the buffer object to target
+        gl.bindBuffer(gl.ARRAY_BUFFER, vertexTexCoordBuffer);
+        gl.bufferData(gl.ARRAY_BUFFER, verticesTexCoords, gl.STATIC_DRAW);
+    
+        var FSIZE = verticesTexCoords.BYTES_PER_ELEMENT;
+        //Get the storage location of a_Position, assign and enable buffer
+        var a_Position = gl.getAttribLocation(gl.program, 'a_Position');
+        if (a_Position < 0) {
+            console.log('Failed to get the storage location of a_Position');
+            return -1;
+        }
+        gl.vertexAttribPointer(a_Position, 2, gl.FLOAT, false, FSIZE * 4, 0);
+        gl.enableVertexAttribArray(a_Position);  // Enable the assignment of the buffer object
+    
+        // Get the storage location of a_TexCoord
+        var a_TexCoord = gl.getAttribLocation(gl.program, 'a_TexCoord');
+        if (a_TexCoord < 0) {
+            console.log('Failed to get the storage location of a_TexCoord');
+            return -1;
+        }
+        // Assign the buffer object to a_TexCoord variable
+        gl.vertexAttribPointer(a_TexCoord, 2, gl.FLOAT, false, FSIZE * 4, FSIZE * 2);
+        gl.enableVertexAttribArray(a_TexCoord);  // Enable the assignment of the buffer object
+    
+        return n;
+    }
+    </script>
+
+</html>

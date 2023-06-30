@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <script src="../src/webgl_lib/webgl-utils.js"></script>
+    <script src="../src/webgl_lib/webgl-debug.js"></script>
+    <script src="../src/webgl_lib/cuon-utils.js"></script>
+    <script src="../src/webgl_lib/cuon-matrix.js"></script>
+    <style>
+        #canvas{
+            display: block;
+            margin: 0 auto;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas" width="800px" height="600px"></canvas>
+</body>
+<script>
+    var canvas = document.getElementById('canvas')
+    canvas.width = 800
+    canvas.height = 600
+    
+    // 获取 webgl 绘图上下文
+    var gl = getWebGLContext(canvas)
+    if(!gl) { 
+        console.log('not support')
+    }
+
+    // 获取着色器片段
+    var vertexShader = getTriangleVSHADER()
+    var fragmentShader = getTriangleFSHADER()
+
+    // 初始化着色器
+    if(!initShaders(gl, vertexShader, fragmentShader)){   // initShaders => true : 创建成功, false : 创建失败
+        console.log('failed initShader')
+    }
+
+    gl.clearColor(1.0, 1.0, 0.0, 1.0) // 指定清空 canvas 的颜色 (背景色)
+    gl.clear(gl.COLOR_BUFFER_BIT) // 清空 canvas 
+
+    drawTexture()
+    function drawTexture() {
+
+		var vertices = new Float32Array([ // 将纹理 st/uv 映射到顶点坐标
+			-0.5, 0.5,   0.0, 1.0,//左上角
+			-0.5, -0.5,  0.0, 0.0,//左下角
+			0.5, 0.5,	 1.0,1.0,//右上角
+            0.5, -0.5,   1.0, 0.0,//右下角
+		])
+        
+        
+        let vertexBuffer = gl.createBuffer()
+        if(!vertexBuffer) {
+            console.log("failed create vertex buffer")
+            return
+        }
+        
+        gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer) // 将缓冲区对象绑定到目标
+        gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW) // 向缓冲区对象中写入数据
+        
+
+        var FSIZE = vertices.BYTES_PER_ELEMENT;
+
+        // 1.传递顶点坐标
+		var a_Position = gl.getAttribLocation(gl.program, "a_Position");
+		gl.vertexAttribPointer(a_Position, 2, gl.FLOAT, false, FSIZE * 4, 0);
+		gl.enableVertexAttribArray(a_Position);
+
+		// 2.传递纹理坐标
+		var a_TextCoord = gl.getAttribLocation(gl.program, "a_TextCoord");
+        gl.vertexAttribPointer(a_TextCoord, 2, gl.FLOAT, false, FSIZE * 4, FSIZE * 2);
+		gl.enableVertexAttribArray(a_TextCoord);
+        
+        //-----向着色器传递纹理数据-----//
+        // console.log(gl.getParameter(gl.MAX_TEXTURE_IMAGE_UNITS)) // 浏览器的 webgl 支持的的纹理单元数量
+        // 浏览器加载图片
+        var count = 0
+        var image = new Image()
+        var image2 = new Image()
+
+        image.src = "../src/images/girl.jpg";
+        var texture = gl.createTexture(); // 创建用于存储纹理图像的纹理对象
+
+        image2.src = "../src/images/lensflare0.png";
+        var texture2 = gl.createTexture(); // 创建用于存储纹理图像的纹理对象
+
+		image.onload = function(){
+            gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1) // 对纹理图像进行 Y 轴反转
+            gl.activeTexture(gl.TEXTURE0); // 激活0号纹理单元
+            gl.bindTexture(gl.TEXTURE_2D, texture); // 绑定纹理单元
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); 
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+
+            count++
+            if(count == 2) drawTextures()
+        }
+        image2.onload = function(){
+            gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1) // 对纹理图像进行 Y 轴反转
+            gl.activeTexture(gl.TEXTURE1); // 激活1号纹理单元
+            gl.bindTexture(gl.TEXTURE_2D, texture2); // 绑定纹理单元
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); 
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image2);
+
+            count++
+            if(count == 2) drawTextures()
+        }
+        
+        function drawTextures() {
+
+			//-----4.向着色器传递纹理数据-----//
+			var u_Sampler = gl.getUniformLocation(gl.program, 'u_Sampler');
+            gl.uniform1i(u_Sampler, 0);
+
+            var u_Sampler2 = gl.getUniformLocation(gl.program, 'u_Sampler2');
+	        gl.uniform1i(u_Sampler2, 1);
+
+
+	        // 5.绘制
+	        gl.clear(gl.COLOR_BUFFER_BIT);
+            gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+            
+            gl.disableVertexAttribArray(a_Position)
+            gl.disableVertexAttribArray(a_TextCoord)
+        }
+    }
+
+    function getTriangleVSHADER(){
+        return `
+            attribute vec4 a_Position;
+            attribute vec2 a_TextCoord;
+            varying vec2 v_TexCoord;
+
+            void main(){
+                gl_Position = a_Position;
+                v_TexCoord = a_TextCoord;
+            }
+        `
+    }
+
+    function getTriangleFSHADER(){
+        return `
+            precision mediump float;
+
+            uniform sampler2D u_Sampler;
+            uniform sampler2D u_Sampler2;
+            varying vec2 v_TexCoord;
+
+            void main(){
+                vec4 color1 = texture2D(u_Sampler, v_TexCoord);
+                vec4 color2 = texture2D(u_Sampler2, v_TexCoord);
+                gl_FragColor = mix(color1, color2, 0.5);
+            }
+        `
+    }
+  
+</script>
+</html>

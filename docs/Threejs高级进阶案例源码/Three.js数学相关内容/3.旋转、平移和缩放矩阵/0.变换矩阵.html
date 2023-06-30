@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+
+<head>
+  <meta charset="utf-8">
+  <title></title>
+  <!--引入three.js三维引擎-->
+  <script src="http://www.yanhuangxueyuan.com/versions/threejsR92/build/three.js"></script>
+</head>
+
+<body>
+  <script>
+    var T = new THREE.Matrix4()
+    // set方法设置平移矩阵
+    T.set(
+      1, 0, 0, 5,
+      0, 1, 0, 3,
+      0, 0, 1, 9,
+      0, 0, 0, 1
+    )
+    // makeTranslation方法设置平移矩阵
+    // 顶点坐标沿着X、Y、Z轴分别平移5,3,9
+    // T.makeTranslation(5, 3, 9)
+    console.log('查看平移矩阵', T.elements);
+
+  </script>
+
+</body>
+
+</html>

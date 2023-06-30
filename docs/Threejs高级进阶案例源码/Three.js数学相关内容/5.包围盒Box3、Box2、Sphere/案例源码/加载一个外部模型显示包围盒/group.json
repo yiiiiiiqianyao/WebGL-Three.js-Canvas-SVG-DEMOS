@@ -1,0 +1,203 @@
+{
+  "metadata": {
+    "version": 4.5,
+    "type": "Object",
+    "generator": "Object3D.toJSON"
+  },
+  "geometries": [{
+    "uuid": "FD2FD748-72E6-4421-AB6E-7C0C72D1B3A7",
+    "type": "SphereGeometry",
+    "radius": 10,
+    "widthSegments": 25,
+    "heightSegments": 25
+  }, {
+    "uuid": "DEED8C88-508B-4488-9826-829265903A36",
+    "type": "SphereGeometry",
+    "radius": 1,
+    "widthSegments": 25,
+    "heightSegments": 25
+  }, {
+    "uuid": "2E420EF0-B646-4362-AE29-943B17DFA448",
+    "type": "SphereGeometry",
+    "radius": 1,
+    "widthSegments": 25,
+    "heightSegments": 25
+  }, {
+    "uuid": "004106C9-1280-4D1A-A732-285C49187866",
+    "type": "CylinderGeometry",
+    "radiusTop": 3,
+    "radiusBottom": 3,
+    "height": 10,
+    "radialSegments": 25,
+    "heightSegments": 25
+  }, {
+    "uuid": "9C58A29B-36EE-4048-88D5-05D011A596FA",
+    "type": "CylinderGeometry",
+    "radiusTop": 14,
+    "radiusBottom": 14,
+    "height": 30,
+    "radialSegments": 25,
+    "heightSegments": 25
+  }, {
+    "uuid": "A934054C-AEBB-45CF-9871-509A340577F2",
+    "type": "CylinderGeometry",
+    "radiusTop": 4,
+    "radiusBottom": 4,
+    "height": 60,
+    "radialSegments": 25,
+    "heightSegments": 25
+  }, {
+    "uuid": "699CE6AF-B555-45E3-A23C-8A034E51B287",
+    "type": "CylinderGeometry",
+    "radiusTop": 4,
+    "radiusBottom": 4,
+    "height": 60,
+    "radialSegments": 25,
+    "heightSegments": 25
+  }],
+  "materials": [{
+    "uuid": "9931EDD0-BB74-438D-873D-CC3F9D4A0705",
+    "type": "MeshPhongMaterial",
+    "color": 255,
+    "emissive": 0,
+    "specular": 1118481,
+    "shininess": 30,
+    "depthFunc": 3,
+    "depthTest": true,
+    "depthWrite": true
+  }, {
+    "uuid": "20C6E380-DF56-4A3E-ACEA-81E96307A21A",
+    "type": "MeshPhongMaterial",
+    "color": 255,
+    "emissive": 0,
+    "specular": 1118481,
+    "shininess": 30,
+    "depthFunc": 3,
+    "depthTest": true,
+    "depthWrite": true
+  }, {
+    "uuid": "1E7C46F0-1B85-4911-97A9-D4CCDC1154AB",
+    "type": "MeshPhongMaterial",
+    "color": 255,
+    "emissive": 0,
+    "specular": 1118481,
+    "shininess": 30,
+    "depthFunc": 3,
+    "depthTest": true,
+    "depthWrite": true
+  }, {
+    "uuid": "1C712528-C4F1-4B05-8A79-B9A9EFBB0C9A",
+    "type": "MeshPhongMaterial",
+    "color": 255,
+    "emissive": 0,
+    "specular": 1118481,
+    "shininess": 30,
+    "depthFunc": 3,
+    "depthTest": true,
+    "depthWrite": true
+  }, {
+    "uuid": "B20F9F5D-5838-41F8-A2D3-89ED089273F7",
+    "type": "MeshPhongMaterial",
+    "color": 255,
+    "emissive": 0,
+    "specular": 1118481,
+    "shininess": 30,
+    "depthFunc": 3,
+    "depthTest": true,
+    "depthWrite": true
+  }, {
+    "uuid": "3B884E39-B9E6-4A2C-8C5A-8FF793165079",
+    "type": "MeshPhongMaterial",
+    "color": 255,
+    "emissive": 0,
+    "specular": 1118481,
+    "shininess": 30,
+    "depthFunc": 3,
+    "depthTest": true,
+    "depthWrite": true
+  }, {
+    "uuid": "E8238216-508A-40A1-95A8-A4835E56DFB2",
+    "type": "MeshPhongMaterial",
+    "color": 255,
+    "emissive": 0,
+    "specular": 1118481,
+    "shininess": 30,
+    "depthFunc": 3,
+    "depthTest": true,
+    "depthWrite": true
+  }],
+  "object": {
+    "uuid": "888CF55D-705B-4776-97B3-1AEB17A06F22",
+    "type": "Group",
+    "name": "人",
+    "matrix": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 50, 0, 1],
+    "children": [{
+      "uuid": "32F522A3-ACF5-4DE0-8531-1E7467AB29B7",
+      "type": "Group",
+      "name": "头部",
+      "matrix": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+      "children": [{
+        "uuid": "A9D314EE-63BF-4A5D-B67B-F03737439652",
+        "type": "Mesh",
+        "name": "脑壳",
+        "matrix": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+        "geometry": "FD2FD748-72E6-4421-AB6E-7C0C72D1B3A7",
+        "material": "9931EDD0-BB74-438D-873D-CC3F9D4A0705"
+      }, {
+        "uuid": "CAACD191-A01B-4C85-9199-F95E0301D95A",
+        "type": "Mesh",
+        "name": "左眼",
+        "matrix": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 8, 5, 4, 1],
+        "geometry": "DEED8C88-508B-4488-9826-829265903A36",
+        "material": "20C6E380-DF56-4A3E-ACEA-81E96307A21A"
+      }, {
+        "uuid": "2C24B5A8-D7E7-4CE8-B3BF-7B5AA9C23F9B",
+        "type": "Mesh",
+        "name": "右眼",
+        "matrix": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 8, 5, -4, 1],
+        "geometry": "2E420EF0-B646-4362-AE29-943B17DFA448",
+        "material": "1E7C46F0-1B85-4911-97A9-D4CCDC1154AB"
+      }]
+    }, {
+      "uuid": "692B336E-8DF2-4819-B251-090F7AD9B631",
+      "type": "Group",
+      "name": "身体",
+      "matrix": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+      "children": [{
+        "uuid": "9E4AE899-1FA7-4873-A0D9-A82789211973",
+        "type": "Mesh",
+        "name": "脖子",
+        "matrix": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, -15, 0, 1],
+        "geometry": "004106C9-1280-4D1A-A732-285C49187866",
+        "material": "1C712528-C4F1-4B05-8A79-B9A9EFBB0C9A"
+      }, {
+        "uuid": "9FF2B198-E375-499D-9CA3-D6B1D282D08E",
+        "type": "Mesh",
+        "name": "腹部",
+        "matrix": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, -35, 0, 1],
+        "geometry": "9C58A29B-36EE-4048-88D5-05D011A596FA",
+        "material": "B20F9F5D-5838-41F8-A2D3-89ED089273F7"
+      }, {
+        "uuid": "FBB2976A-3276-4A58-BA7D-468D2DE59C8B",
+        "type": "Group",
+        "name": "腿",
+        "matrix": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+        "children": [{
+          "uuid": "C37DCE9F-4FB6-44BA-81AC-CA14C70E06E7",
+          "type": "Mesh",
+          "name": "左腿",
+          "matrix": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, -80, -7, 1],
+          "geometry": "A934054C-AEBB-45CF-9871-509A340577F2",
+          "material": "3B884E39-B9E6-4A2C-8C5A-8FF793165079"
+        }, {
+          "uuid": "CDC2DAA8-DDF8-4282-A0BF-CF28CCA6461A",
+          "type": "Mesh",
+          "name": "右腿",
+          "matrix": [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, -80, 7, 1],
+          "geometry": "699CE6AF-B555-45E3-A23C-8A034E51B287",
+          "material": "E8238216-508A-40A1-95A8-A4835E56DFB2"
+        }]
+      }]
+    }]
+  }
+}

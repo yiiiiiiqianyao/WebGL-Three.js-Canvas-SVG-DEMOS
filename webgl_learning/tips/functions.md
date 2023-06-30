@@ -1,0 +1,1 @@
+1. gl.createBuffer() // 创建缓冲区对象

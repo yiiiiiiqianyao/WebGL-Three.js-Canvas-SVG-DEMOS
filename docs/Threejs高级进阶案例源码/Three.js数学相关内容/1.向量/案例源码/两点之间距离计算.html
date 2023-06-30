@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <!-- 引入Three.js引擎 -->
+  <script src="http://www.yanhuangxueyuan.com/versions/threejsR92/build/three.js"></script>
+</head>
+
+<body>
+  <script>
+  // 已知直线两个顶点的坐标，计算直线的长度
+
+    // 点1坐标
+    var p1 = new THREE.Vector3(10,8,12);
+    // 点2坐标
+    var p2 = new THREE.Vector3(20,30,-10);
+    // .clone()方法克隆p1，直接执行向量减法.sub()会改变p1向量本身
+    // .sub()：向量减法运算
+    // .length()：返回向量的长度
+    var L = p1.clone().sub(p2).length();
+    console.log('两点之间距离',L);
+  </script>
+</body>
+
+</html>

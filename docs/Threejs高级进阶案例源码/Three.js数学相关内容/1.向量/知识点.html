@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+<meta charset="utf-8">
+<title></title>
+  <link href="http://www.yanhuangxueyuan.com/markdown.css" rel="stylesheet" type="text/css">
+  </head>
+  <body>
+<h1 id="three-js-">Three.js向量</h1>
+<p>  为了让大家深入了解Three.js的Math模块API，本节课对向量内容展开讲解。</p>
+<h3 id="three-js-api">Three.js向量相关API</h3>
+<ul>
+<li>二维向量<a href="http://www.yanhuangxueyuan.com/threejs/docs/index.html#api/math/Vector2">Vector2</a></li>
+<li>三维向量<a href="http://www.yanhuangxueyuan.com/threejs/docs/index.html#api/math/Vector3">Vector3</a></li>
+<li>四维向量<a href="http://www.yanhuangxueyuan.com/threejs/docs/index.html#api/math/Vector4">Vector4</a></li>
+</ul>
+<p>几维向量就有几个分量，二维向量Vector2有x和y两个分量，也就是Vector2对象具有x和y两个属性，三维向量Vector3有xyz三个分量，四维向量Vector4有xyzw四个分量。在Threejs中一些对象属性值会使用这些向量对象来表示，比如几何体Geometry的顶点UV坐标需要表示一个二维坐标，所以uv坐标使用Vector2对象表示；几何体Geometry的顶点位置坐标在在三维空间笛卡尔坐标系中中坐标需要xyz三个分量，所以顶点坐标使用Vector3对象表示;Three.js模型对象的缩放属性可以在xyz三个方向上进行缩放，也就是说有三个分量需要表达，自然使用Vector3对象。</p>
+<p>控制台查看Threejs对象位置、缩放属性的值</p>
+<pre><code class="lang-JavaScript"><span class="hljs-keyword">var</span> mesh = <span class="hljs-keyword">new</span> THREE.Mesh()
+mesh.position.set(<span class="hljs-number">100</span>,<span class="hljs-number">20</span>,<span class="hljs-number">330</span>);<span class="hljs-comment">//设置网格模型的位置</span>
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">'对象位置属性'</span>,mesh.position);
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">'对象缩放属性'</span>,mesh.scale);
+</code></pre>
+<p>控制台查看几何体相关数据的表示方式</p>
+<pre><code class="lang-JavaScript"><span class="hljs-keyword">var</span> geometry = <span class="hljs-keyword">new</span> THREE.BoxGeometry(<span class="hljs-number">50</span>,<span class="hljs-number">25</span>,<span class="hljs-number">25</span>);<span class="hljs-comment">//立方体</span>
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">'几何体顶点位置坐标数据'</span>,geometry.vertices);
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">'几何体三角形'</span>,geometry.faces);
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">'几何体UV坐标'</span>,geometry.faceVertexUvs[<span class="hljs-number">0</span>]);
+</code></pre>
+<h4 id="-">创建向量对象</h4>
+<p>通过向量构造函数创建向量对象，查看向量对象的结构。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// 创建一个三维向量，xyz分量分别为3, 5, 4</span>
+var v1 = <span class="hljs-keyword">new</span> THREE.Vector3(<span class="hljs-number">3</span>, <span class="hljs-number">5</span>, <span class="hljs-number">4</span>)
+console.log('向量<span class="hljs-keyword">x</span>分量', v1.<span class="hljs-keyword">x</span>);
+<span class="hljs-comment">// 重置向量的y分量</span>
+v1.y = <span class="hljs-number">80</span>;
+<span class="hljs-comment">// 重新设置三个分量</span>
+v1.<span class="hljs-keyword">set</span>(<span class="hljs-number">2</span>,<span class="hljs-number">4</span>,<span class="hljs-number">8</span>);
+</code></pre>
+<h3 id="-clone-copy-">克隆<code>.clone()</code>和复制<code>.copy()</code></h3>
+<p>对象执行克隆方法<code>.clone()</code>，返回一个新的对象，和原来对象属性的值一样。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-keyword">var</span> p1 = <span class="hljs-keyword">new</span> THREE.Vector3(<span class="hljs-number">10</span>,<span class="hljs-number">20</span>,<span class="hljs-number">15</span>);
+<span class="hljs-keyword">var</span> v1 = p1.clone();
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">`查看克隆的结果`</span>,v1);
+</code></pre>
+<p>执行<code>.copy()</code>方法，向量p1三个分量xyz的值覆盖向量p2三个分量</p>
+<pre><code class="lang-JavaScript"><span class="hljs-keyword">var</span> p1 = <span class="hljs-keyword">new</span> THREE.Vector3(<span class="hljs-number">10</span>,<span class="hljs-number">42</span>,<span class="hljs-number">28</span>);
+<span class="hljs-keyword">var</span> p2 = <span class="hljs-keyword">new</span> THREE.Vector3();
+p2.copy(p1);
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">`查看复制的结果`</span>,p2);
+</code></pre>
+<h4 id="-">向量和标量</h4>
+<p>如果你有一定的数学基础，肯定对向量和标量有一定的概念，比如说空间中一个点的位置是标量，两个点构成一个有方向的量是向量，在Three.js中，不一定要严格区分向量和标量的概念，<code>THREE.Vector3</code>对象既可以表示一个顶点位置，比如网格模型Mesh的位置坐标，也可以表示一个有方向的向量，比如顶点的法向量或光线的方向。虽然<code>Vector</code>字面意思是向量，但是<code>THREE.Vector3</code>对象表示的是向量还是标量，要看它的具体含义。</p>
+<h4 id="-sub-length-">向量减法<code>.sub()</code>和向量长度<code>.length()</code></h4>
+<p>通过<code>.sub()</code>方法可以对两个向量进行减法运算，比如两个表示顶点坐标的Vector3对象进行减法运算返回一个新的Vector3对象就是两个点构成的向量。</p>
+<p>直接执行<code>p1.sub(p2)</code>会改变p1，所以先克隆然后再执行减法运算<code>p1.clone().sub(p2)</code>。</p>
+<p>向量对象执行<code>.length()</code>方法会返回向量的长度。</p>
+<p>已知直线两个顶点的坐标，计算直线的长度.</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// 点1坐标</span>
+<span class="hljs-keyword">var</span> p1 = <span class="hljs-keyword">new</span> THREE.Vector3(<span class="hljs-number">10</span>,<span class="hljs-number">8</span>,<span class="hljs-number">12</span>);
+<span class="hljs-comment">// 点2坐标</span>
+<span class="hljs-keyword">var</span> p2 = <span class="hljs-keyword">new</span> THREE.Vector3(<span class="hljs-number">20</span>,<span class="hljs-number">30</span>,<span class="hljs-number">-10</span>);
+<span class="hljs-comment">// .clone()方法克隆p1，直接执行向量减法.sub()会改变p1向量本身</span>
+<span class="hljs-comment">// .sub()：向量减法运算</span>
+<span class="hljs-comment">// .length()：返回向量的长度</span>
+<span class="hljs-keyword">var</span> L = p1.clone().sub(p2).length();
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">'两点之间距离'</span>,L);
+</code></pre>
+<h4 id="-dot-">点乘<code>.dot()</code></h4>
+<p>向量的<code>.dot()</code>方法用来计算两个向量的点积，计算光线和几何体顶点夹角，几何体体积等等都会用到该方法。</p>
+<p>已知三角形三个顶点的坐标，计算其中一个顶点对应角度余弦值。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// 三角形的三个点坐标p1，p2，p3</span>
+<span class="hljs-keyword">var</span> p1 = <span class="hljs-keyword">new</span> THREE.Vector3(<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>);<span class="hljs-comment">// 点1坐标</span>
+<span class="hljs-keyword">var</span> p2 = <span class="hljs-keyword">new</span> THREE.Vector3(<span class="hljs-number">20</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>);<span class="hljs-comment">// 点2坐标</span>
+<span class="hljs-keyword">var</span> p3 = <span class="hljs-keyword">new</span> THREE.Vector3(<span class="hljs-number">0</span>,<span class="hljs-number">40</span>,<span class="hljs-number">0</span>);<span class="hljs-comment">// 点3坐标</span>
+
+<span class="hljs-comment">// p1，p2两个点确定一个向量</span>
+<span class="hljs-keyword">var</span> v1 = p1.clone().sub(p2);
+<span class="hljs-comment">// p1，p3两个点确定一个向量</span>
+<span class="hljs-keyword">var</span> v2 = p1.clone().sub(p3);
+<span class="hljs-comment">// .dot()计算两个向量点积.length()计算向量长度</span>
+<span class="hljs-comment">// 返回三角形顶点p1对应夹角余弦值</span>
+<span class="hljs-keyword">var</span> CosineValue = v1.dot( v2 ) /(v1.length()*v2.length())
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">'三角形两条边夹角余弦值'</span>,CosineValue);
+<span class="hljs-comment">// .acos()：反余弦函数，返回结果是弧度</span>
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">'三角形两条边夹角'</span>,<span class="hljs-built_in">Math</span>.acos(CosineValue)*<span class="hljs-number">180</span>/<span class="hljs-built_in">Math</span>.PI);
+</code></pre>
+<h4 id="-cross-">叉乘<code>.cross()</code></h4>
+<p><code>.crossVectors()</code>和<code>.cross()</code>都是向量对象的叉乘计算方法，功能一样，只是使用的细节有些不同，向量对象叉乘的结果仍然是向量对象。</p>
+<p>计算向量v1和v2的叉乘结果</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// 声明一个向量对象，用来保存.crossVectors()方法结果</span>
+  <span class="hljs-keyword">var</span> v3 = <span class="hljs-keyword">new</span> THREE.Vector3();
+  v3.crossVectors(v1,v2)
+</code></pre>
+<p>向量v2直接执行<code>.cross()</code>方法，叉乘的结果会覆盖向量v2的xyz分量</p>
+<pre><code class="lang-JavaScript">  <span class="hljs-selector-tag">v2</span><span class="hljs-selector-class">.cross</span>(<span class="hljs-selector-tag">v1</span>)
+</code></pre>
+<p>克隆v2避免叉乘后改变原来的v2变量。</p>
+<pre><code class="lang-JavaScript">  <span class="hljs-keyword">var</span> v3 = v2.<span class="hljs-keyword">clone</span>();
+  v3.cross(v1)
+</code></pre>
+<p>已知三角形的三个顶点p1, p2, p3的坐标值，利用三个顶点的坐标计算三角形的面积</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">//三角形面积计算</span>
+<span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">AreaOfTriangle</span><span class="hljs-params">(p1, p2, p3)</span></span>{
+  <span class="hljs-keyword">var</span> v1 = <span class="hljs-keyword">new</span> THREE.Vector3();
+  <span class="hljs-keyword">var</span> v2 = <span class="hljs-keyword">new</span> THREE.Vector3();
+  <span class="hljs-comment">// 通过两个顶点坐标计算其中两条边构成的向量</span>
+  v1 = p1.<span class="hljs-keyword">clone</span>().sub(p2);
+  v2 = p1.<span class="hljs-keyword">clone</span>().sub(p3);
+
+  <span class="hljs-keyword">var</span> v3 = <span class="hljs-keyword">new</span> THREE.Vector3();
+  <span class="hljs-comment">// 三角形面积计算</span>
+  v3.crossVectors(v1,v2);
+  <span class="hljs-keyword">var</span> s = v3.length()/<span class="hljs-number">2</span>;
+  <span class="hljs-keyword">return</span> s
+}
+</code></pre>
+
+<div class="">
+  <a href="http://www.yanhuangxueyuan.com/">作者技术博客</a>
+</div>
+
+  </body>
+</html>

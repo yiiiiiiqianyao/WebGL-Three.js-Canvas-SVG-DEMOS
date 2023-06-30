@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+<meta charset="utf-8">
+<title></title>
+  <link href="http://www.yanhuangxueyuan.com/markdown.css" rel="stylesheet" type="text/css">
+  </head>
+  <body>
+<h1 id="-effectcomposer-">后处理EffectComposer—自定义着色器</h1>
+<p>3D场景和相机设置好后，执行渲染器渲染相机下的场景，渲染结果就是一张图片，周期性地执行渲染器渲染方法，一帧一帧图片就构成了动画效果。
+后处理简单的说，可以理解为处理图片，比如把一张彩色图变成灰度图，或者给一张图片或者图片场景中一个物体添加一个一个边框...</p>
+<p><code>EffectComposer.js</code>封装了WebGL渲染目标<code>WebGLRenderTarget</code>API，相比直接使用<code>WebGLRenderTarget</code>进行后处理要方便得多。</p>
+<h3 id="-js-">后期处理相关.js文件路径</h3>
+<p>后处理相关的库基本都在路径<code>three.js-master\examples\js\</code>下面<code>postprocessing</code>和<code>shaders</code>
+两个文件夹下。</p>
+<p>EffectComposer.js库依赖RenderPass.js、ShaderPass.js、CopyShader.js。</p>
+<pre><code class="lang-HTML"><span class="hljs-comment">&lt;!-- 引入EffectComposer.js库  封装了WebGLRenderTarget  可以调用WebGL渲染器的渲染方法 --&gt;</span>
+<span class="hljs-tag">&lt;<span class="hljs-name">script</span> <span class="hljs-attr">src</span>=<span class="hljs-string">"./three.js-master/examples/js/postprocessing/EffectComposer.js"</span>&gt;</span><span class="undefined"></span><span class="hljs-tag">&lt;/<span class="hljs-name">script</span>&gt;</span>
+
+<span class="hljs-comment">&lt;!-- renderPass.js库  构造函数传入场景Scene和相机Camera作为构造函数renderPass的参数 --&gt;</span>
+<span class="hljs-tag">&lt;<span class="hljs-name">script</span> <span class="hljs-attr">src</span>=<span class="hljs-string">"./three.js-master/examples/js/postprocessing/RenderPass.js"</span>&gt;</span><span class="undefined"></span><span class="hljs-tag">&lt;/<span class="hljs-name">script</span>&gt;</span>
+
+<span class="hljs-comment">&lt;!-- 这两个好像不能删除   EffectComposer依赖它们--&gt;</span>
+<span class="hljs-comment">&lt;!-- ShaderPass.js库，一个ShaderPass调用一个自定义着色器代码就构成一个后处理通道 --&gt;</span>
+<span class="hljs-tag">&lt;<span class="hljs-name">script</span> <span class="hljs-attr">src</span>=<span class="hljs-string">"./three.js-master/examples/js/postprocessing/ShaderPass.js"</span>&gt;</span><span class="undefined"></span><span class="hljs-tag">&lt;/<span class="hljs-name">script</span>&gt;</span>
+
+<span class="hljs-comment">&lt;!-- 引入CopyShader.js库  CopyShader.js包含着色器代码，着色器代码功能：采样一张图片像素赋值给片元 --&gt;</span>
+<span class="hljs-tag">&lt;<span class="hljs-name">script</span> <span class="hljs-attr">src</span>=<span class="hljs-string">"./three.js-master/examples/js/shaders/CopyShader.js"</span>&gt;</span><span class="undefined"></span><span class="hljs-tag">&lt;/<span class="hljs-name">script</span>&gt;</span>
+</code></pre>
+<h3 id="effectcomposer-js">EffectComposer.js</h3>
+<p><code>EffectComposer</code>构造函数的参数是渲染器对象<code>renderer</code>.</p>
+<pre><code class="lang-javascript">  <span class="hljs-keyword">var</span> composer = <span class="hljs-keyword">new</span> THREE.EffectComposer(renderer);
+</code></pre>
+<h3 id="effectcomposer-render-">EffectComposer方法<code>.render()</code></h3>
+<p>  <code>EffectComposer</code>构造函数的参数是<strong>WebGL渲染器</strong>,执行<code>EffectComposer</code>的渲染方法<code>.render()</code>方法，相当于执行了WebGL渲染器对象的<code>.render()</code>方法。</p>
+<pre><code class="lang-javascript">  <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">render</span>(<span class="hljs-params"></span>) </span>{
+<span class="hljs-comment">// EffectComposer的渲染方法.render()执行一次，相当于执行一次renderer.render()得到一帧图像</span>
+composer.render();
+requestAnimationFrame(render);
+  }
+</code></pre>
+<h3 id="effectcomposer-addpass-">EffectComposer方法<code>.addPass()</code></h3>
+<p>该方法用于给EffectComposer对象添加后处理通道，可以添加多个后处理通道，每个通道就是一个处理环节，通道本质就是着色器代码。</p>
+<pre><code class="lang-javascript"><span class="hljs-comment">// 把渲染器作为参数</span>
+<span class="hljs-keyword">var</span> composer = <span class="hljs-keyword">new</span> THREE.EffectComposer(renderer);
+<span class="hljs-comment">// 设置renderPass通道，该通道并不对渲染结果的像素数据进行处理</span>
+composer.addPass(renderPass);
+<span class="hljs-comment">// 设置灰度图通道grayShaderPass，对渲染结果进行灰度计算处理</span>
+composer.addPass(grayShaderPass);
+</code></pre>
+<h3 id="-rendertoscreen-">通道对象的属性<code>.renderToScreen</code></h3>
+<p>  默认值是<code>false</code>，经过该通道的处理后的图像结果保存到<code>EffectComposer</code>对象的WebGL渲染目标对象<code>WebGLRenderTarget</code>中，如果你有WebGL基础，你也可以理解为把结果保存到自定义的帧缓冲区中，不会在canvas画布上直接显示。</p>
+<p>  如果设置<code>Pass.renderToScreen = true;</code>，表示经过该通道的处理结果存储到系统默认的帧缓冲区中，也就是直接显示在canvas画布上面。</p>
+<h3 id="renderpass-">RenderPass通道</h3>
+<p><code>RenderPass</code>构造函数的参数是场景和相机对象(scene,camera) ，RenderPass通道的作用是把场景和相机作为参数传入，获得场景的渲染结果，并不对渲染结果做特定处理。如果<code>EffectComposer</code>对象只使用该通道，可以简单认为和直接调用WebGL渲染器的render方法区别不大，最终效果是一样的。一般来说RenderPass通道是<code>EffectComposer</code>对象的第一个通道。</p>
+<pre><code class="lang-javascript"><span class="hljs-keyword">var</span> renderPass = <span class="hljs-keyword">new</span> THREE.RenderPass(scene, camera);
+<span class="hljs-comment">// 渲染结果默认不显示，如果renderToScreen设置为true，经过该通道处理后会直接显示到Caanvas画布上</span>
+renderPass.renderToScreen = <span class="hljs-keyword">true</span>;
+
+<span class="hljs-keyword">var</span> composer = <span class="hljs-keyword">new</span> THREE.EffectComposer(renderer);
+<span class="hljs-comment">// 渲染通道插入EffectComposer对象中</span>
+composer.addPass(renderPass);
+</code></pre>
+<h3 id="three-shaderpass-">THREE.ShaderPass通道</h3>
+<p>该通道是着色器通道，可以自定义后处理的着色器代码作为<code>THREE.ShaderPasss</code>构造函数的参数。</p>
+<p>顶点着色器和片元着色器的编写要遵守一定的格式，具体格式可以参照<code>CopyShader.js</code>文件，在该文件的基础上进行修改，<code>CopyShader.js</code>文件中的着色器代码基本功能就是获取颜色贴图的像素值赋值给片元，不做特定功能的后期处理。</p>
+<p>下面顶点和片元着色器代码的后期处理功能就是灰度计算。</p>
+<p>顶点着色器代码和<code>CopyShader.js</code>文件中顶点着色器代码一样没有改变。</p>
+<pre><code class="lang-HTML"><span class="hljs-tag">&lt;<span class="hljs-name">script</span> <span class="hljs-attr">id</span>=<span class="hljs-string">"vertexShader"</span> <span class="hljs-attr">type</span>=<span class="hljs-string">"x-shader/x-vertex"</span>&gt;</span><span class="javascript">
+  <span class="hljs-comment">// 声明一个变量vUv表示uv坐标插值后的结果</span>
+  varying vec2 vUv;
+  <span class="hljs-keyword">void</span> main(){
+<span class="hljs-comment">// 纹理坐标插值计算</span>
+vUv = uv;
+<span class="hljs-comment">// projectionMatrix投影矩阵  modelViewMatrix模型视图矩阵</span>
+gl_Position = projectionMatrix * modelViewMatrix * vec4( position, <span class="hljs-number">1.0</span> );
+  }
+</span><span class="hljs-tag">&lt;/<span class="hljs-name">script</span>&gt;</span>
+</code></pre>
+<p>片元着色器在<code>CopyShader.js</code>片元着色器的基础上进行了一定更改，插入一段灰度计算的代码。</p>
+<pre><code class="lang-HTML"><span class="hljs-tag">&lt;<span class="hljs-name">script</span> <span class="hljs-attr">id</span>=<span class="hljs-string">"fragmentShader"</span> <span class="hljs-attr">type</span>=<span class="hljs-string">"x-shader/x-fragment"</span>&gt;</span><span class="javascript">
+  <span class="hljs-comment">// 默认设置颜色贴图的变量是tDiffuse</span>
+  uniform sampler2D tDiffuse;
+  varying vec2 vUv;
+  <span class="hljs-keyword">void</span> main() {
+<span class="hljs-comment">//采集纹素</span>
+vec4 tColor = texture2D( tDiffuse, vUv );
+<span class="hljs-comment">//计算RGB三个分量光能量之和，也就是亮度</span>
+float luminance = <span class="hljs-number">0.299</span>*tColor.r+<span class="hljs-number">0.587</span>*tColor.g+<span class="hljs-number">0.114</span>*tColor.b;
+<span class="hljs-comment">//逐片元赋值，RGB相同均为亮度值，用黑白两色表达图片的明暗变化</span>
+gl_FragColor = vec4(luminance,luminance,luminance,<span class="hljs-number">1</span>);
+  }
+</span><span class="hljs-tag">&lt;/<span class="hljs-name">script</span>&gt;</span>
+</code></pre>
+<p>创建着色器通道ShaderPass，着色器通道ShaderPass构造函数参数格式和着色器材质<code>ShaderMaterial</code>构造函数的选项参数一样。</p>
+<pre><code class="lang-javascript"><span class="hljs-comment">//自定义后处理通道</span>
+<span class="hljs-keyword">var</span> GreyShader = {
+  uniforms: {
+<span class="hljs-comment">// 和着色器tDiffuse变量对应</span>
+<span class="hljs-comment">// THREE.ShaderPass会把渲染结果，也就是一张图片的像素值对应Texture对象赋值给tDiffuse</span>
+tDiffuse: {
+  value: <span class="hljs-literal">null</span>
+},
+  },
+  vertexShader: <span class="hljs-built_in">document</span>.getElementById(<span class="hljs-string">'vertexShader'</span>).textContent,
+  fragmentShader: <span class="hljs-built_in">document</span>.getElementById(<span class="hljs-string">'fragmentShader'</span>).textContent,
+}
+<span class="hljs-comment">// GreyShader作为THREE.ShaderPass的参数</span>
+<span class="hljs-keyword">var</span> grayShaderPass = <span class="hljs-keyword">new</span> THREE.ShaderPass(GreyShader);
+</code></pre>
+<h3 id="-r-">自定义R分量提取功能的着色器代码</h3>
+<p>直接修改片元着色器就可以</p>
+<pre><code class="lang-javascript"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">main</span><span class="hljs-params">()</span> </span>{
+  gl_FragColor = texture2D( tDiffuse, vUv );
+}
+</code></pre>
+<pre><code class="lang-javascript"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">main</span><span class="hljs-params">()</span> </span>{
+  <span class="hljs-comment">//采集纹素</span>
+  vec4 tColor = texture2D( tDiffuse, vUv );
+  <span class="hljs-comment">//计算RGB三个分量光能量之和，也就是亮度</span>
+  <span class="hljs-keyword">float</span> luminance = <span class="hljs-number">0.299</span>*tColor.r+<span class="hljs-number">0.587</span>*tColor.g+<span class="hljs-number">0.114</span>*tColor.b;
+  <span class="hljs-comment">//逐片元赋值，RGB相同均为亮度值，用黑白两色表达图片的明暗变化</span>
+  gl_FragColor = vec4(luminance,luminance,luminance,<span class="hljs-number">1</span>);
+}
+</code></pre>
+<pre><code class="lang-javascript"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">main</span><span class="hljs-params">()</span> </span>{
+  <span class="hljs-comment">//采集纹素</span>
+  vec4 tColor = texture2D( tDiffuse, vUv );
+  <span class="hljs-comment">//逐片元赋值，RGB相同均为亮度值，用黑白两色表达图片的明暗变化</span>
+  gl_FragColor = vec4(tColor.r,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">1</span>);
+}
+</code></pre>
+<h3 id="-">多个处理通道</h3>
+<p>多个通道之间是串联关系，执行一个通道的渲染结果，默认保存得到CPU自定义帧缓冲区中，不会显示在Canvas画布上，如果某个通道设置<code>Pass.renderToScreen = true;</code>，渲染结果就会直接显示在Canvas画布上。</p>
+<pre><code class="lang-javascript"><span class="hljs-keyword">var</span> composer = <span class="hljs-keyword">new</span> THREE.EffectComposer(renderer);
+<span class="hljs-comment">// 设置renderPass通道</span>
+composer.addPass(renderPass);
+<span class="hljs-comment">// 设置R分量提取通道RShaderPass</span>
+composer.addPass(RShaderPass);
+<span class="hljs-comment">// 设置灰度图通道grayShaderPass，对渲染结果进行灰度计算处理</span>
+composer.addPass(grayShaderPass);
+</code></pre>
+
+
+
+  </body>
+</html>

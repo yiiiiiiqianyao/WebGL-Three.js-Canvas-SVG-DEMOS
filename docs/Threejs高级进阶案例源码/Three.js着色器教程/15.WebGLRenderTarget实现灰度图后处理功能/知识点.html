@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+<meta charset="utf-8">
+<title></title>
+  <link href="http://www.yanhuangxueyuan.com/markdown.css" rel="stylesheet" type="text/css">
+  </head>
+  <body>
+<h1 id="webglrendertarget-">WebGLRenderTarget实现灰度图后处理功能</h1>
+<p>这节课主要内容是把WebGL渲染目标对象<code>WebGLRenderTarget</code>和自定义着色器材质对象<code>ShaderMaterial</code>结合实现后处理功能。</p>
+<h3 id="-">灰度计算后处理</h3>
+<p>场景Scene对象的渲染结果保存到渲染目标对象target中</p>
+<pre><code class="lang-JavaScript"><span class="hljs-keyword">var</span> target = <span class="hljs-keyword">new</span> THREE.WebGLRenderTarget(<span class="hljs-number">500</span>, <span class="hljs-number">500</span>);
+
+renderer.render(scene, camera,target);
+</code></pre>
+<p><code>target.texture</code>从渲染目标对象target获得渲染结果，然后通过<code>ShaderMaterial</code>对象把渲染结果传值给片元着色器中uniform定义的变量texture，然后进行灰度计算后处理。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// 自定义顶点着色器对象</span>
+<span class="hljs-keyword">var</span> material2 = <span class="hljs-keyword">new</span> THREE.ShaderMaterial({
+  uniforms: {
+<span class="hljs-comment">// texture对应顶点着色器中uniform声明的texture变量</span>
+texture: {
+  <span class="hljs-comment">// WebGL渲染目标对象属性.texture返回一张纹理贴图</span>
+  value: target.texture
+},
+  },
+  <span class="hljs-comment">// 顶点着色器</span>
+  vertexShader: <span class="hljs-built_in">document</span>.getElementById(<span class="hljs-string">'vertexShader'</span>).textContent,
+  <span class="hljs-comment">// 片元着色器</span>
+  fragmentShader: <span class="hljs-built_in">document</span>.getElementById(<span class="hljs-string">'fragmentShader'</span>).textContent,
+});
+</code></pre>
+<p>材质对象material2是场景2中一个网格模型的纹理贴图，通过render渲染方法把后处理灰度效果显示出来</p>
+<pre><code class="lang-JavaScript"><span class="hljs-selector-tag">renderer</span><span class="hljs-selector-class">.render</span>(<span class="hljs-selector-tag">scene2</span>, <span class="hljs-selector-tag">camera2</span>);
+</code></pre>
+<h3 id="-webgl-">创建多个WebGL渲染目标对象</h3>
+<p>可以创建多个WebGL渲染目标对象分别保存一个WebGL渲染器的渲染结果，满足一个应用需要在GPU上临时保存多个后处理效果，而不显示在Canvas画布上。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// 创建一个WebGL渲染目标对象target0，像素500X500</span>
+<span class="hljs-keyword">var</span> target0 = <span class="hljs-keyword">new</span> THREE.WebGLRenderTarget(<span class="hljs-number">500</span>, <span class="hljs-number">500</span>);
+</code></pre>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// 创建一个WebGL渲染目标对象target1，像素300X500</span>
+<span class="hljs-keyword">var</span> target1 = <span class="hljs-keyword">new</span> THREE.WebGLRenderTarget(<span class="hljs-number">500</span>, <span class="hljs-number">500</span>);
+</code></pre>
+
+<div class="">
+  <a href="http://www.yanhuangxueyuan.com/">作者技术博客</a>
+</div>
+  </body>
+</html>

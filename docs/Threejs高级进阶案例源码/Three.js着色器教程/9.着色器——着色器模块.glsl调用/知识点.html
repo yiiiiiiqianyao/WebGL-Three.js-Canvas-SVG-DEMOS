@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+<meta charset="utf-8">
+<title></title>
+  <link href="http://www.yanhuangxueyuan.com/markdown.css" rel="stylesheet" type="text/css">
+  </head>
+  <body>
+
+<h1 id="-glsl-">着色器——着色器模块.glsl调用</h1>
+<p>路径<code>three.js-master\src\renderers\shaders</code>下，ShaderChunk文件中有大量具有特定功能的着色器代码块.glsl，ShaderLib文件夹下面的着色器文件是对ShaderChunk文件中的着色器代码块进行调用组合得到一个新的着色器代码，新的着色器文件是一个完整的顶点着色器或片元着色器代码这些完成的顶点或片元着色器代码和Three.js的点材质、线线材质或网格材质是一一对应的。比如顶点着色器文件<code>meshphong_vert.glsl</code>和片元着色器文件<code>meshphong_frag.glsl</code>对应的是高光网格材质<code>MeshPhongMaterial</code>，顶点着色器文件<code>points_vert.glsl</code>和片元着色器文件<code>points_frag.glsl</code>对应的是点材质<code>PointsMaterial</code>。</p>
+<p>使用<code>ShaderMaterial</code>自定义着色器代码的时候，可以手动编写着色器代码，也可以调用ShaderChunk文件和ShaderLib文件夹下面的着色器代码模块。</p>
+<p>如果想很好的复用three.js的着色器代码块，至少应该阅读下着色器源码，对每一个文件有一个大致的认识。</p>
+<h3 id="-">顶点位置矩阵变换</h3>
+<p>手动编写顶点位置<code>position</code>进行投影矩阵、相机矩阵、视图矩阵变换的着色器代码。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">main</span>(<span class="hljs-params"></span>)</span>{
+  <span class="hljs-comment">// 投影矩阵projectionMatrix、视图矩阵viewMatrix、模型矩阵modelMatrix</span>
+  gl_Position = projectionMatrix*viewMatrix*modelMatrix*vec4( position, <span class="hljs-number">1.0</span> );
+
+  <span class="hljs-comment">// modelViewMatrix等价于viewMatrix*modelMatrix</span>
+  <span class="hljs-comment">// gl_Position = projectionMatrix*modelViewMatrix*vec4( position, 1.0 );</span>
+}
+&lt;/script&gt;
+</code></pre>
+<h4 id="-project_vertex-glsl-">调用project_vertex.glsl文件</h4>
+<p>调用ShaderChunk文件夹下的project_vertex.glsl文件，注意该着色器块文件中的代码依赖着色器文件begin_vertex.glsl。这里也给大家提醒，ShaderChunk文件夹下的着色器模块之间既有一定的独立性，有些着色器代码块有依赖别的着色器代码块。如果想更好的使用这些着色器代码块或者理解Three.js系统原理，阅读每一句着色器代码的工作肯定是要做的。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span>{
+  <span class="hljs-comment">//模块功能：拷贝顶点位置变量值</span>
+  <span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;begin_vertex&gt;</span></span>
+
+  <span class="hljs-comment">// 模块功能：投影视图模型矩阵变换</span>
+  <span class="hljs-meta">#<span class="hljs-meta-keyword">include</span> <span class="hljs-meta-string">&lt;project_vertex&gt;</span></span>
+}
+</code></pre>
+<h5 id="begin_vertex-glsl">begin_vertex.glsl</h5>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">//拷贝顶点位置变量值</span>
+vec3 transformed = vec3( position );
+</code></pre>
+<h5 id="project_vertex-glsl">project_vertex.glsl</h5>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// 模型视图矩阵对顶点位置数据进行变换</span>
+<span class="hljs-comment">// modelViewMatrix：模型视图矩阵，模型矩阵和视图矩阵的复合矩阵</span>
+vec4 mvPosition = <span class="hljs-function">modelViewMatrix * <span class="hljs-title">vec4</span><span class="hljs-params">( transformed, <span class="hljs-number">1.0</span> )</span></span>;
+<span class="hljs-comment">// projectionMatrix：相机的投影矩阵</span>
+gl_Position = projectionMatrix * mvPosition;
+</code></pre>
+<h5 id="map_pars_fragment-glsl">map_pars_fragment.glsl</h5>
+<p>使用仅仅使用该模块，注意设置预定义<code>#define USE_MAP;</code>。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-meta">#<span class="hljs-meta-keyword">ifdef</span> USE_MAP</span>
+<span class="hljs-comment">// 直接声明一个纹理贴图变量</span>
+uniform sampler2D <span class="hljs-built_in">map</span>;
+
+<span class="hljs-meta">#<span class="hljs-meta-keyword">endif</span></span>
+</code></pre>
+<h5 id="uv_pars_fragment-glsl">uv_pars_fragment.glsl</h5>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// 如果使用了任何纹理贴图，就需要进行纹理坐标的插值计算，也就是说需要使用varying关键字声明变量vUv</span>
+<span class="hljs-meta">#<span class="hljs-meta-keyword">if</span> defined( USE_MAP )  || defined( USE_NORMALMAP ) || defined( USE_SPECULARMAP ) ...</span>
+<span class="hljs-comment">// 片元着色器中：声明一个变量vUv用于插值计算</span>
+varying vec2 vUv;
+
+<span class="hljs-meta">#<span class="hljs-meta-keyword">endif</span></span>
+</code></pre>
+<div class="">
+  <a href="http://www.yanhuangxueyuan.com/">作者技术博客</a>
+</div>
+  </body>
+</html>

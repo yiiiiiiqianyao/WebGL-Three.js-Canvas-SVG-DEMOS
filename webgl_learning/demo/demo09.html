@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <script src="../src/webgl_lib/webgl-utils.js"></script>
+    <script src="../src/webgl_lib/webgl-debug.js"></script>
+    <script src="../src/webgl_lib/cuon-utils.js"></script>
+    <script src="../src/webgl_lib/cuon-matrix.js"></script>
+    <style>
+        #canvas{
+            display: block;
+            margin: 0 auto;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas" width="800px" height="800px"></canvas>
+</body>
+<script>
+    var canvas = document.getElementById('canvas')
+    canvas.width = 800
+    canvas.height = 800
+    
+    // 获取 webgl 绘图上下文
+    var gl = getWebGLContext(canvas)
+    if(!gl) { 
+        console.log('not support')
+    }
+
+    
+    gl.clearColor(0.6, 0.6, 0.6, 1.0) // 指定清空 canvas 的颜色 (背景色)
+    gl.clear(gl.COLOR_BUFFER_BIT) // 清空 canvas 
+
+    gl.enable(gl.DEPTH_TEST)
+    gl.clear(gl.DEPTH_BUFFER_BIT)
+
+    gl.enable(gl.POLYGON_OFFSET_FILL)
+    
+
+    let viewMatrix = new Matrix4() // 构建视图矩阵
+    viewMatrix.setLookAt(
+        2, 0.25, 2,    // eye point
+        0, 0, 0,            // lookAt
+        0, 1, 0             // up
+    )
+
+    let projectMatrix = new Matrix4()
+    let left = -1, right = 1, otop = 1, bottom = -1, near = 0, far = 1
+    projectMatrix.setPerspective(30, canvas.width/canvas.height, 0.01, 10)
+
+    gl.polygonOffset(1.0, 1.0)
+
+    drawTriangles()
+
+    gl.polygonOffset(-1.0, 1.0)
+
+    drawSingleTriangle()
+
+    function drawTriangles() {
+        // 获取着色器片段
+        var vertexShader = getTriangleVSHADER()
+        var fragmentShader = getTriangleFSHADER()
+
+        // 初始化着色器
+        if(!initShaders(gl, vertexShader, fragmentShader)){   // initShaders => true : 创建成功, false : 创建失败
+            console.log('failed initShader')
+        }
+
+        let vertices = new Float32Array([
+            0.5, 0.4, -0.2,     1.0, 0.4, 0.4, // yellow triangle
+            -0.5, 0.4, -0.2,    1.0, 1.0, 0.4,
+            0.0, -0.6, -0.2,    1.0, 1.0, 0.4,
+
+            0.0, 0.5, -0.4,     0.4, 1.0, 0.4, // green triangle
+            -0.5, -0.5, -0.4,   0.4, 1.0, 0.4,
+            0.5, -0.5, -0.4,    0.4, 0.4, 0.4,
+            
+           
+
+            0.0, 0.5, 0.0,      0.4, 0.4, 1.0, // blue triangle
+            -0.5, -0.5, 0.0,    0.4, 0.4, 1.0,
+            0.5, -0.5, 0.0,     0.4, 0.4, 0.4
+        ])
+        let FSIZE = vertices.BYTES_PER_ELEMENT;
+
+        let vertexBuffer = gl.createBuffer()
+        if(!vertexBuffer) {
+            console.log("failed create vertex buffer")
+            return
+        }
+        
+        gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer)
+        gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW) 
+
+        let shaderAttriPos = gl.getAttribLocation(gl.program, "aPos")
+        if(shaderAttriPos < 0) {
+            console.log("failed get pos attribute location")
+            gl.deleteBuffer(vertexBuffer)
+            return
+        }
+        gl.vertexAttribPointer(shaderAttriPos, 3, gl.FLOAT, false, FSIZE * 6, 0) 
+        gl.enableVertexAttribArray(shaderAttriPos) 
+
+        let shaderAttriColor = gl.getAttribLocation(gl.program, "aColor")
+        if(shaderAttriColor < 0) {
+            console.log("failed get pos attribute location")
+            gl.deleteBuffer(vertexBuffer)
+            return
+        }
+        gl.vertexAttribPointer(shaderAttriColor, 3, gl.FLOAT, false, FSIZE * 6, FSIZE * 3) 
+        gl.enableVertexAttribArray(shaderAttriColor) 
+
+        let shaderViewMatrix = gl.getUniformLocation(gl.program, "viewMatrix")
+        if(!shaderViewMatrix) {
+            console.log("failed get model uniform location")
+            return
+        }
+        gl.uniformMatrix4fv(shaderViewMatrix, false, viewMatrix.elements)
+
+        let shaderProjectMatrix = gl.getUniformLocation(gl.program, "projectMatrix")
+        if(!shaderProjectMatrix) {
+            console.log("failed get model uniform location")
+            return
+        }
+        gl.uniformMatrix4fv(shaderProjectMatrix, false, projectMatrix.elements)
+
+        let modelMatrix = new Matrix4() // 构建模型矩阵
+        modelMatrix.rotate(0, 0, 0, 1)
+        let shaderModelMatrix = gl.getUniformLocation(gl.program, "modelMatrix")
+        if(!shaderModelMatrix) {
+            console.log("failed get model uniform location")
+            return
+        }
+        gl.uniformMatrix4fv(shaderModelMatrix, false, modelMatrix.elements)
+
+        gl.drawArrays(gl.TRIANGLES, 0, 9)
+
+        gl.deleteBuffer(vertexBuffer) // 删除缓冲区对象
+        gl.disableVertexAttribArray(shaderAttriPos)
+        gl.disableVertexAttribArray(shaderAttriColor)
+    }
+    
+    function drawSingleTriangle() {
+        // 获取着色器片段
+        var vertexShader = getSingleTriangleVSHADER()
+        var fragmentShader = getSingleTriangleFSHADER()
+
+        let vertices = new Float32Array([
+            0.0, 0.2, 0.0,
+            -0.2, -0.2, 0.0,
+            0.2, -0.2, 0.0
+        ])
+
+        // 初始化着色器
+        if(!initShaders(gl, vertexShader, fragmentShader)){   // initShaders => true : 创建成功, false : 创建失败
+            console.log('failed initShader')
+        }
+
+        let vertexBuffer = gl.createBuffer()
+        if(!vertexBuffer) {
+            console.log("failed create vertex buffer")
+            return
+        }
+
+        let shaderAttriPos = gl.getAttribLocation(gl.program, "aPos")
+        if(shaderAttriPos < 0) {
+            console.log("failed get pos attribute location")
+            gl.deleteBuffer(vertexBuffer)
+            return
+        }
+        
+        gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer) // 将缓冲区对象绑定到目标
+        gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW) // 向缓冲区对象中写入数据
+        gl.vertexAttribPointer(shaderAttriPos, 3, gl.FLOAT, false, 0, 0) // 将缓冲区对象分配给 shaderAttriPos 变量
+        gl.enableVertexAttribArray(shaderAttriPos) // 开启 shaderAttriPos 变量
+
+        let shaderViewMatrix = gl.getUniformLocation(gl.program, "viewMatrix")
+        if(!shaderViewMatrix) {
+            console.log("failed get model uniform location")
+            return
+        }
+        gl.uniformMatrix4fv(shaderViewMatrix, false, viewMatrix.elements)
+
+        let shaderProjectMatrix = gl.getUniformLocation(gl.program, "projectMatrix")
+        if(!shaderProjectMatrix) {
+            console.log("failed get model uniform location")
+            return
+        }
+        gl.uniformMatrix4fv(shaderProjectMatrix, false, projectMatrix.elements)
+
+        gl.drawArrays(gl.TRIANGLES, 0, 3)
+    }
+
+    function getTriangleVSHADER(){
+        return `
+            attribute vec3 aPos;
+            attribute vec3 aColor;
+            uniform mat4 projectMatrix;
+            uniform mat4 viewMatrix;
+            uniform mat4 modelMatrix;
+
+            varying vec3 vColor;
+            void main(){
+                vColor = aColor;
+                gl_Position = projectMatrix * viewMatrix * modelMatrix * vec4(aPos, 1.0);
+            }
+        `
+    }
+
+    function getTriangleFSHADER(){
+        return `
+            precision mediump float;
+            varying vec3 vColor;
+            void main(){
+                gl_FragColor = vec4(vColor, 1.0);
+            }
+        `
+    }
+
+    function getSingleTriangleVSHADER(){
+        return `
+            attribute vec3 aPos;
+            uniform mat4 projectMatrix;
+            uniform mat4 viewMatrix;
+            void main(){
+                gl_Position = projectMatrix * viewMatrix * vec4(aPos, 1.0);
+            }
+        `
+    }
+
+    function getSingleTriangleFSHADER(){
+        return `
+            precision mediump float;
+            void main(){
+                gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+            }
+        `
+    }
+  
+</script>
+</html>

@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <style>
+        body {
+            margin: 0;
+            background: #ff0000;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="can" width="500" height="500"></canvas>
+</body>
+<script>
+    let canvas = document.getElementById('can')
+    canvas.width = 500
+    canvas.height = 500
+    let ctx = canvas.getContext('2d')
+    let img = new Image()
+    img.src = './baseimg.png'
+    // img.src = './img.jpg'
+    // ctx.fillRect(0,0,500,500)
+    img.crossOrigin = '*'
+    img.onload = function() {
+        console.log(img.width, img.height);
+        ctx.drawImage(img, 0, 0)
+        var imgData=ctx.getImageData(10,10,img.width, img.height)
+        console.log(imgData)
+        for (var i=0;i<imgData.data.length;i+=4){
+            let r = 255, p = 255, g = 0
+            imgData.data[i]     = 255 - imgData.data[i] + r;
+            imgData.data[i+1]   = 255 - imgData.data[i+1] + p;
+            imgData.data[i+2]   = 255 - imgData.data[i+2] + g;
+            // imgData.data[i+3] = 0
+        }
+        ctx.putImageData(imgData,0,0);
+        // console.log(img)
+        // console.log(ctx)
+    }
+</script>
+</html>

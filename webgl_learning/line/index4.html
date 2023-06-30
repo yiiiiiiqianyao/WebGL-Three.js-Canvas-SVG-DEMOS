@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <script src="../src/webgl_lib/webgl-utils.js"></script>
+    <script src="../src/webgl_lib/webgl-debug.js"></script>
+    <script src="../src/webgl_lib/cuon-utils.js"></script>
+    <script src="../src/webgl_lib/cuon-matrix.js"></script>
+    <style>
+        #canvas{
+            display: block;
+            margin: 0 auto;
+            border: 1px solid;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas" width="800px" height="600px"></canvas>
+</body>
+<script>
+    var canvas = document.getElementById('canvas')
+    canvas.width = 800
+    canvas.height = 600
+    
+    // 获取 webgl 绘图上下文
+    var gl = getWebGLContext(canvas)
+    if(!gl) { 
+        console.log('not support')
+    }
+
+    // 获取着色器片段
+    var vertexShader = getVSHADER()
+    var fragmentShader = getFSHADER()
+
+    // 初始化着色器
+    if(!initShaders(gl,vertexShader,fragmentShader)){   // initShaders => true : 创建成功, false : 创建失败
+        console.log('failed initShader')
+    }
+
+    // 指定清空 canvas 的颜色 (背景色)
+    gl.clearColor(1.0, 1.0, 1.0, 1.0)
+
+    // 清空 canvas 
+    gl.clear(gl.COLOR_BUFFER_BIT)
+            // vertice       color           normal
+    var a = [0.0,  0.0,      1.0, 0.0, 0.0,   1.0, 0.0, 0.0,    0.0]
+    var c = [0.0,  0.0,      1.0, 0.0, 0.0,   1.0, 0.0, 0.0,    1.0]
+
+    var b = [0.0, -0.5,      0.0, 1.0, 0.0,   1.0, 1.0, 0.0,    0.0]
+    var bN1 = [0.0, -0.5,      0.0, 1.0, 0.0,   1.0, 0.0, 0.0,    0.0]
+    var bN2 = [0.0, -0.5,      0.0, 1.0, 0.0,   0.0, 1.0, 0.0,    0.0]
+    var d = [0.0, -0.5,      0.0, 1.0, 0.0,   1.0, 1.0, 0.0,    1.0]
+    var dN1 = [0.0, -0.5,      0.0, 1.0, 0.0,   1.0, 0.0, 0.0,    1.0]
+    var dN2 = [0.0, -0.5,      0.0, 1.0, 0.0,   0.0, 1.0, 0.0,    1.0]
+
+    var e = [0.5,  -0.5,     0.0, 0.0, 1.0,   0.0, 1.0, 0.0,    0.0]
+    var f = [0.5,  -0.5,     0.0, 0.0, 1.0,   0.0, 1.0, 0.0,    1.0]
+    /**
+     面模拟的线
+     a---c
+     |   |
+     |   |
+     |   |
+     |   d-------f
+     |           |
+     b-----------e
+    */
+
+    var data = new Float32Array([
+        ...a, ...bN1, ...c, // abc
+        ...c, ...b, ...dN1, // cbd
+        ...bN2, ...e, ...dN2, // bed
+        ...dN2, ...e, ...f, // def
+    ]) // 点的坐标数组 类型化数组
+    var FSIZE = data.BYTES_PER_ELEMENT
+
+    var buffer = gl.createBuffer()
+    if(!buffer){
+        console.log('Failed to create the buffer object')
+    }
+
+    var v = a.length, verticeCount = data.length/v
+
+    var a_Position = gl.getAttribLocation(gl.program, "a_Position")
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer)
+    gl.bufferData(gl.ARRAY_BUFFER, data,gl.STATIC_DRAW)
+    gl.vertexAttribPointer(a_Position, 2, gl.FLOAT, false, FSIZE * v, 0)
+    gl.enableVertexAttribArray(a_Position)
+
+
+    var a_Color = gl.getAttribLocation(gl.program, "a_Color")
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer)
+    gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW)
+    gl.vertexAttribPointer(a_Color, 3, gl.FLOAT, false, FSIZE * v, FSIZE * 2)
+    gl.enableVertexAttribArray(a_Color)
+
+    var a_Normal = gl.getAttribLocation(gl.program, "a_Normal")
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer)
+    gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW)
+    gl.vertexAttribPointer(a_Normal, 3, gl.FLOAT, false, FSIZE * v, FSIZE * 5)
+    gl.enableVertexAttribArray(a_Normal)
+
+    var a_lineFlag = gl.getAttribLocation(gl.program, "a_lineFlag")
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer)
+    gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW)
+    gl.vertexAttribPointer(a_lineFlag, 1, gl.FLOAT, false, FSIZE * v, FSIZE * 8)
+    gl.enableVertexAttribArray(a_lineFlag)
+
+
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, verticeCount)
+
+
+    function getVSHADER(){
+        return `
+            attribute vec4 a_Color;
+            attribute vec3 a_Normal;
+            attribute float a_lineFlag;
+
+            varying vec4 v_Color;
+            
+            attribute vec3 a_Position;
+      
+            void main(){
+                v_Color = a_Color;
+                vec3 normal = normalize(a_Normal) * 0.2;
+                gl_Position = vec4(a_Position + normal * a_lineFlag, 1.0);
+            }
+        `
+    }
+
+    function getFSHADER(){
+        return `
+            precision mediump float;
+            varying vec4 v_Color; 
+            void main(){
+                gl_FragColor = v_Color;
+            }
+        `
+    }
+
+    function initVertexBuffers(){ // 创建顶点缓冲区
+       
+      
+      
+      
+        // 返回缓冲区的顶点数量
+
+        
+
+    }
+</script>
+</html>

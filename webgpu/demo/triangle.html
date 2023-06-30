@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        #canvas {
+            height: 400px;
+            width: 600px;
+            margin: 100px auto;
+        }
+    </style>
+</head>
+<script src="./utils.js"></script>
+<body>
+    <canvas id="canvas"></canvas>
+</body>
+<script>
+
+    const triangleVertWGSL = `
+    @vertex
+fn main(
+  @builtin(vertex_index) VertexIndex : u32
+) -> @builtin(position) vec4<f32> {
+  var pos = array<vec2<f32>, 3>(
+    vec2(0.0, 0.5),
+    vec2(-0.5, -0.5),
+    vec2(0.5, -0.5)
+  );
+
+  return vec4<f32>(pos[VertexIndex], 0.0, 1.0);
+}
+    `
+
+    const redFragWGSL = `
+    @fragment
+    fn main() -> @location(0) vec4<f32> {
+    return vec4(1.0, 0.0, 0.0, 1.0);
+    }`
+
+    init()
+
+    async function init() {
+        console.log('navigator', navigator);
+        // 适配器
+        const adapter = await navigator.gpu.requestAdapter()
+        // 图形设备
+        const device = await adapter.requestDevice();
+        
+        const canvas = document.getElementById('canvas')
+        const context = canvas.getContext('webgpu');
+        
+        const devicePixelRatio = window.devicePixelRatio || 1;
+      
+        // 获取输出图像格式 硬件相关
+        const presentationFormat = navigator.gpu.getPreferredCanvasFormat();
+        // 为上下文设置参数
+        context.configure({
+            device,
+            format: presentationFormat,
+            alphaMode: 'opaque',
+        });
+
+
+        // 创建用于渲染的 renderpipeline
+        const pipeline = device.createRenderPipeline({ // GPURenderPipelineDescriptor
+            layout: 'auto',
+            // layout 主要是用来做 uniform 绑定
+            vertex: { // GPUProgrammableStageDescriptor
+                module: device.createShaderModule({
+                    code: triangleVertWGSL,
+                }),
+                entryPoint: 'main',
+            },
+            fragment: { // GPUProgrammableStageDescriptor
+                module: device.createShaderModule({
+                    code: redFragWGSL,
+                }),
+                entryPoint: 'main',
+                targets: [
+                    {
+                        format: presentationFormat,
+                    },
+                ],
+            },
+            // rasterizationState GPURasterizationStateDescriptor
+            // colorStates GPUColorStateDescriptor
+            // depthStencilState GPUDepthStencilStateDescriptor
+            // vertexState GPUVertexStateDescriptor
+            // rasterizationState
+            primitive: { // GPUPrimitiveTopology
+                topology: 'triangle-list',
+                // | "point-list"
+                // | "line-list"
+                // | "line-strip"
+                // | "triangle-list"
+                // | "triangle-strip"
+            },
+        });
+
+        function frame() {
+
+            const commandEncoder = device.createCommandEncoder();
+            const textureView = context.getCurrentTexture().createView();
+
+            const renderPassDescriptor = {
+                colorAttachments: [
+                    {
+                        view: textureView,
+                        // loadValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
+                        clearValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
+                        
+                        loadOp: 'clear',
+                        storeOp: 'store',
+                        // loadValue: { r: 0.0, g: 0.0, b: 0.0, a: 1.0 },
+                        // storeOp: 'store',
+                    },
+                ],
+            };
+
+            const passEncoder = commandEncoder.beginRenderPass(renderPassDescriptor);
+            passEncoder.setPipeline(pipeline); // 在 renderpass 中设置 renderpipeline
+            // renderPassEncoder.setVertexBuffer(0, positionBuffer); 设置顶点数据 在这个 demo 中顶点数据直接写在了 shader 中
+            passEncoder.draw(3, 1, 0, 0); // 单次绘制需要分配三个顶点，一个三角形
+            // passEncoder.endPass();
+            passEncoder.end();
+
+            device.queue.submit([commandEncoder.finish()]);
+            // requestAnimationFrame(frame);
+        }
+
+        // requestAnimationFrame(frame);
+        frame()
+    
+
+
+    }
+ 
+
+</script>
+</html>

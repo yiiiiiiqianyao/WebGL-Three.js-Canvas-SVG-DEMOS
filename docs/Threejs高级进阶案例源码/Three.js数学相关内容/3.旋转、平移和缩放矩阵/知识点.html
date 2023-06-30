@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+<meta charset="utf-8">
+<title></title>
+  <link href="http://www.yanhuangxueyuan.com/markdown.css" rel="stylesheet" type="text/css">
+  </head>
+  <body>
+    <h1 id="three-js-">Three.js旋转、平移、缩放矩阵</h1>
+    <p>在WebGL中对一个对象进行平移、旋转或缩放本质就是对对象的顶点坐标进行平移、旋转、缩放矩阵变换。</p>
+    <h4 id="-">关键词</h4>
+    <p>在学习本节课之前最好对旋转、平移、缩放等变换矩阵有一定的了解，可以学习WebGL相关教程或图形学书籍。</p>
+    <ul>
+    <li><a href="https://baike.baidu.com/item/%E5%8F%98%E6%8D%A2%E7%9F%A9%E9%98%B5/9035701?fr=aladdin">变换矩阵</a></li>
+    <li><a href="https://baike.baidu.com/item/%E6%97%8B%E8%BD%AC%E7%9F%A9%E9%98%B5/3265181?fr=aladdin">旋转矩阵</a></li>
+    <li>缩放矩阵</li>
+    <li>平移矩阵</li>
+    </ul>
+    <h4 id="-">平移矩阵</h4>
+    <p>平移矩阵T：表示一个顶点坐标沿着X、Y、Z轴分别平移Tx、Ty、Tz</p>
+    <pre><code class="lang-JavaScript">     | 1  0  0  Tx |
+     | 0  1  0  Ty |
+     | 0  0  1  Tz |
+     | 0  0  0  1  |
+    </code></pre>
+    <p>一个点的坐标是(x,y,z),假设沿着X、Y、Z轴分别平移Tx、Ty、Tz，毫无疑问平移后的坐标是(x+Tx,y+Ty,z+Tz)。</p>
+    <p>矩阵和表示顶点坐标的向量进行乘法运算</p>
+    <pre><code class="lang-JavaScript">     | <span class="hljs-number">1</span>  <span class="hljs-number">0</span>  <span class="hljs-number">0</span>  Tx |   | <span class="hljs-keyword">x</span> |   | <span class="hljs-keyword">x</span>+Tx |
+     | <span class="hljs-number">0</span>  <span class="hljs-number">1</span>  <span class="hljs-number">0</span>  Ty | <span class="hljs-keyword">x</span> | y | = | y+Ty |
+     | <span class="hljs-number">0</span>  <span class="hljs-number">0</span>  <span class="hljs-number">1</span>  Tz |   | z |   | z+Tz |
+     | <span class="hljs-number">0</span>  <span class="hljs-number">0</span>  <span class="hljs-number">0</span>  <span class="hljs-number">1</span>  |   | <span class="hljs-number">1</span> |   |  <span class="hljs-number">1</span>   |
+    </code></pre>
+    <h4 id="-">缩放矩阵</h4>
+    <p>比如一个几何体的所有顶点坐标沿着X、Y、Z轴分别缩放矩阵Sx、Sy、Sz倍，可以用如下矩阵S表示。</p>
+    <pre><code class="lang-JavaScript">     | Sx 0  0  0 |
+     | 0  Sy 0  0 |
+     | 0  0  Sz 0 |
+     | 0  0  0  1 |
+    </code></pre>
+    <p>顶点坐标缩放变换</p>
+    <pre><code class="lang-JavaScript">     | Sx <span class="hljs-number">0</span>  <span class="hljs-number">0</span>  <span class="hljs-number">0</span> |   | <span class="hljs-keyword">x</span> |   | <span class="hljs-keyword">x</span>*Sx |
+     | <span class="hljs-number">0</span>  Sy <span class="hljs-number">0</span>  <span class="hljs-number">0</span> | <span class="hljs-keyword">x</span> | y | = | y*Sy |
+     | <span class="hljs-number">0</span>  <span class="hljs-number">0</span>  Sz <span class="hljs-number">0</span> |   | z |   | z*Sz |
+     | <span class="hljs-number">0</span>  <span class="hljs-number">0</span>  <span class="hljs-number">0</span>  <span class="hljs-number">1</span> |   | <span class="hljs-number">1</span> |   |  <span class="hljs-number">1</span>   |
+    </code></pre>
+    <h4 id="-">旋转矩阵</h4>
+    <p>绕x轴旋转α度对应的旋转矩阵Rx</p>
+    <pre><code>     | <span class="hljs-number">1</span>  <span class="hljs-number">0</span>     <span class="hljs-number">0</span>     <span class="hljs-number">0</span> |   | x |   |       x       |
+     | <span class="hljs-number">0</span>  <span class="hljs-built_in">cos</span>α  -<span class="hljs-built_in">sin</span>α <span class="hljs-number">0</span> | x | y | = | <span class="hljs-built_in">cos</span>α*y-<span class="hljs-built_in">sin</span>α*z |
+     | <span class="hljs-number">0</span>  <span class="hljs-built_in">sin</span>α  <span class="hljs-built_in">cos</span>α  <span class="hljs-number">0</span> |   | z |   | <span class="hljs-built_in">sin</span>α*y+<span class="hljs-built_in">cos</span>α*z |
+     | <span class="hljs-number">0</span>  <span class="hljs-number">0</span>     <span class="hljs-number">0</span>     <span class="hljs-number">1</span> |   | <span class="hljs-number">1</span> |   |        <span class="hljs-number">1</span>      |
+    </code></pre><p>绕y轴旋转α度对应的旋转矩阵Ry</p>
+    <pre><code>     | <span class="hljs-built_in">cos</span>α  <span class="hljs-number">0</span>  -<span class="hljs-built_in">sin</span>α <span class="hljs-number">0</span> |   | x |   |  <span class="hljs-built_in">cos</span>α*x+<span class="hljs-built_in">sin</span>α*z |
+     | <span class="hljs-number">0</span>     <span class="hljs-number">1</span>  <span class="hljs-number">0</span>     <span class="hljs-number">0</span> | x | y | = |        y       |
+     | <span class="hljs-built_in">sin</span>α  <span class="hljs-number">0</span>  <span class="hljs-built_in">cos</span>α  <span class="hljs-number">0</span> |   | z |   | -<span class="hljs-built_in">sin</span>α*x+<span class="hljs-built_in">cos</span>α*z |
+     | <span class="hljs-number">0</span>     <span class="hljs-number">0</span>  <span class="hljs-number">0</span>     <span class="hljs-number">1</span> |   | <span class="hljs-number">1</span> |   |        <span class="hljs-number">1</span>       |
+    </code></pre><p>绕z轴旋转α度对应的旋转矩阵Rz</p>
+    <pre><code>     | <span class="hljs-built_in">cos</span>α  -<span class="hljs-built_in">sin</span>α <span class="hljs-number">0</span>  <span class="hljs-number">0</span> |   | x |   |  <span class="hljs-built_in">cos</span>α*x-<span class="hljs-built_in">sin</span>α*y |
+     | <span class="hljs-built_in">sin</span>α  <span class="hljs-built_in">cos</span>α  <span class="hljs-number">0</span>  <span class="hljs-number">0</span> | x | y |   |  <span class="hljs-built_in">sin</span>α*x+<span class="hljs-built_in">cos</span>α*y |
+     | <span class="hljs-number">0</span>     <span class="hljs-number">0</span>     <span class="hljs-number">1</span>  <span class="hljs-number">0</span> |   | z |   |        z       |
+     | <span class="hljs-number">0</span>     <span class="hljs-number">0</span>     <span class="hljs-number">0</span>  <span class="hljs-number">1</span> |   | <span class="hljs-number">1</span> |   |        <span class="hljs-number">1</span>       |
+    </code></pre><h3 id="-">创建变换矩阵</h3>
+    <p>直接通过矩阵对象的<code>elements</code>属性或<code>.set()</code>方法设置常见变换矩阵的元素比较麻烦，比如设置一个缩放矩阵，Three.js的4x4矩阵<code>Matrix4</code>对常见变换矩阵的设置封装了一些方法。</p>
+    <ul>
+    <li>绕x轴旋转<code>.makeRotationX(theta)</code></li>
+    <li>绕y轴旋转<code>.makeRotationY(theta)</code></li>
+    <li><p>绕z轴旋转<code>.makeRotationZ(theta)</code></p>
+    </li>
+    <li><p>缩放<code>.makeScale(Sx,Sy,Sz)</code></p>
+    </li>
+    <li><p>平移<code>.makeTranslation(Tx,Ty,Tz)</code></p>
+    </li>
+    <li><p>剪切<code>.makeShear</code></p>
+    </li>
+    </ul>
+    <h4 id="-">平移矩阵创建案例</h4>
+    <pre><code class="lang-JavaScript">     | 1  0  0  5 |
+     | 0  1  0  3 |
+     | 0  0  1  9 |
+     | 0  0  0  1 |
+    </code></pre>
+    <p><code>.set()</code>方法设置平移矩阵</p>
+    <pre><code class="lang-JavaScript"><span class="hljs-keyword">var</span> T = <span class="hljs-keyword">new</span> THREE.Matrix4()
+    <span class="hljs-comment">// set方法设置平移矩阵</span>
+    T.<span class="hljs-keyword">set</span>(
+      <span class="hljs-number">1</span>, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-number">5</span>,
+      <span class="hljs-number">0</span>, <span class="hljs-number">1</span>, <span class="hljs-number">0</span>, <span class="hljs-number">3</span>,
+      <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-number">1</span>, <span class="hljs-number">9</span>,
+      <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-number">1</span>
+    )
+    </code></pre>
+    <p>makeTranslation方法设置平移矩阵</p>
+    <pre><code class="lang-JavaScript"><span class="hljs-keyword">var</span> T = <span class="hljs-keyword">new</span> THREE.Matrix4()
+    <span class="hljs-comment">// 顶点坐标沿着X、Y、Z轴分别平移5,3,9</span>
+    T.makeTranslation(<span class="hljs-number">5</span>,<span class="hljs-number">3</span>,<span class="hljs-number">9</span>)
+    <span class="hljs-built_in">console</span>.log(<span class="hljs-string">'查看平移矩阵'</span>, T.elements);
+    </code></pre>
+    <h3 id="-applymatrix4-">向量矩阵变换<code>.applyMatrix4()</code></h3>
+    <p><code>.applyMatrix4()</code>是三维向量<code>Vector3</code>的一个方法，</p>
+    <pre><code class="lang-JavaScript"><span class="hljs-keyword">var</span> T = <span class="hljs-keyword">new</span> THREE.Matrix4()
+    <span class="hljs-comment">// 创建一个平移矩阵，顶点坐标沿着X、Y、Z轴分别平移5,3,9</span>
+    T.makeTranslation(<span class="hljs-number">5</span>, <span class="hljs-number">3</span>, <span class="hljs-number">9</span>)
+    <span class="hljs-comment">// 三维向量表示一个顶点坐标</span>
+    <span class="hljs-keyword">var</span> v1 = <span class="hljs-keyword">new</span> THREE.Vector3(<span class="hljs-number">10</span>,<span class="hljs-number">10</span>,<span class="hljs-number">10</span>);
+    <span class="hljs-comment">// 向量进行矩阵变换</span>
+    <span class="hljs-keyword">var</span> v2 = v1.clone().applyMatrix4(T);
+    <span class="hljs-built_in">console</span>.log(<span class="hljs-string">'查看平移后坐标'</span>, v2);
+    </code></pre>
+    <h3 id="-">多次变换</h3>
+    <p>顶点坐标经过多次变换可以把多个变换矩阵进行乘法运算，然后再和表示顶点的坐标进行变换。</p>
+    <p>模型矩阵M、平移矩阵T、缩放矩阵S、旋转矩阵R、绕X轴旋转矩阵Rx、绕X轴旋转矩阵Ry、绕X轴旋转矩阵Rz</p>
+    <p>旋转矩阵： R = Rx*Ry*Rz</p>
+    <p>模型矩阵：M = R*S*T</p>
+    <p>顶点V1执行模型矩阵变换：V2 = M*V1</p>
+    <p>顶点进行两次平移变换代码</p>
+    <pre><code class="lang-JavaScript"><span class="hljs-comment">// 创建平移矩阵T1：x轴平移100</span>
+    <span class="hljs-keyword">var</span> T1 = <span class="hljs-keyword">new</span> THREE.Matrix4().makeTranslation(<span class="hljs-number">100</span>, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>)
+    <span class="hljs-comment">// 创建平移矩阵T2：y轴平移100</span>
+    <span class="hljs-keyword">var</span> T2 = <span class="hljs-keyword">new</span> THREE.Matrix4().makeTranslation(<span class="hljs-number">0</span>, <span class="hljs-number">100</span>, <span class="hljs-number">0</span>)
+
+    <span class="hljs-comment">// 两个变换矩阵相乘表示顶点先后经过两次</span>
+    <span class="hljs-keyword">var</span> M = <span class="hljs-keyword">new</span> THREE.Matrix4()
+    M.multiplyMatrices(T2,T1)
+    <span class="hljs-comment">// 三维向量表示一个顶点坐标</span>
+    <span class="hljs-keyword">var</span> v1 = <span class="hljs-keyword">new</span> THREE.Vector3(<span class="hljs-number">10</span>, <span class="hljs-number">10</span>, <span class="hljs-number">10</span>);
+    <span class="hljs-comment">// 向量进行矩阵变换</span>
+    <span class="hljs-keyword">var</span> v2 = v1.clone().applyMatrix4(M);
+    <span class="hljs-built_in">console</span>.log(<span class="hljs-string">'查看平移后坐标'</span>, v2);
+    </code></pre>
+    <h4 id="-object3d-matrix-"><code>Object3D</code>本地矩阵属性<code>.matrix</code></h4>
+    <p>通过前面知识的学习，应该都知道对象<code>Object3D</code>的位置<code>.position</code>、缩放<code>.scale</code>、角度<code>.rotation</code>等属性，这些属性本质上都是矩阵变换。<code>Object3D</code>对象的<code>.translateX()</code>、<code>.translateZ()</code>等平移方法会改变<code>.position</code>属性的值，<code>Object3D</code>对象的<code>.rotateX()</code>、<code>.rotateZ()</code>等旋转方法会改变<code>.rotation</code>属性的值，Three.js渲染模型解析的时候，Three.js会解析<code>Object3D</code>对象位置<code>.position</code>、缩放<code>.scale</code>、角度<code>.rotation</code>属性对应的平移、旋转、缩放矩阵相乘转化为本地矩阵<code>.matrix</code>的属性值。</p>
+    <p>执行旋转方法<code>.rotateZ()</code>查看，查看角度属性<code>.rotation</code>属性值欧拉对象z属性的变化</p>
+    <pre><code class="lang-JavaScript"><span class="hljs-comment">// 一个网格模型对象，基类是Object3D</span>
+    <span class="hljs-keyword">var</span> mesh = <span class="hljs-keyword">new</span> THREE.Mesh()
+    <span class="hljs-comment">// 绕z轴旋转</span>
+    mesh.rotateZ(<span class="hljs-built_in">Math</span>.PI)
+    <span class="hljs-built_in">console</span>.log(<span class="hljs-string">'查看角度属性值的变化'</span>,mesh.rotation);
+    </code></pre>
+    <p>执行平移方法<code>.translateX()</code>查看，查看位置<code>.position</code>属性值x分量变化</p>
+    <pre><code class="lang-JavaScript"><span class="hljs-comment">// 一个网格模型对象，基类是Object3D</span>
+    <span class="hljs-keyword">var</span> mesh = <span class="hljs-keyword">new</span> THREE.Mesh()
+    <span class="hljs-comment">// 沿着x轴平移100</span>
+    mesh.translateX(<span class="hljs-number">100</span>)
+    <span class="hljs-built_in">console</span>.log(<span class="hljs-string">'查看位置属性的变化'</span>,mesh.position);
+    </code></pre>
+    <p>查看位置<code>.position</code>、缩放<code>.scale</code>、角度<code>.rotation</code>等属性对本地矩阵属性<code>.matrix</code>的影响。
+    Three.js渲染的时候会把模型的矩阵值传递给着色器对顶点进行矩阵变换，具体细节这里不展开讲解。</p>
+    <pre><code class="lang-JavaScript"><span class="hljs-comment">// 一个网格模型对象，基类是Object3D</span>
+    <span class="hljs-keyword">var</span> mesh = <span class="hljs-keyword">new</span> THREE.Mesh()
+    <span class="hljs-comment">// 缩放网格模型</span>
+    mesh.scale.<span class="hljs-keyword">set</span>(<span class="hljs-number">900</span>,<span class="hljs-number">900</span>,<span class="hljs-number">900</span>)
+    <span class="hljs-comment">// 位置、角度、缩放属性值更新到矩阵属性matrix</span>
+    mesh.updateMatrix()
+    console.log(<span class="hljs-string">'查看本地矩阵属性matrix'</span>,mesh.matrix.elements);
+    </code></pre>
+
+    <div class="">
+      <a href="http://www.yanhuangxueyuan.com/">作者技术博客</a>
+    </div>
+
+  </body>
+</html>

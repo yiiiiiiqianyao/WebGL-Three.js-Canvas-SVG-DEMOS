@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <title></title>
+      <link href="http://www.yanhuangxueyuan.com/markdown.css" rel="stylesheet" type="text/css">
+  </head>
+  <body>
+    <h1 id="-">着色器字符串处理—材质属性、光源数量</h1>
+  <p>材质的部分属性控制着着色器部分代码的生成，.glsl文件一些字符串表示某种光源对象的数量，需要替换为表示该光源的数量的数字。</p>
+  <h3 id="webgllights-js">WebGLLights.js</h3>
+  <p>把光源对象按照种类进行分类，比如点光源一组、方向光源一组。</p>
+  <h3 id="webglrenderer-js">WebGLRenderer.js</h3>
+  <p>通过<code>WebGLPrograms</code>对象的方法<code>.getParameters()</code>返回一个parameters对象，获得材质对象、渲染器对象、光源数量的信息。</p>
+  <pre><code class="lang-JavaScript"><span class="hljs-keyword">import</span> {WebGLPrograms} <span class="hljs-keyword">from</span> <span class="hljs-string">'./webgl/WebGLPrograms.js'</span>;
+  programCache = <span class="hljs-keyword">new</span> WebGLPrograms(_this, extensions, capabilities);
+  <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">initMaterial</span>(<span class="hljs-params">material, fog, object</span>) </span>{
+
+    <span class="hljs-comment">// 获得currentRenderState对象.lights属性的值：WebGLLights对象</span>
+    <span class="hljs-keyword">var</span> lights = currentRenderState.state.lights;
+
+    <span class="hljs-comment">// 参数lights.state:WebGLLights对象的state属性包含了各类光源分类的集合，可以获得每一种光源的数量</span>
+    <span class="hljs-keyword">var</span> parameters = programCache.getParameters(material, lights.state, shadowsArray, ...object);
+
+  }
+  </code></pre>
+  <h3 id="webglprograms-js">WebGLPrograms.js</h3>
+  <p>从材质对象、currentRenderState.state.lights提取信息设置为parameters对象属性的值。</p>
+  <pre><code class="lang-JavaScript"><span class="hljs-comment">// 参数lights：currentRenderState.state.lights.state</span>
+  <span class="hljs-keyword">this</span>.getParameters = <span class="hljs-function"><span class="hljs-keyword">function</span> (<span class="hljs-params"> material, lights... </span>) </span>{
+  <span class="hljs-comment">// parameters：参数</span>
+  <span class="hljs-comment">// 着色器id号、precision精度、贴图map、vertexColors顶点渲染、numPointLights点光源数量...</span>
+  <span class="hljs-comment">// 从不同的对象提取数据   shaderID、材质对象、灯光对象、渲染器对象</span>
+    <span class="hljs-keyword">var</span> parameters = {
+      <span class="hljs-comment">// JavaScript语法：!null=true  !200=false</span>
+      <span class="hljs-comment">// map为null，!! material.map返回false，否则true</span>
+      map: !! material.map,
+      envMap: !! material.envMap,
+      <span class="hljs-comment">// 获得材质vertexColors属性的值，默认是常量THREE.NoColors，也就是0（视频中错误纠正）</span>
+      <span class="hljs-comment">// 查看\src\Three.js 文件可以知道THREE.NoColors、THREE.VertexColors表示的值</span>
+      vertexColors: material.vertexColors,
+      ...
+      <span class="hljs-comment">// 获得光源对象数量</span>
+      numDirLights: lights.directional.length,
+      numPointLights: lights.point.length,
+      numSpotLights: lights.spot.length,
+      numRectAreaLights: lights.rectArea.length,
+      numHemiLights: lights.hemi.length,
+      ...
+    };
+    <span class="hljs-keyword">return</span> parameters;
+  };
+  </code></pre>
+  <h3 id="webglprogram-js">WebGLProgram.js</h3>
+  <p>.glsl文件着色器字符串插入代码</p>
+  <pre><code class="lang-JavaScript">prefixVertex = [
+  ...
+    parameters.map ? <span class="hljs-string">'#define USE_MAP'</span> : <span class="hljs-string">''</span>,
+    parameters.envMap ? <span class="hljs-string">'#define USE_ENVMAP'</span> : <span class="hljs-string">''</span>,
+    <span class="hljs-comment">// 材质vertexColors属性，默认值THREE.NoColors，查看\src\Three.js 可以知道是0</span>
+    <span class="hljs-comment">// 如果材质属性设置了顶点渲染，属性值是THREE.VertexColors，着色器代码插入#define USE_COLOR   </span>
+    <span class="hljs-comment">// 如果材质属性没设置顶点渲染：着色器代码中不会出现带预定义</span>
+    parameters.vertexColors ? <span class="hljs-string">'#define USE_COLOR'</span> : <span class="hljs-string">''</span>,
+  ...
+  ].filter( filterEmptyLine ).<span class="hljs-keyword">join</span>( <span class="hljs-string">'\n'</span> );
+  </code></pre>
+  <p>批量处理着色器代码：把着色器代码块中预先编写的表示光源数量的符号替换为具体的数字</p>
+  <pre><code class="lang-JavaScript"><span class="hljs-comment">// 替换灯的数量</span>
+  <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">replaceLightNums</span>(<span class="hljs-params"> string, parameters </span>) </span>{
+  <span class="hljs-comment">// NUM_DIR_LIGHTS等字符出现在了.glsl文件着色器代码中，需要替换为具体的数字才能作为着色器代码使用。</span>
+      <span class="hljs-keyword">return</span> string
+          .replace( <span class="hljs-regexp">/NUM_DIR_LIGHTS/g</span>, parameters.numDirLights )
+          .replace( <span class="hljs-regexp">/NUM_SPOT_LIGHTS/g</span>, parameters.numSpotLights )
+          .replace( <span class="hljs-regexp">/NUM_RECT_AREA_LIGHTS/g</span>, parameters.numRectAreaLights )
+          .replace( <span class="hljs-regexp">/NUM_POINT_LIGHTS/g</span>, parameters.numPointLights )
+          .replace( <span class="hljs-regexp">/NUM_HEMI_LIGHTS/g</span>, parameters.numHemiLights );
+  }
+  </code></pre>
+  <div class="">
+    <a href="http://www.yanhuangxueyuan.com/">作者技术博客</a>
+  </div>
+  </body>
+</html>

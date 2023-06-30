@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <script src="../src/webgl_lib/webgl-utils.js"></script>
+    <script src="../src/webgl_lib/webgl-debug.js"></script>
+    <script src="../src/webgl_lib/cuon-utils.js"></script>
+    <script src="../src/webgl_lib/cuon-matrix.js"></script>
+    <script src="../src/utils.js"></script>
+    <style>
+        #canvas{
+            display: block;
+            margin: 0 auto;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas" width="800px" height="800px"></canvas>
+</body>
+<script>
+    // var OFFER_SCREEN_WIDTH = 512
+    // var OFFER_SCREEN_HEIGHT = 512
+    var OFFER_SCREEN_WIDTH = 512
+    var OFFER_SCREEN_HEIGHT = 512
+
+    var canvas = document.getElementById('canvas')
+    canvas.width = 512
+    canvas.height = 512
+
+    var FRAMEBUFFER_SIZE = {
+            x: canvas.width,
+            y: canvas.height
+        };
+    
+    // 获取 webgl 绘图上下文
+    var gl = canvas.getContext('webgl2')
+    console.log(gl)
+    if(!gl) { 
+        console.log('not support')
+    }
+    gl.enable(gl.DEPTH_TEST)
+    gl.enable(gl.BLEND) // 开启混合
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA) // 指定混合函数
+
+    var cubeProgram = createProgram(gl, getCubeVSHADER(), getCubeFSHADER()); // 根据说着色器代码构建程序对象
+    var rectProgarm = createProgram(gl, getRectVSHADER(), getRectFSHADER())
+    
+
+    var viewMatrix = new Matrix4();
+    // eyeX, eyeY, eyeZ, centerX, centerY, centerZ, upX, upY, upZ
+    viewMatrix.setLookAt(
+        3, 3, 7, 
+        0, 0, 0, 
+        0, 1, 0);
+    var projMatrix = new Matrix4();
+    projMatrix.setPerspective(30, canvas.width/canvas.height, 1, 100);
+    let modelMatrix = new Matrix4()
+    modelMatrix.rotate(-90, 0, 1, 0)
+    var modeViewProjMatrix = projMatrix.clone().multiply(viewMatrix.clone().multiply(modelMatrix.clone()));
+
+    var RENDERBUFFER = gl.createFramebuffer()
+    var COLORBUFFER = gl.createFramebuffer()
+    
+
+    var colorRenderbuffer = gl.createRenderbuffer();
+    gl.bindRenderbuffer(gl.RENDERBUFFER, colorRenderbuffer);
+    gl.renderbufferStorageMultisample(gl.RENDERBUFFER, 4, gl.RGBA8, OFFER_SCREEN_WIDTH, OFFER_SCREEN_HEIGHT);
+    
+    var depthRenderbuffer = gl.createRenderbuffer();
+    gl.bindRenderbuffer(gl.RENDERBUFFER, depthRenderbuffer);
+    gl.renderbufferStorageMultisample(gl.RENDERBUFFER, 4, gl.DEPTH_COMPONENT16, OFFER_SCREEN_WIDTH, OFFER_SCREEN_HEIGHT);
+ 
+    // RENDERBUFFER 是执行 msaa 的 framebuffer、同时绑定两个 renderbuffer 用来关联深度缓冲和颜色缓冲
+    gl.bindFramebuffer(gl.FRAMEBUFFER, RENDERBUFFER);
+    gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.RENDERBUFFER, colorRenderbuffer);
+    gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT, gl.RENDERBUFFER, depthRenderbuffer);
+
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+    // -------
+    // 由于执行msaa 的 framebuffer  无法绑定 texture 提取颜色、COLORBUFFER 是用于从 RENDERBUFFER 提取颜色的 framebuffer
+    // 只需要提取颜色，绑定一个 renderbuffer 就可以了
+    gl.bindFramebuffer(gl.FRAMEBUFFER, COLORBUFFER);
+  
+    var texture = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, OFFER_SCREEN_WIDTH, OFFER_SCREEN_HEIGHT, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+    
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, texture, 0);
+    gl.bindTexture(gl.TEXTURE_2D, null);
+    // ------
+
+   
+    
+    
+   
+    gl.bindFramebuffer(gl.FRAMEBUFFER, RENDERBUFFER);
+    gl.viewport(0, 0, OFFER_SCREEN_WIDTH, OFFER_SCREEN_HEIGHT)
+    gl.clearColor(0.0, 0.0, 0.0, 1.0)
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+    // gl.clearBufferfv(gl.COLOR, 0, [0.0, 0.0, 0.0, 1.0]);
+    // gl.clearBufferfv(gl.DEPTH, 0, [1.0, 1.0, 1.0, 1.0]);
+    gl.useProgram(cubeProgram); // 上下文对象绑定程序对象
+    var u_ModelViewMatrix = bindUnifrom4fv('u_ModelViewMatrix', modeViewProjMatrix.elements, cubeProgram)
+    var { buffer: buffer1, attr: attr1 } = bindAttriBuffer('a_Position', CubeVertices, 3, cubeProgram)
+    var { buffer: buffer3, attr: attr3 } = bindAttriBuffer('a_Color', CubeColors, 3, cubeProgram)
+    var { indexBuffer, indices } = bindElementBuffer(cubeIndices)
+    gl.drawElements(gl.TRIANGLES, cubeIndices.length, gl.UNSIGNED_BYTE, 0); // draw into RENDERBUFFER
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    // ----
+
+
+    gl.bindFramebuffer(gl.READ_FRAMEBUFFER, RENDERBUFFER); // copy pixels into color framebuffer
+    gl.bindFramebuffer(gl.DRAW_FRAMEBUFFER, COLORBUFFER);
+    gl.clearBufferfv(gl.COLOR, 0, [0.0, 0.0, 0.0, 1.0]);
+    gl.clearBufferfv(gl.DEPTH, 0, [0.0, 0.0, 0.0, 1.0]);
+    gl.blitFramebuffer(
+        0, 0, OFFER_SCREEN_WIDTH, OFFER_SCREEN_HEIGHT,
+        0, 0, OFFER_SCREEN_WIDTH, OFFER_SCREEN_HEIGHT,
+        gl.COLOR_BUFFER_BIT, gl.NEAREST
+    );
+    // gl.blitFramebuffer(
+    //     0, 0, OFFER_SCREEN_WIDTH, OFFER_SCREEN_HEIGHT,
+    //     0, 0, OFFER_SCREEN_WIDTH, OFFER_SCREEN_HEIGHT,
+    //     gl.DEPTH_BUFFER_BIT, gl.NEAREST
+    // );
+ 
+    // -------
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0, 0, canvas.width, canvas.height)
+
+    gl.clearColor(0.0, 0.0, 0.0, 1.0)
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+
+    gl.useProgram(rectProgarm); // 上下文对象绑定程序对象
+    var { buffer: buffer4, attr: attr4 } = bindAttriBuffer('a_rectPosition', screenRectVertices, 2, rectProgarm)
+    var { buffer: buffer5, attr: attr5 } = bindAttriBuffer('a_TextCoord', rectUvs, 2, rectProgarm)    
+    gl.bindTexture(gl.TEXTURE_2D, texture)
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+    function bindAttriBuffer(attrName, vertices, count, program) {
+        let buffer = gl.createBuffer()
+        if(!buffer) {
+            console.log("failed create vertex buffer")
+        }
+        gl.bindBuffer(gl.ARRAY_BUFFER, buffer) // 将缓冲区对象绑定到目标
+        gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW) // 向缓冲区对象中写入数据
+
+        let attr = gl.getAttribLocation(program, attrName);
+        gl.vertexAttribPointer(attr, count, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(attr);
+        return { buffer, attr }
+    }
+
+    function bindUnifrom4fv(unifromName, data, program) {
+        let uniform4f = gl.getUniformLocation(program, unifromName);
+        if (uniform4f < 0) {
+            console.log("无法获取矩阵变量的存储位置");
+        }
+        gl.uniformMatrix4fv(uniform4f, false, data);
+        return uniform4f
+    }
+
+    function bindElementBuffer(indices) {
+        let indexBuffer = gl.createBuffer();
+        if (!indexBuffer) {
+            console.log("无法创建缓冲区对象");
+        }
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
+        return { indexBuffer, indices }
+    }
+
+    function getCubeVSHADER() {
+        return `
+            attribute vec4 a_Position;
+            attribute vec3 a_Color;
+            // attribute vec2 a_Uv;
+            uniform mat4 u_ModelViewMatrix;
+            // varying vec2 v_Uv;
+            varying vec3 v_Color;
+            void main(){
+                gl_Position = u_ModelViewMatrix * a_Position;
+                // v_Uv = a_Uv;
+                v_Color = a_Color;
+            }
+        `
+    }
+
+    function getCubeFSHADER() {
+        return `
+            #ifdef GL_ES
+            precision mediump float;
+            #endif
+            // varying vec2 v_Uv;
+            // uniform sampler2D u_Sampler;
+            varying vec3 v_Color;
+            void main(){
+                // gl_FragColor = texture2D(u_Sampler, v_Uv);
+                gl_FragColor = vec4(v_Color, 1.0);
+            }
+        `
+    }
+
+    function getRectVSHADER(){
+        return `
+            attribute vec4 a_rectPosition;
+            attribute vec2 a_TextCoord;
+            varying vec2 v_TexCoord;
+
+            void main(){
+                gl_Position = a_rectPosition;
+                // gl_Position = vec4(0.0, 0.0, 0.0, 1.0);
+                // gl_PointSize = 10.0;
+                v_TexCoord = a_TextCoord;
+            }
+        `
+    }
+
+    function getRectFSHADER(){
+        return `
+            precision mediump float;
+
+            uniform sampler2D u_Sampler;
+            varying vec2 v_TexCoord;
+
+            void main(){
+                gl_FragColor = texture2D(u_Sampler, v_TexCoord);
+                // if(length(gl_FragColor.xyz) == 0.0)  gl_FragColor.w = 0.0;
+                // gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+            }
+        `
+    }
+
+    function handleLoadedTexture(texture) {
+        gl.bindTexture(gl.TEXTURE_2D, texture) // 绑定当前的纹理单元（设置纹理单元的参数是针对每张不同纹理， 而不是同时作用与所有的纹理单元）
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1) // 对纹理图像进行 Y 轴反转 - 点精灵不需要翻转
+
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); 
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, texture.image);
+
+    }
+
+    function initTexture(imageFile, callback) {
+        let texture = gl.createTexture()
+        texture.image = new Image()
+        texture.image.src = imageFile
+        texture.image.onload = () => {
+            handleLoadedTexture(texture)
+            callback(texture)
+        }
+    }
+
+</script>
+</html>

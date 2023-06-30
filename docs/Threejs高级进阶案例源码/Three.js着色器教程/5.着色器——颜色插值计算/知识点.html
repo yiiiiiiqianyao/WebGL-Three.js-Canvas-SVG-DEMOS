@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+<meta charset="utf-8">
+<title></title>
+  <link href="http://www.yanhuangxueyuan.com/markdown.css" rel="stylesheet" type="text/css">
+  </head>
+  <body>
+<h1 id="-">着色器——颜色插值计算</h1>
+<p>本节课通过一个颜色插值的案例，来加强大家对Three.js着色器代码的理解。</p>
+<h3 id="-">几何体数据</h3>
+<p>创建一个缓冲类型的几何体<code>BufferGeometry</code>，然后给该几何体Geometry对象设置顶点位置数据和顶点颜色数据，顶点颜色和顶点位置。</p>
+<p>把几何体作为网格模型Mesh的参数，也就是使用三角形模式渲染几何体，6个顶点构成2个三角形，每个三角形有三个顶点，每个顶点有一个颜色，三角形中间的颜色是三个顶点颜色插值计算的结果，整个三角形会显示为彩色。</p>
+<h4 id="-">几何体顶点位置数据</h4>
+<p>如果不是特殊需求，实际开发中一般也不用程序员自定义顶点位置数据，通常通过3D美术软件创建，这里为了大家更容易深度理解Three.js底层知识，自定义顶点位置数据。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">//类型数组创建顶点位置position数据</span>
+<span class="hljs-keyword">var</span> vertices = <span class="hljs-keyword">new</span> <span class="hljs-built_in">Float32Array</span>([
+  <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-comment">//顶点1坐标</span>
+  <span class="hljs-number">50</span>, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-comment">//顶点2坐标</span>
+  <span class="hljs-number">0</span>, <span class="hljs-number">100</span>, <span class="hljs-number">0</span>, <span class="hljs-comment">//顶点3坐标</span>
+
+  <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-number">10</span>, <span class="hljs-comment">//顶点4坐标</span>
+  <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-number">100</span>, <span class="hljs-comment">//顶点5坐标</span>
+  <span class="hljs-number">50</span>, <span class="hljs-number">0</span>, <span class="hljs-number">10</span>, <span class="hljs-comment">//顶点6坐标</span>
+]);
+<span class="hljs-comment">// 创建属性缓冲区对象</span>
+<span class="hljs-keyword">var</span> attribue = <span class="hljs-keyword">new</span> THREE.BufferAttribute(vertices, <span class="hljs-number">3</span>); <span class="hljs-comment">//3个为一组，作为一个顶点的xyz坐标</span>
+<span class="hljs-comment">// 设置几何体attributes属性的位置position属性</span>
+geometry.attributes.position = attribue;
+</code></pre>
+<h4 id="-">几何体顶点颜色数据</h4>
+<p>顶点颜色数据和顶点位置数据一一对应</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">//类型数组创建顶点颜色color数据</span>
+<span class="hljs-keyword">var</span> colors = <span class="hljs-keyword">new</span> <span class="hljs-built_in">Float32Array</span>([
+  <span class="hljs-number">1</span>, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-comment">//顶点1颜色</span>
+  <span class="hljs-number">0</span>, <span class="hljs-number">1</span>, <span class="hljs-number">0</span>, <span class="hljs-comment">//顶点2颜色</span>
+  <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-number">1</span>, <span class="hljs-comment">//顶点3颜色</span>
+
+  <span class="hljs-number">1</span>, <span class="hljs-number">1</span>, <span class="hljs-number">0</span>, <span class="hljs-comment">//顶点4颜色</span>
+  <span class="hljs-number">0</span>, <span class="hljs-number">1</span>, <span class="hljs-number">1</span>, <span class="hljs-comment">//顶点5颜色</span>
+  <span class="hljs-number">1</span>, <span class="hljs-number">0</span>, <span class="hljs-number">1</span>, <span class="hljs-comment">//顶点6颜色</span>
+]);
+<span class="hljs-comment">// 设置几何体attributes属性的颜色color属性</span>
+<span class="hljs-comment">//3个为一组,表示一个顶点的颜色数据RGB</span>
+geometry.attributes.color = <span class="hljs-keyword">new</span> THREE.BufferAttribute(colors, <span class="hljs-number">3</span>);
+</code></pre>
+<h3 id="-vertexcolors-">材质对象<code>vertexColors</code>属性</h3>
+<p>材质对象<code>Material</code>是自定义材质对象<code>ShaderMaterial</code>的基类，自然<code>ShaderMaterial</code>会继承基类<code>Material</code>的<code>vertexColors</code>属性和<code>side</code>属性。</p>
+<p>前面课程讲到过Three.js的点材质、线材质和网格材质的颜色默认是由<code>color</code>属性值决定的，如果希望Three.js渲染器系统使用几何体的顶点颜色数据进行渲染，需要设置<code>vertexColors: THREE.VertexColors,</code>,对于自定义材质对象<code>ShaderMaterial</code>同样需要这样设置。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-keyword">var</span> material = <span class="hljs-keyword">new</span> THREE.ShaderMaterial({
+  <span class="hljs-comment">// 顶点着色器</span>
+  vertexShader: <span class="hljs-built_in">document</span>.getElementById(<span class="hljs-string">'vertexShader'</span>).textContent,
+  <span class="hljs-comment">// 片元着色器</span>
+  fragmentShader: <span class="hljs-built_in">document</span>.getElementById(<span class="hljs-string">'fragmentShader'</span>).textContent,
+  <span class="hljs-comment">//以顶点颜色为准进行渲染</span>
+  vertexColors: THREE.VertexColors,
+  <span class="hljs-comment">// 双面可见</span>
+  side:THREE.DoubleSide,
+});
+</code></pre>
+<h3 id="-">着色器</h3>
+<h4 id="-">顶点着色器</h4>
+<p>使用ShaderMaterial API的时候顶点颜色变量和顶点位置变量一样不需要手动声明,系统会自动声明<code>attribute vec3 color;</code></p>
+<p>插值计算的实现，要通过着色器语言的关键字<code>varying</code>实现。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// attribute vec3 position;</span>
+<span class="hljs-comment">// attribute vec3 color;</span>
+
+<span class="hljs-comment">// varying关键字声明一个变量表示顶点颜色插值后的结果</span>
+varying vec3 vColor;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span>{
+  <span class="hljs-comment">// 顶点颜色数据进行插值计算</span>
+  vColor = color;
+  <span class="hljs-comment">// 投影矩阵projectionMatrix、视图矩阵viewMatrix、模型矩阵modelMatrix</span>
+  gl_Position = <span class="hljs-function">projectionMatrix*viewMatrix*modelMatrix*<span class="hljs-title">vec4</span><span class="hljs-params">( position, <span class="hljs-number">1.0</span> )</span></span>;
+}
+</code></pre>
+<h4 id="-">片元着色器</h4>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// 顶点片元化后有多少个片元就有多少个颜色数据vColor</span>
+varying vec3 vColor;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">main</span><span class="hljs-params">()</span> </span>{
+  <span class="hljs-comment">//把插值后的到颜色数据赋值给对应的片元</span>
+   gl_FragColor = vec4(vColor,<span class="hljs-number">1.0</span>);
+}
+</code></pre>
+<div class="">
+  <a href="http://www.yanhuangxueyuan.com/">作者技术博客</a>
+</div>
+
+  </body>
+</html>

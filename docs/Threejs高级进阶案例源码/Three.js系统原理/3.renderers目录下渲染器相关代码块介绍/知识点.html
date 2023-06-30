@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+<meta charset="utf-8">
+<title></title>
+  <link href="http://www.yanhuangxueyuan.com/markdown.css" rel="stylesheet" type="text/css">
+  </head>
+  <body>
+    <h1 id="renderers-">renderers目录下渲染器相关代码块介绍</h1>
+    <p>前面说过想了解Threejs的渲染器是如何解析场景和相机对象然后进行渲染的，除了需要了解场景和相机对象的结构外，还需要阅读渲染器文件<code>WebGLRenderer.js</code>源码来了解渲染解析过程。</p>
+    <h3 id="-this-render-">从<code>this.render</code>开始阅读</h3>
+    <p>渲染器渲染器的时候会把场景和相机作为参数然后调用<code>.render()</code>方法，所以想了解Threejs渲染器的解析过程，自然需要在<code>WebGLRenderer.js</code>文件中查找到<code>.render()</code>方法封装的源码，可以通过查找关键词<code>this.render</code>找到。</p>
+    <pre><code class="lang-JavaScript"><span class="hljs-selector-tag">renderer</span><span class="hljs-selector-class">.render</span>(<span class="hljs-selector-tag">scene</span>, <span class="hljs-selector-tag">camera</span>);
+    </code></pre>
+    <p>由于Threejs渲染器是很复杂的，render函数中会调用其它经过多层封装的函数，自然第一次阅读render函数的源码，基本大多数代码都不是很好理解。</p>
+    <h3 id="-material-shader-shaders-">材质Material和着色器shader——shaders目录</h3>
+    <p>Three.js渲染器解析场景中网格模型材质<code>Material</code>的时候，会调用材质对象对应的顶点着色器和片元着色器代码，然后经过编译处理后在GPU上执行。</p>
+    <p>着色器代码文件目录是<code>系three.js-master\src\renderers\shaders</code>，shaders目录下有两个着色器代码的文件ShaderChunk和ShaderLib。</p>
+    <p>ShaderChunk目录下的着色器代码文件.glsl都是具有特定功能的模块，ShaderLib目录下的着色器文件会通过<code>#include &lt;ShaderChunk中着色器文件名&gt;</code>调用ShaderChunk目录下特定功能的着色器代码块构建出来具有具有特定功能的顶点着色器文件和片元着色器文件。</p>
+    <ul>
+    <li>点材质PointsMaterial：顶点着色器文件points_vert.glsl、片元着色器文件points_frag.glsl</li>
+    <li>基础网格材质MeshBasicMaterial：顶点着色器文件meshbasic_vert.glsl、片元着色器文件meshbasic_frag.glsl</li>
+    <li>高光网格材质MeshPhongMaterial：顶点着色器文件meshphong_vert.glsl、片元着色器文件meshphong_frag.glsl</li>
+    </ul>
+    <p>ShaderChunk.js：用来获得ShaderChunk和ShaderLib文件中的着色器代码</p>
+    <p>ShaderLib.js：设置好点、线、网格材质对应的uniforms变量值、顶点着色器代码、片元着色器代码</p>
+    <p>UniformsLib.js、UniformsUtils.js：着色器中uniform变量相关的对象</p>
+    <h3 id="-webgl-">调用webgl目录下函数</h3>
+    <p><code>WebGLRenderer.js</code>会通过<code>import</code>和<code>from</code>关键字引入webgl目录下的函数，然后通过<code>new</code>关键字实例化返回一个对象，webgl目录下文件中封装的函数创建对象的方式有多种，比如工厂模式、构造函数模式、原型模式...</p>
+    <ul>
+    <li>构造函数模式：比如WebGLTextures.js...</li>
+    <li>工厂模式：比如WebGLGeometries.js、WebGLObjects、WebGLAttributes...</li>
+    </ul>
+    <p>webgl目录下封装的函数创建的对象具有一些方法和属性，用于完成特定的功能。</p>
+    <pre><code class="lang-JavaScript"><span class="hljs-deletion">- WebGLGeometries.js：解析几何体对象Geometry或BufferGeometry</span>
+    <span class="hljs-deletion">- WebGLLights：解析光源对象</span>
+    <span class="hljs-deletion">- WebGLAttributes.js：解析BufferAttribute对象，也就是说从BufferAttribute对象提取顶点数据，把顶点数据传入创建的顶点缓冲区</span>
+    <span class="hljs-deletion">- WebGLShader.js：创建着色器对象</span>
+    <span class="hljs-deletion">- WebGLProgram.js：创建程序对象</span>
+    <span class="hljs-deletion">- WebGLUniforms.js: unifomr变量传值相关</span>
+    <span class="hljs-deletion">- WebGLInfo.js：记录渲染器的渲染信息，比如渲染了多少帧frame</span>
+    ...
+    </code></pre>
+    <h3 id="webgl-">webgl渲染器代码模块的方法和属性</h3>
+    <p>以WebGLInfo.js为例分析，WebGLInfo.js是一个工厂函数，通过new关键词实例化该函数返回一个具有特定属性和方法的对象。</p>
+    <pre><code class="lang-JavaScript"><span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">WebGLInfo</span>(<span class="hljs-params"> gl </span>) </span>{
+        <span class="hljs-keyword">var</span> memory = {...};
+        <span class="hljs-keyword">var</span> render = {frame: <span class="hljs-number">0</span>,calls: <span class="hljs-number">0</span>,triangles: <span class="hljs-number">0</span>,...};
+      <span class="hljs-comment">// update函数</span>
+        <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">update</span>(<span class="hljs-params"> count, mode, instanceCount </span>) </span>{...}
+      <span class="hljs-comment">// reset函数</span>
+        <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">reset</span>(<span class="hljs-params"></span>) </span>{...}
+
+        <span class="hljs-keyword">return</span> {
+        <span class="hljs-comment">// WebGLInfo对象属性：memory、render、programs、autoReset</span>
+            memory: memory,
+            render: render,
+            programs: <span class="hljs-literal">null</span>,
+            autoReset: <span class="hljs-literal">true</span>,
+        <span class="hljs-comment">// WebGLInfo对象方法：update、reset</span>
+            reset: reset,
+            update: update
+        };
+
+    }
+    </code></pre>
+    <p>渲染器文件WebGLRenderer.js中调用WebGLInfo对象的方法和属性</p>
+    <pre><code class="lang-JavaScript"><span class="hljs-keyword">import</span> {WebGLInfo} <span class="hljs-keyword">from</span> <span class="hljs-string">'./webgl/WebGLInfo.js'</span>;
+    ...
+    info = <span class="hljs-keyword">new</span> WebGLInfo(_gl);
+    ...
+    _this.info = info;
+    ...
+    <span class="hljs-keyword">if</span> (<span class="hljs-keyword">this</span>.info.autoReset) <span class="hljs-keyword">this</span>.info.reset();
+    </code></pre>
+    <h3 id="-">判断对象类型的属性</h3>
+    <p>Threejs渲染器解析Threejs对象的时候需要判断它是什么类型，所以通过Threejs构造函数创建对象的时候会初始化设置一些属性用于判断对象的类型，比如type属性，获得对象构造函数的名字，isMesh、isLine、isGroup等属性用来判断一个对象是那种对象，以便于Threejs渲染器进行归类处理。</p>
+
+
+    <div class="">
+      <a href="http://www.yanhuangxueyuan.com/">作者技术博客</a>
+    </div>
+  </body>
+</html>

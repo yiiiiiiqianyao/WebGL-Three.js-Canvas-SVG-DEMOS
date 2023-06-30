@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+<meta charset="utf-8">
+<title></title>
+  <link href="http://www.yanhuangxueyuan.com/markdown.css" rel="stylesheet" type="text/css">
+  </head>
+  <body>
+<h1 id="-">解析几何体提取顶点数据</h1>
+<p>上节课讲解了如何把WebGL的顶点数据封装为Three.js的几何体对象，这节课就来讲解Three.js的渲染器在渲染的时候，如何解析几何体对象，提取顶点数据，然后调用WebGL API创建顶点缓冲区，并把创提取的顶点数据传入创建的顶点缓冲区。 </p>
+<p>本章节的内容是给大家讲解Three.js渲染器是如何解析场景和渲染器对象的，本节课讲解解析的一个环节，也就是Threejs如何解析几何体并创建相应的顶点缓冲区。</p>
+<p><img  width="700px" src="./示意图/Threejs解析流程图.png" alt="Threejs解析流程图"></p>
+<h3 id="-webgl">原生WebGL</h3>
+<p>原生WebGL通过<code>gl.createBuffer()</code>创建一个顶点缓冲区对象，用来存储顶点位置、顶点颜色、顶点法向量等数据。如果你理解了这一段代码，自然就很容易理解Three.js的几何体对象和相应的缓冲区。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// 顶点位置数据</span>
+<span class="hljs-keyword">var</span> data=<span class="hljs-keyword">new</span> <span class="hljs-built_in">Float32Array</span>([<span class="hljs-number">0.5</span>,<span class="hljs-number">0.5</span>,<span class="hljs-number">0.3</span>...]);
+ <span class="hljs-comment">// 创建缓冲区buffer，传入顶点位置数据data</span>
+<span class="hljs-keyword">var</span> buffer=gl.createBuffer();
+gl.bindBuffer(gl.ARRAY_BUFFER,buffer);
+gl.bufferData(gl.ARRAY_BUFFER,data,gl.STATIC_DRAW);
+gl.vertexAttribPointer(aposLocation,<span class="hljs-number">3</span>,gl.FLOAT,<span class="hljs-literal">false</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>);
+</code></pre>
+<h3 id="-">整体解析过程简介</h3>
+<p>Three.js渲染器解析几何体对象，会从几何体对象提取顶点数据传入WebGL顶点缓冲区的时候，如果解析的是<code>BufferGeometry</code>对象，直接访问<code>.attributes</code>属性提取顶点数据就可以，比如获得顶点位置数据，通过<code>.attributes.position.array</code>获得顶点数据。如果Three.js渲染器解析的几何体是<code>Geometry</code>对象，会先把<code>Geometry</code>对象转化为<code>BufferGeometry</code>对象然后再解析。
+<img  width="700px" src="./示意图/几何体.png" alt="几何体"></p>
+<h3 id="-geometry-colors-">顶点颜色属性<code>Geometry.colors</code></h3>
+<p>点模型Points、线模型Line对象与网格模型Mesh对象的几何体结构Geometry略有不同。</p>
+<p><code>Geometry.colors</code>属性包含的顶点颜色数据在点模型Points、线模型Line中使用，几何体对象的该属性在网格模型Mesh中不起作用。 网格模型Mesh使用几何体对象三角面<code>Face3</code>的顶点颜色属性<code>Face3.vertexColors</code>设置颜色。</p>
+<h3 id="-geometry-buffergeometry-"><code>Geometry</code>转化为<code>BufferGeometry</code></h3>
+<p>通过<code>BufferGeometry.setFromObject(object)</code>方法可以把参数可以把object模型对象的几何体geometry转化为BufferGeometry，点模型Points和线模型Line使用一套解析转化规则，网格模型Mesh使用一种转化规则。</p>
+<p>对于网格模型的几何体Geometry转化为BufferGeometry的时候，需要先把Geometry对象转化为直接几何体对象DirectGeometry，然后再转化为BufferGeometry对象。</p>
+<h3 id="-">相关函数</h3>
+<p>WebGLAttributes.js、WebGLGeometries.js和WebGLObjects.js是工厂函数，执行这三个函数都会返回一个具有特定方法的对象，WebGLObjects.js会调用WebGLGeometries对象的方法，WebGLGeometries.js会调用WebGLAttributes对象的方法。</p>
+<p><img  width="700px"  src="./示意图/解析规则.png" alt="解析规则"></p>
+<h3 id="webglattributes-js">WebGLAttributes.js</h3>
+<p><code>.update(BufferAttribute)</code>方法</p>
+<p>解析BufferAttribute对象，也就是说从BufferAttribute对象的<code>.array</code>属性提取顶点数据，把顶点数据传入WebGL顶点缓冲区，对<code>gl.createBuffer()</code>、<code>gl.、bufferData()</code>等WebGL API进行了封装。</p>
+<h3 id="webglgeometries-js">WebGLGeometries.js</h3>
+<p> <code>.get()</code>方法</p>
+<p>参数:<code>.get(Object,Object.geometry)</code></p>
+<p>如果Object.geometry是BufferGeometry直接返回，如果是Geometry，会转化为BufferGeometry，点线模型和网格模型的Geometry转化规则不同，所以参数需要传入Object，代码需要判断Object是Points和Line还是Mesh。</p>
+<p><code>.update(BufferGeometry)</code>方法</p>
+<p>通过BufferGeometry的<code>.index</code>和<code>.attributes</code>属性，获得包含顶点数据的BufferAttribute对象，然后BufferAttribute作为参数调用<code>WebGLAttributes.update()</code>方法，提取顶点数据并传入顶点缓冲区。</p>
+<h3 id="webglobjects-js">WebGLObjects.js</h3>
+<p><code>.update(Object)</code>方法</p>
+<p>从模型对象Object提取几何体数据，也就是模型的几何体属性 <code>Object.geometry</code>，然后调用WebGLGeometries.get()方法，并把Object和Object.geometry作为参数，直接get方法后返回BufferGeometry，然后调用WebGLGeometries.update()方法，把BufferGeometry作为参数。</p>
+<h3 id="webglrenderer-js">WebGLRenderer.js</h3>
+<p>场景中遍历获得的对象object，如果是Points、Line或Mesh模型，调用WebGLObjects.update()方法，并把object作为参数。</p>
+<h3 id="webglrenderer-js">WebGLRenderer.js</h3>
+<pre><code class="lang-JavaScript"><span class="hljs-keyword">import</span> {WebGLAttributes} <span class="hljs-keyword">from</span> <span class="hljs-string">'./webgl/WebGLAttributes.js'</span>;
+<span class="hljs-keyword">import</span> {WebGLGeometries} <span class="hljs-keyword">from</span> <span class="hljs-string">'./webgl/WebGLGeometries.js'</span>;
+<span class="hljs-keyword">import</span> {WebGLObjects} <span class="hljs-keyword">from</span> <span class="hljs-string">'./webgl/WebGLObjects.js'</span>;
+
+<span class="hljs-keyword">var</span> attributes, geometries, objects;
+
+attributes = <span class="hljs-keyword">new</span> WebGLAttributes(_gl);
+<span class="hljs-comment">// WebGLAttributes作为WebGLGeometries参数</span>
+geometries = <span class="hljs-keyword">new</span> WebGLGeometries(_gl, attributes, info);
+<span class="hljs-comment">// WebGLGeometries作为WebGLObjects参数</span>
+objects = <span class="hljs-keyword">new</span> WebGLObjects(geometries, info);
+
+
+<span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">projectObject</span>(<span class="hljs-params">object, camera, sortObjects</span>) </span>{
+...
+<span class="hljs-keyword">else</span> <span class="hljs-keyword">if</span> (object.isMesh || object.isLine || object.isPoints) {
+<span class="hljs-keyword">var</span> geometry = objects.update(object);
+}
+...
+  <span class="hljs-comment">// 递归算法：遍历对象</span>
+<span class="hljs-keyword">var</span> children = object.children;
+<span class="hljs-keyword">for</span> (<span class="hljs-keyword">var</span> i = <span class="hljs-number">0</span>, l = children.length; i &lt; l; i++) {
+projectObject(children[i], camera, sortObjects);
+}
+}
+<span class="hljs-comment">// 渲染方法中调用projectObject</span>
+<span class="hljs-keyword">this</span>.render = <span class="hljs-function"><span class="hljs-keyword">function</span>(<span class="hljs-params">scene, camera, renderTarget, forceClear</span>) </span>{
+...
+<span class="hljs-comment">// 递归遍历场景对象，对于其中的点、线和网格模型需要解析它们的几何体，提取顶点数据，并传入顶点缓冲区</span>
+projectObject(scene, camera, _this.sortObjects);
+...
+}
+</code></pre>
+<div class="">
+  <a href="http://www.yanhuangxueyuan.com/">作者技术博客</a>
+</div>
+  </body>
+</html>

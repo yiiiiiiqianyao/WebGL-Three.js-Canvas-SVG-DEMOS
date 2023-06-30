@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <title></title>
+      <link href="http://www.yanhuangxueyuan.com/markdown.css" rel="stylesheet" type="text/css">
+  </head>
+  <body>
+
+    <h1 id="-shadermaterial-rawshadermaterial">着色器材质对象ShaderMaterial和RawShaderMaterial</h1>
+    <p>ShaderMaterial和RawShaderMaterial主要用于需要程序员自定义着色器的场景。</p>
+    <h3 id="webglrenderer-js">WebGLRenderer.js</h3>
+    <pre><code class="lang-JavaScript"><span class="hljs-keyword">import</span> {ShaderLib} <span class="hljs-keyword">from</span> <span class="hljs-string">'./shaders/ShaderLib.js'</span>;
+    <span class="hljs-keyword">import</span> {WebGLPrograms} <span class="hljs-keyword">from</span> <span class="hljs-string">'./webgl/WebGLPrograms.js'</span>;
+    programCache = <span class="hljs-keyword">new</span> WebGLPrograms(_this, extensions, capabilities);
+
+    <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">initMaterial</span>(<span class="hljs-params">material, fog, object</span>) </span>{
+      <span class="hljs-comment">// 如果材质是ShaderMaterial或RawShaderMaterial，返回parameters对象属性shaderID的值是未定义undefined</span>
+      <span class="hljs-comment">// 返回一个parameters对象，具有shaderID属性，通过shaderID的属性值可以获得材质对象对应的着色器代码。</span>
+      <span class="hljs-keyword">var</span> parameters = programCache.getParameters(material, lights.state, shadowsArray, ...object);
+
+      <span class="hljs-comment">// 判断shaderID是否有具体值</span>
+      <span class="hljs-keyword">if</span> (parameters.shaderID) {
+        <span class="hljs-comment">// 通过shaderID键对应的值，作为ShaderLib对象的键名获得相应的值，uniforms对象、定点着色器代码、片元着色器代码</span>
+        <span class="hljs-keyword">var</span> shader = ShaderLib[parameters.shaderID];
+        <span class="hljs-comment">// threejs定义的材质对象</span>
+        materialProperties.shader = {
+          name: material.type,
+          uniforms: UniformsUtils.clone(shader.uniforms),
+          vertexShader: shader.vertexShader,
+          fragmentShader: shader.fragmentShader
+        };
+
+      } <span class="hljs-keyword">else</span> {
+        <span class="hljs-comment">// 自定义材质对象</span>
+        materialProperties.shader = {
+          name: material.type,
+          uniforms: material.uniforms,
+          vertexShader: material.vertexShader,
+          fragmentShader: material.fragmentShader
+        };
+
+      }
+    }
+    </code></pre>
+    <h3 id="webglprograms-js">WebGLPrograms.js</h3>
+    <p>如果材质是ShaderMaterial或RawShaderMaterial，返回parameters对象属性shaderID的值是未定义undefined</p>
+    <pre><code class="lang-JavaScript"><span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">WebGLPrograms</span>(<span class="hljs-params"> renderer, extensions, capabilities </span>) </span>{
+      <span class="hljs-keyword">var</span> shaderIDs = {
+      MeshDepthMaterial: <span class="hljs-string">'depth'</span>,
+      MeshDistanceMaterial: <span class="hljs-string">'distanceRGBA'</span>,
+      MeshNormalMaterial: <span class="hljs-string">'normal'</span>,
+      MeshBasicMaterial: <span class="hljs-string">'basic'</span>,
+      MeshLambertMaterial: <span class="hljs-string">'lambert'</span>,
+      MeshPhongMaterial: <span class="hljs-string">'phong'</span>,
+      MeshToonMaterial: <span class="hljs-string">'phong'</span>,
+      MeshStandardMaterial: <span class="hljs-string">'physical'</span>,
+      MeshPhysicalMaterial: <span class="hljs-string">'physical'</span>,
+      LineBasicMaterial: <span class="hljs-string">'basic'</span>,
+      LineDashedMaterial: <span class="hljs-string">'dashed'</span>,
+      PointsMaterial: <span class="hljs-string">'points'</span>,
+      ShadowMaterial: <span class="hljs-string">'shadow'</span>
+    };
+    <span class="hljs-keyword">this</span>.getParameters = <span class="hljs-function"><span class="hljs-keyword">function</span> (<span class="hljs-params">material, lights,...</span>)</span>{
+      <span class="hljs-comment">// 如果材质是ShaderMaterial或RawShaderMaterial，返回值shaderID是未定义undefined，因为shaderIDs对象没有这两个属性</span>
+      <span class="hljs-keyword">var</span> shaderID = shaderIDs[ material.type ];
+
+      <span class="hljs-keyword">var</span> parameters = {
+        <span class="hljs-comment">// 该属性用于判断材质对象</span>
+      shaderID: shaderID,
+      ...
+      };
+
+      <span class="hljs-keyword">return</span> parameters;
+      }
+    }
+    </code></pre>
+    <h3 id="rawshadermaterial">RawShaderMaterial</h3>
+    <p>RawShaderMaterial和ShaderMaterial相同之处在于需要程序员自定义着色器代码，<code>\src\renderers\shaders</code>目录下的.glsl文件不会提供，不同之处在于执行WebGLProgram.js封装的WebGLProgram函数时候，给着色器代码添加的前缀不同，ShaderMaterial和其它材质对象的着色器代码添加的前缀相同，而RawShaderMaterial不同。</p>
+    <pre><code class="lang-JavaScript"><span class="hljs-keyword">if</span> ( material.isRawShaderMaterial ) {
+      <span class="hljs-comment">// 顶点着色器前缀</span>
+      prefixVertex = [
+        customDefines
+      ].filter( filterEmptyLine ).<span class="hljs-keyword">join</span>( <span class="hljs-string">'\n'</span> );
+      <span class="hljs-comment">// 片元着色器前缀</span>
+      prefixFragment = [
+        customExtensions,
+        customDefines
+      ].filter( filterEmptyLine ).<span class="hljs-keyword">join</span>( <span class="hljs-string">'\n'</span> );
+    }
+    </code></pre>
+    <div class="">
+      <a href="http://www.yanhuangxueyuan.com/">作者技术博客</a>
+    </div>
+  </body>
+</html>

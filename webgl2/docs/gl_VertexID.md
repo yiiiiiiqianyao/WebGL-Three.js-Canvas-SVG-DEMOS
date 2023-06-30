@@ -1,0 +1,1 @@
+gl_VertexID 在使用 drawArray 的时候生效，在顶点着色器中表示当前顶点的索引

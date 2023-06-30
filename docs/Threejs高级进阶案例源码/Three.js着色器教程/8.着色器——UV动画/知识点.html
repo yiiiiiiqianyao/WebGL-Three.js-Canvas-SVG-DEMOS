@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+<meta charset="utf-8">
+<title></title>
+  <link href="http://www.yanhuangxueyuan.com/markdown.css" rel="stylesheet" type="text/css">
+  </head>
+  <body>
+
+<h1 id="-uv-">着色器——UV动画</h1>
+<p>通过自定着色器代码的方式实现UV动画。</p>
+<h2 id="texture-offset-uv-">Texture偏移属性<code>offset</code>实现UV动画</h2>
+<p><code>.wrapS</code>定义了纹理如何水平包裹，并对应于UV映射中的U.</p>
+<p><code>.wrapT</code>这定义了纹理垂直包裹的方式，与UV映射中的V相对应.</p>
+<pre><code class="lang-JavaScript"><span class="hljs-keyword">var</span> texture = textureLoader.load(<span class="hljs-string">'./大气.png'</span>);
+<span class="hljs-comment">// 设置重复的作用是：能够让一个效果循环</span>
+texture.wrapS = THREE.RepeatWrapping;
+texture.wrapT = THREE.RepeatWrapping;
+</code></pre>
+<p>渲染函数周期性执行的过程中，Three.js纹理对象<code>Texture</code>的偏移属性<code>offset</code>两个分量x和y递增或递减。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// 渲染函数</span>
+<span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">render</span>(<span class="hljs-params"></span>) </span>{
+  <span class="hljs-comment">// 每次渲染对纹理对象进行偏移，不停的偏移纹理，就产生了动画的效果</span>
+  texture.offset.x -= <span class="hljs-number">0.001</span>;
+  texture.offset.y += <span class="hljs-number">0.001</span>;
+  group.rotateY(<span class="hljs-number">-0.005</span>)
+  renderer.render(scene, camera); <span class="hljs-comment">//执行渲染操作</span>
+  requestAnimationFrame(render); <span class="hljs-comment">//请求再次执行渲染函数render，渲染下一帧</span>
+}
+</code></pre>
+<h3 id="-uniform-">着色器中uniform变量更新</h3>
+<p>片元着色器中声明的一个时间变量time</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// 声明一个时间变量用来控制UV动画</span>
+uniform <span class="hljs-keyword">float</span> time;
+<span class="hljs-comment">// 声明一个纹理对象变量</span>
+uniform sampler2D texture;
+<span class="hljs-comment">// 顶点片元化后有多少个片元就有多少个纹理坐标数据vUv</span>
+varying vec2 vUv;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">main</span><span class="hljs-params">()</span> </span>{
+  vec2 newT= vUv + vec2( <span class="hljs-number">-0.02</span>, <span class="hljs-number">0.02</span> ) * time;
+  <span class="hljs-comment">//通过偏移后的纹理坐标newT采样像素</span>
+  gl_FragColor = texture2D( texture, newT );
+  <span class="hljs-comment">// 大气层整体透明度增加</span>
+  gl_FragColor.a *=<span class="hljs-number">0.6</span>;
+}
+</code></pre>
+<pre><code class="lang-JavaScript">uniforms: {
+  <span class="hljs-comment">// 对应片元着色器中的时间变量time</span>
+  time: {
+<span class="hljs-keyword">value</span>: <span class="hljs-number">0.0</span>
+  },
+},
+</code></pre>
+<p>在渲染函数中不停地更新ShaderMaterial对象uniforms属性的时间变量time的值，每次执行新的渲染，Threejs系统会自动更新片元着色器中的时间变量time的值。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// 创建一个时钟对象Clock</span>
+<span class="hljs-keyword">var</span> clock = <span class="hljs-keyword">new</span> THREE.Clock();
+<span class="hljs-comment">// 渲染函数</span>
+<span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">render</span>(<span class="hljs-params"></span>) </span>{
+  <span class="hljs-comment">// 获得两次渲染的时间间隔deltaTime</span>
+  <span class="hljs-keyword">var</span> deltaTime = clock.getDelta();
+
+  <span class="hljs-comment">// 更新uniforms中时间，这样就可以更新着色器中time变量的值</span>
+  material.uniforms.time.value += deltaTime;
+
+  renderer.render(scene, camera);
+  requestAnimationFrame(render);
+}
+</code></pre>
+<div class="">
+  <a href="http://www.yanhuangxueyuan.com/">作者技术博客</a>
+</div>
+  </body>
+</html>

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <title></title>
+  </head>
+  <body>
+    <script type="text/javascript">
+      // 一个树结构对象
+      var rootNode = {
+        name:'根节点',
+        children:[
+        {
+          name:'中间节点1',
+          children:[
+          {
+            name:'叶子节点1——1',
+            children:[]
+          },
+          {
+            name:'叶子节点1——2',
+            children:[]
+          },
+          ]
+        },
+        {
+          name:'叶子节点2',
+          children:[]
+        },
+        {
+          name:'叶子节点3',
+          children:[]
+        },
+        ]
+      }
+     // 递归算法遍历一个树结构对象
+      function fun(obj){
+        console.log('打印节点的名字',obj.name);
+        // 访问对象的子对象
+        var children = obj.children;
+        for (var i = 0, l = children.length; i < l; i++) {
+          // 调用函数自身，把
+          fun(children[i]);
+        }
+      }
+      // 遍历对象obj
+      fun(rootNode)
+    </script>
+  </body>
+</html>

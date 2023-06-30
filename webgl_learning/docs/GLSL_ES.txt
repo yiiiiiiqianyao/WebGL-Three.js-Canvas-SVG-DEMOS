@@ -1,0 +1,33 @@
+基本数据类型：
+	int
+	float
+	bool	true/false
+相互转化
+转化为整数
+	int(float) 删去浮点数的小数部分
+	int(bool)  true转化为1、false转化为0
+转化为浮点数
+	float(int) 
+	float(bool)true转化为1.0、false转化为0.0
+转化为布尔值
+	bool(int)  0转化为false、其他非0值转化为true
+	bool(float)0.0转化为false、其他非0值转化为true
+
+GLSL ES支持矢量和矩阵类型
+矢量
+	vec2、vec3、vec4 浮点数为元素的矢量
+	ivec2、ivec3、ivec4	...整数
+
+矢量支持一系列的分量名用于访问矢量的元素并增强程序的可读性
+	x, y, z, w 用来获取顶点坐标分量
+	r, g, b, a 用来获取颜色分量
+	s, t, p, q 用来获取纹理坐标分量
+	任何矢量的x, r, s分量都会返回矢量的第一个元素
+
+	bvec2、bvec3、bvec4	...布尔值
+矩阵
+	mat2、mat3、mat4 2*2、3*3、4*4的浮点数元素的矩阵
+除了使用 . 运算符和分量名来读取矢量和矩阵的元素之外还可以通过 [] 运算符和数组下标来访问元素
+
+同名构造函数：vec2()、vec3()、vec4()、mat2()、mat3()、mat4()
+

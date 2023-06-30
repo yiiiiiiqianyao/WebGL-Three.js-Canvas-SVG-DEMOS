@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+
+<head>
+  <meta charset="utf-8">
+  <title></title>
+</head>
+
+<body>
+
+  <script>
+    // https://developer.mozilla.org/zh-CN/docs/Web/JavaScript/Reference/Global_Objects/WeakMap
+
+    var wm1 = new WeakMap();
+
+    var o1 = {};
+// 对象o1作为键，37作为值，也可以设置字符串、数组或对象为值
+    wm1.set(o1, 37);
+
+    console.log(wm1.get(o1));
+
+  </script>
+</body>
+
+</html>

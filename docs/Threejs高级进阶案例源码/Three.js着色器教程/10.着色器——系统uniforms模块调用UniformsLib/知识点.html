@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+<meta charset="utf-8">
+<title></title>
+  <link href="http://www.yanhuangxueyuan.com/markdown.css" rel="stylesheet" type="text/css">
+  </head>
+  <body>
+<h1 id="-uniforms-uniformslib">着色器——系统uniforms模块调用UniformsLib</h1>
+<p>本节课用到两个API<code>THREE.UniformsUtils</code>和<code>THREE.UniformsLib</code>,关于这两个API的使用，官方文档并没有详细介绍，如果想了解它们的使用规则，建议听课简单了解，或者阅读相应的源码，这两个API的所在的文件目录是<code>\three.js-master\src\renderers\shaders</code>。<code>THREE.UniformsUtils</code>提供了一个方法<code>.merge()</code>可以组合<code>THREE.UniformsLib</code>提供的uniforms代码块或者自定义的uniforms属性。</p>
+<h3 id="-three-uniformslib-"><code>THREE.UniformsLib</code></h3>
+<p>访问uniforms代码common块，<code>THREE.UniformsLib[&quot;common&quot;]</code>或者<code>THREE.UniformsLib.common</code>访问方式都可以。执行后获得相应的值，可以作为<code>.merge()</code>参数数组的元素。</p>
+<pre><code class="lang-JavaScript">{
+  <span class="hljs-comment">// 对应材质对象的颜色color属性</span>
+  diffuse: { <span class="hljs-keyword">value</span>: <span class="hljs-keyword">new</span> Color( <span class="hljs-number">0xeeeeee</span> ) },
+  <span class="hljs-comment">// 透明度变量</span>
+  opacity: { <span class="hljs-keyword">value</span>: <span class="hljs-number">1.0</span> },
+  <span class="hljs-comment">// 颜色贴图变量</span>
+  map: { <span class="hljs-keyword">value</span>: <span class="hljs-keyword">null</span> },
+  uvTransform: { <span class="hljs-keyword">value</span>: <span class="hljs-keyword">new</span> Matrix3() },
+
+  alphaMap: { <span class="hljs-keyword">value</span>: <span class="hljs-keyword">null</span> },
+
+}
+</code></pre>
+<p>或者</p>
+<h3 id="-merge-">方法<code>.merge()</code></h3>
+<p>方法<code>THREE.UniformsUtils.merge()</code>的作用是拷贝组合THREE.UniformsLib调用的模块代码。
+<code>.merge()</code>的参数是一个数组，数组的元素满足格式：</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// 自定义uniform变量属性写在一个对象中</span>
+  {
+time: {
+  <span class="hljs-keyword">value</span>: <span class="hljs-number">0.3</span>
+},
+opacity: {
+  <span class="hljs-keyword">value</span>: <span class="hljs-number">0.6</span>
+},
+  }
+</code></pre>
+<p><code>THREE.UniformsLib</code>代码块可以和自定义的uniform属性组合使用。</p>
+<pre><code class="lang-JavaScript">uniforms: THREE.UniformsUtils.merge([
+  THREE.UniformsLib[<span class="hljs-string">"common"</span>],
+  THREE.UniformsLib[<span class="hljs-string">"fog"</span>],
+  {
+<span class="hljs-comment">// 自定义uniform变量写在一个对象中</span>
+time: {
+  <span class="hljs-keyword">value</span>: <span class="hljs-number">0.3</span>
+},
+opacity: {
+  <span class="hljs-keyword">value</span>: <span class="hljs-number">0.6</span>
+},
+  }
+]),
+</code></pre>
+<div class="">
+  <a href="http://www.yanhuangxueyuan.com/">作者技术博客</a>
+</div>
+
+  </body>
+</html>

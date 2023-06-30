@@ -1,0 +1,175 @@
+
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Stencil Buffer</title>
+<script id="shader-vs" type="x-shader/x-vertex">
+attribute vec3 aPos;
+attribute vec4 aColor;
+varying vec4 vColor;
+void main(void){
+    gl_Position = vec4(aPos, 1);
+    vColor = aColor;
+}
+</script>
+<script id="shader-fs" type="x-shader/x-fragment">
+precision highp float;
+varying vec4 vColor;
+void main(void) {
+    gl_FragColor = vColor;
+}
+</script>
+</head>
+<body>
+<canvas id="canvas" width="400" height="400" ></canvas>
+<script>
+var gl;
+var canvas = document.getElementById('canvas');
+var glProgram = null;
+
+function getGLContext() {
+    var glContextNames = ['webgl', 'experimental-webgl'];
+    for (var i = 0; i < glContextNames.length; i ++) {
+        try {
+            gl = canvas.getContext(glContextNames[i], {
+                stencil: true
+            });
+        } catch (e) {}
+        if (gl) {
+            gl.clearColor(74 / 255, 115 / 255, 94 / 255, 1.0);
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
+            gl.viewport(0, 0, canvas.width, canvas.height);
+            gl.enable(gl.STENCIL_TEST);
+            break;
+        }
+    }
+}
+
+function initShaders() {
+    //get shader source
+    var vs_source = document.getElementById('shader-vs').innerHTML,
+        fs_source = document.getElementById('shader-fs').innerHTML;
+        
+    //compile shaders   
+    vertexShader = makeShader(vs_source, gl.VERTEX_SHADER);
+    fragmentShader = makeShader(fs_source, gl.FRAGMENT_SHADER);
+    
+    //create program
+    glProgram = gl.createProgram();
+    
+    //attach and link shaders to the program
+    gl.attachShader(glProgram, vertexShader);
+    gl.attachShader(glProgram, fragmentShader);
+    gl.linkProgram(glProgram);
+
+    if (!gl.getProgramParameter(glProgram, gl.LINK_STATUS)) {
+        alert("Unable to initialize the shader program.");
+    }
+    
+    //use program
+    gl.useProgram(glProgram);
+}
+
+function makeShader(src, type) {
+    //compile the vertex shader
+    var shader = gl.createShader(type);
+    gl.shaderSource(shader, src);
+    gl.compileShader(shader);
+
+    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+        alert("Error compiling shader: " + gl.getShaderInfoLog(shader));
+    }
+    return shader;
+}                                   
+// vertex representing the triangle
+
+function setupBufferAndDraw(){
+    // No need to display the triangle
+    gl.colorMask(0, 0, 0, 0); // 关闭颜色缓冲的所有通道，让模版缓冲不会实际绘制
+     
+    // draw the first triangle as stencil
+    drawStencil()
+   
+    // draw the clipped triangle
+    gl.colorMask(1, 1, 1, 1); // 开启颜色缓冲的所有通道
+    drawTriangle()
+}
+
+function drawStencil() { // 绘制并设置模版缓冲
+    var color = [
+         0.5, 0.5, 0.5, 0.5,
+         0.5, 0.5, 0.5, 0.5,
+         0.5, 0.5, 0.5, 0.5
+    ];
+    var colorBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(color), gl.STATIC_DRAW);
+    var aColorPosition = gl.getAttribLocation(glProgram, 'aColor');
+    gl.vertexAttribPointer(aColorPosition, 4, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(aColorPosition);
+
+    var stencilVertex = [
+        -.2, -.5,  0,
+        .4,  -.5,  0,
+        .3,   .6,   0
+    ];
+    var vertexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(stencilVertex), gl.STATIC_DRAW);
+    var aVertexPosition = gl.getAttribLocation(glProgram, 'aPos');
+    gl.vertexAttribPointer(aVertexPosition, 3, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(aVertexPosition);
+
+    // - 模版缓冲设置与绘制
+    // Always pass test
+    let ref = 1 // 设置测试条件中的参考值
+    gl.stencilFunc(gl.ALWAYS, ref, 0xff); // glStencilFunc(GLenum func, GLint ref, GLuint mask)
+    gl.stencilOp(gl.KEEP, gl.KEEP, gl.REPLACE); // 模板测试和深度测试都通过时使用测试条件中的设定值来代替当前模板值（ref）
+    gl.clear(gl.STENCIL_BUFFER_BIT);
+    
+    gl.stencilMask(0xff); // 开启写入
+    gl.drawArrays(gl.TRIANGLES, 0, stencilVertex.length / 3); // 
+    gl.stencilMask(0x00); // 禁用写入
+
+    // Pass test if stencil value is 1 - 设置绘制后续对象的时候应该如何与模版缓冲中的片段进行对比
+    // 在绘制后续对象的片段的时候，其片段在模版缓冲中对应的部分为 1 时通过模版测试
+    gl.stencilFunc(gl.EQUAL, ref, 0xff);
+}
+
+function drawTriangle() { // 绘制渲染后续的对象
+    var color = [
+        1, 0, 0, 1,
+        0, 1, 0, 1,
+        0, 0, 1, 1
+    ];
+    var colorBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, colorBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(color), gl.STATIC_DRAW);
+    var aColorPosition = gl.getAttribLocation(glProgram, 'aColor');
+    gl.vertexAttribPointer(aColorPosition, 4, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(aColorPosition);
+
+    var vertex = [                  
+        -.5, -.2,  0,               
+        .5,  -.2,  0,               
+        0,   .6,   0                
+    ];
+    var vertexBuffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertex), gl.STATIC_DRAW);
+    var aVertexPosition = gl.getAttribLocation(glProgram, 'aPos');
+    gl.vertexAttribPointer(aVertexPosition, 3, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(aVertexPosition);
+
+    gl.drawArrays(gl.TRIANGLES, 0, vertex.length / 3);
+}
+
+window.onload = function(){
+    getGLContext();
+    initShaders();
+    setupBufferAndDraw();
+}
+</script>
+</body>
+</html>

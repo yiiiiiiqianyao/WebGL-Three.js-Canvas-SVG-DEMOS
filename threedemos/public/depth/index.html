@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <link rel="shortcut icon" href="../favicon.ico" />
+    <link rel="bookmark" href="../favicon.ico" />
+    <title>Document</title>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+      }
+    </style>
+    <script src="../src/three.js"></script>
+    <script src="../src/controller/OrbitControls.js"></script>
+    <script src="../src/libs/stats.min.js"></script>
+  </head>
+  <body></body>
+  <script type="x-shader/x-vertex" id="vertexShader">
+    varying vec2 vUv;
+    varying float depth;
+    void main() {
+        vUv = uv;
+        
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        depth = gl_Position.z / 200.0;
+    }
+    
+  </script>
+  <script type="x-shader/x-vertex" id="fragmentShader">
+
+    #include <packing>
+
+    precision highp float;
+    varying vec2 vUv;
+
+    float readDepth(float z ) {
+      float fragCoordZ = z;
+      float viewZ = perspectiveDepthToViewZ( fragCoordZ, 0.1, 200.0 );
+      return viewZToOrthographicDepth( viewZ, 0.1, 200.0 );
+      //return viewZToPerspectiveDepth(viewZ, 0.1, 200.0);
+    }
+   
+    varying float depth;
+    void main() {
+      float hex = abs(depth) * 16777215.0; // 0xffffff
+
+      float r = floor(hex / 65535.0);
+      float g = floor((hex - r * 65535.0) / 255.0);
+      float b = floor(hex - r * 65535.0 - g * 255.0);
+      float a = sign(depth) >= 0.0 ? 1.0 : 0.0; // depth大于等于0，为1.0；小于0，为0.0。
+      
+      //gl_FragColor = vec4(r / 255.0, g / 255.0, b / 255.0, a);
+      //gl_FragColor = vec4(vec3(depth), a);
+      gl_FragColor = vec4(readDepth(gl_FragCoord.z), .0, .0, 1.0);
+      //gl_FragColor = vec4(depth, .0, .0, 1.0);
+      //if(gl_FragCoord.z - 1.0 < 0.00001) {
+      //  gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+      //}else {
+      //  gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+      //}
+    }
+  </script>
+ 
+  <script>
+    var scene, camera, renderer, clock, controller, stats
+    var shader_material
+
+    init();
+    animate();
+
+    // - Functions -
+    function init() {
+      scene = new THREE.Scene();
+      clock = new THREE.Clock();
+      camera = new THREE.PerspectiveCamera(
+        45,
+        window.innerWidth / window.innerHeight,
+        0.1,
+        200
+      );
+      camera.position.set(10, 10, 10)
+      renderer = new THREE.WebGLRenderer({
+        antialias: true, // 开启抗锯齿处理
+        alpha: true,
+      });
+      renderer.setClearColor(0xbfd1e5) // set sky color
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(window.devicePixelRatio)
+      // renderer.shadowMap.enabled = true
+      var vpMatrix = camera.projectionMatrix.clone().multiply(camera.matrixWorldInverse)
+      shader_material = new THREE.ShaderMaterial( {
+        uniforms: {
+          vpMatrix: {
+            value: vpMatrix
+          }
+        },
+        vertexShader: document.getElementById( 'vertexShader' ).textContent,
+        fragmentShader: document.getElementById( 'fragmentShader' ).textContent,
+      } );
+
+      var axisHelper = new THREE.AxesHelper(10);
+      scene.add(axisHelper);
+     
+      var directionalLight = new THREE.DirectionalLight(0xffffff, 0.9);
+      directionalLight.position.set(400, 200, 300);
+      // directionalLight.castShadow = true
+      scene.add(directionalLight);
+      // 方向光2
+      var directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.9);
+      directionalLight2.position.set(-400, -200, -300);
+      scene.add(directionalLight2);
+      //环境光
+      var ambient = new THREE.AmbientLight(0x404040, 0.6);
+      scene.add(ambient);
+
+      stats = new Stats()
+      document.body.appendChild( stats.dom );
+
+      // --------
+      var geometry = new THREE.BoxBufferGeometry( 10, 10, 10 );
+      var cube = new THREE.Mesh( geometry, shader_material );
+      scene.add( cube );
+
+      // var cube2 = new THREE.Mesh( geometry, shader_material.clone() );
+      // cube2.position.z = 100
+      // scene.add( cube2 );
+      // --------
+
+      controller = new THREE.OrbitControls(camera, renderer.domElement);
+      document.body.appendChild(renderer.domElement);
+      window.onresize = onResize;
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      renderer.render(scene, camera);
+      stats.update();
+      controller.update(clock.getDelta());
+    }
+
+    function onResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+  </script>
+</html>

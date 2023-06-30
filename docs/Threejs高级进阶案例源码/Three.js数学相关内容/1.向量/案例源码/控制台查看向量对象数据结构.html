@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+
+<head>
+  <meta charset="utf-8">
+  <title></title>
+  <!--引入three.js三维引擎-->
+  <script src="http://www.yanhuangxueyuan.com/versions/threejsR92/build/three.js"></script>
+</head>
+
+<body>
+  <script>
+    // 创建一个三维向量，xyz分量分别为3, 5, 4
+    var v1 = new THREE.Vector3(3, 5, 4)
+    console.log('向量x分量', v1.x);
+    // 重置向量的z分量
+    v1.y = 80;
+    // 重新设置三个分量
+    v1.set(2,4,8);
+
+    // var geometry = new THREE.BoxGeometry(50,25,25);//立方体
+    var geometry = new THREE.SphereGeometry(50, 25, 25); //球体
+    console.log('几何体顶点位置坐标数据', geometry.vertices);
+    console.log('几何体三角形', geometry.faces);
+    console.log('几何体UV坐标', geometry.faceVertexUvs[0]);
+
+    var mesh = new THREE.Mesh();
+    mesh.position.set(100,20,330);//设置网格模型的位置
+    console.log('对象位置属性', mesh.position);
+    console.log('位置x轴坐标', mesh.position.x);
+    console.log('对象缩放属性', mesh.scale);
+    console.log('y方向缩放系数', mesh.scale.y);
+  </script>
+
+</body>
+
+</html>

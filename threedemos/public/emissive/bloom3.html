@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>three.js webgl - postprocessing - unreal bloom</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<style>
+			body {
+				color: #fff;
+				font-family:Monospace;
+				font-size:13px;
+				text-align:center;
+				background-color: #fff;
+				margin: 0px;
+				overflow: hidden;
+			}
+        </style>
+        <script src="../src/three.js"></script>
+        <script src="../src/controller/OrbitControls.js"></script>
+        <script src="../src/libs/EffectComposer.js"></script>
+        <script src="../src/libs/RenderPass.js"></script>
+        <script src="../src/libs/ShaderPass.js"></script>
+        <script src="../src/libs/CopyShader.js"></script>
+        <script src="../src/libs/LuminosityHighPassShader.js"></script>
+        <script src="../src/libs/UnrealBloomPass.js"></script>
+	</head>
+    <script type="x-shader/x-vertex" id="vertexShader">
+        varying vec2 vUv;
+        void main() {
+            vUv = uv;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+    </script>
+    <script type="x-shader/x-vertex" id="fragmentShader">
+        uniform vec3 bottomColor;
+        uniform vec3 topColor;
+        uniform float bottomOpacity;
+        uniform float topOpacity;
+        varying vec2 vUv;
+        void main() {
+            gl_FragColor = vec4(mix(bottomColor, topColor, vUv.y), mix(bottomOpacity, topOpacity, vUv.y));
+        }
+    </script>
+	<body>
+		<div id="container"></div>
+        
+		<script>
+			var scene, camera, controls, pointLight, stats;
+			var composer, renderer, mixer, mesh, mesh2, shader_material;
+			var params = {
+				exposure: 1,
+				bloomStrength: 3,
+				bloomThreshold: 0.1,
+				bloomRadius: 1
+			};
+			var clock = new THREE.Clock();
+			var container = document.getElementById( 'container' );
+			renderer = new THREE.WebGLRenderer( { antialias: true, alpha: true } );
+			renderer.setPixelRatio( window.devicePixelRatio );
+            // renderer.setClearColor('#00f')
+            // renderer.setClearAlpha(0)
+			renderer.setSize( window.innerWidth, window.innerHeight );
+			renderer.toneMapping = THREE.ReinhardToneMapping;
+			container.appendChild( renderer.domElement );
+
+			scene = new THREE.Scene();
+
+			camera = new THREE.PerspectiveCamera( 40, window.innerWidth / window.innerHeight, 1, 100 );
+			camera.position.set( -25, 25, - 3.5 );
+			scene.add( camera );
+
+			controls = new THREE.OrbitControls( camera, renderer.domElement );
+			controls.maxPolarAngle = Math.PI * 0.5;
+			// controls.minDistance = 1;
+			// controls.maxDistance = 10;
+
+             /**
+             * 光源设置
+             */
+            // 方向光1
+            var directionalLight = new THREE.DirectionalLight(0xffffff, 0.9);
+            directionalLight.position.set(400, 200, 300);
+            directionalLight.layers.enable(1)
+            scene.add(directionalLight);
+
+            let ambient = new THREE.AmbientLight(0xffffff, 1)
+            scene.add(ambient)
+
+			scene.add( new THREE.AmbientLight( 0x404040 ) );
+			pointLight = new THREE.PointLight( 0xffffff, 1 );
+			camera.add( pointLight );
+
+			var renderScene = new THREE.RenderPass( scene, camera );
+			var bloomPass = new THREE.UnrealBloomPass( new THREE.Vector2( window.innerWidth, window.innerHeight ), 1.5, 0.4, 0.85 );
+			bloomPass.threshold = params.bloomThreshold;
+			bloomPass.strength = params.bloomStrength;
+			bloomPass.radius = params.bloomRadius;
+			composer = new THREE.EffectComposer( renderer );
+			composer.setSize( window.innerWidth, window.innerHeight );
+			composer.addPass( renderScene );
+			composer.addPass( bloomPass );
+            animate();
+
+            // var sphereGeometry = new THREE.SphereGeometry(2,12,12)
+            var sphereGeometry = new THREE.BoxBufferGeometry( 1, 10, 1 );
+            var sphereMat = new THREE.MeshPhongMaterial({
+                transparent: true, 
+                opacity: 1,
+                color: new THREE.Color(1,1,0)
+            })
+            shader_material = new THREE.ShaderMaterial( {
+            uniforms: {
+                bottomColor: {
+                    type: "c",
+                    value: new THREE.Color().setStyle(('#ff0000').toLocaleLowerCase())
+                },
+                topColor: {
+                    type: "c",
+                    value: new THREE.Color().setStyle(('#ffff00').toLocaleLowerCase())
+                },
+                bottomOpacity: {
+                    type: "f",
+                    value: 0
+                },
+                topOpacity: {
+                    type: "f",
+                    value: 1.0
+                }
+            },
+            vertexShader: document.getElementById( 'vertexShader' ).textContent,
+            fragmentShader: document.getElementById( 'fragmentShader' ).textContent,
+            transparent: true,
+            depthTest: false,
+            side: THREE.DoubleSide
+        } );
+            mesh = new THREE.Mesh(sphereGeometry, sphereMat) // 发光
+            mesh.layers.set(1)
+            scene.add(mesh)
+
+            mesh2 = new THREE.Mesh(sphereGeometry, shader_material) // 不发光
+            mesh2.position.z = 10
+            // mesh2.layers.set(1)
+            scene.add(mesh2)
+
+			window.onresize = function () {
+				var width = window.innerWidth;
+				var height = window.innerHeight;
+				camera.aspect = width / height;
+				camera.updateProjectionMatrix();
+				renderer.setSize( width, height );
+				composer.setSize( width, height );
+			};
+			function animate() {
+				requestAnimationFrame( animate );
+             
+                if(mesh !== undefined) {
+                    
+                    renderer.render(scene, camera)
+                    renderer.autoClear = false
+                    camera.layers.set(1)
+                    composer.render()
+                    renderer.render(scene, camera)
+                    camera.layers.set(0)
+                    renderer.autoClear = true
+                }
+			}
+		</script>
+
+	</body>
+
+</html>

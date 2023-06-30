@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+<meta charset="utf-8">
+<title></title>
+  <link href="http://www.yanhuangxueyuan.com/markdown.css" rel="stylesheet" type="text/css">
+  </head>
+  <body>
+
+<h1 id="threejs-">Threejs层级模型的封装和解析</h1>
+<p>通过前面课程的学习你对Threejs的层级模型应该有一定的认识，具体说也就是根节点场景对象<code>Scene</code>和它的子孙对象构成的树结构。</p>
+<h3 id="-object3d-">基类<code>Object3D</code></h3>
+<p>基类<code>Object3D</code>封装了用于构建树结构的方法<code>.add()</code>和属性<code>.children</code></p>
+<h3 id="-">继承</h3>
+<p>场景对象<code>Scene</code>、组对象<code>Group</code>基类是<code>Object3D</code>，<code>Object3D</code>也是网格Mesh、点Points、线Line等模型对象的基类。</p>
+<p>可能有些学员会思考组对象<code>Group</code>和<code>Object3D</code>有什么区别，有些时候会混合使用，其实看一下源码就能明白，<code>Group</code>的基类是<code>Object3D</code>，基本没有扩展增加属性和方法，功能上没有什么区别，主要是<code>Group</code>更语义化，看到名字就知道什么意思。</p>
+<p>网格模型对象作为场景对象的子对象</p>
+<pre><code class="lang-JavaScript"><span class="hljs-keyword">var</span> mesh = <span class="hljs-keyword">new</span> THREE.Mesh(geometry, material);
+scene.add(mesh);
+</code></pre>
+<p>点光源添加到场景中</p>
+<pre><code class="lang-JavaScript"><span class="hljs-keyword">var</span> point = <span class="hljs-keyword">new</span> THREE.PointLight(<span class="hljs-number">0xffffff</span>);
+point.position.<span class="hljs-keyword">set</span>(<span class="hljs-number">400</span>, <span class="hljs-number">200</span>, <span class="hljs-number">300</span>);
+scene.add(point);
+</code></pre>
+<p>网格模型插入组对象，组对象插入场景中。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-keyword">var</span> leftEyeMesh = <span class="hljs-keyword">new</span> THREE.Mesh();
+<span class="hljs-keyword">var</span> rightEyeMesh = <span class="hljs-keyword">new</span> THREE.Mesh();
+
+<span class="hljs-keyword">var</span> headGroup = <span class="hljs-keyword">new</span> THREE.Group();
+headGroup.add(leftEyeMesh, rightEyeMesh);
+
+scene.add(headGroup);
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">'查看场景子对象'</span>,scene.children);
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">'查看headGroup的子对象'</span>,headGroup.children);
+</code></pre>
+<h3 id="-">递归算法</h3>
+<p>如果像你想通过阅读WebGLRenderer.js源码，了解Threejs渲染器是如何解析遍历场景对象Scene的所有子孙对象的，需要了解一下递归算法，如果你有数据结构和算法方面的基础，自然很熟悉，如果没有相关的基础最后学习了解一下。</p>
+<h3 id="-">树结构</h3>
+<ul>
+<li>树结构节点名字：基类<code>Object3D</code>的<code>.name</code>属性给节点命名</li>
+<li>递归遍历树结构：递归遍历方法<code>.traverse( callback )</code></li>
+<li>查找树节点：<code>.getObjectByName(name)</code>递归遍历对象的子对象返回与参数设置名字一致的对象</li>
+</ul>
+<h3 id="webgl-projectobject">WebGL渲染器函数projectObject</h3>
+<p>WebGLRenderer.js源码,在render函数中会调用projectObject函数</p>
+<pre><code class="lang-JavaScript"><span class="hljs-function">function <span class="hljs-title">projectObject</span>(<span class="hljs-params"><span class="hljs-keyword">object</span>, camera, sortObjects</span>) </span>{
+...
+<span class="hljs-comment">// 封装了递归算法，可以用来遍历树结构对象，比如场景对象Scene</span>
+  <span class="hljs-keyword">var</span> children = <span class="hljs-keyword">object</span>.children;
+  <span class="hljs-comment">// 递归算法遍历场景对象</span>
+  <span class="hljs-keyword">for</span> (<span class="hljs-keyword">var</span> i = <span class="hljs-number">0</span>, l = children.length; i &lt; l; i++) {
+projectObject(children[i], camera, sortObjects);
+  }
+}
+</code></pre>
+<p>WebGLRenderer.js源码,projectObject函数会递归遍历场景对象进行分类</p>
+<pre><code class="lang-JavaScript"><span class="hljs-keyword">this</span>.render=<span class="hljs-function"><span class="hljs-keyword">function</span>(<span class="hljs-params"></span>)</span>{
+  ...
+  <span class="hljs-comment">// 遍历场景对象，并对场景对象中的节点进行分类，比如光源对象，比如模型对象</span>
+  projectObject(scene, camera, _this.sortObjects);
+  ...
+}
+</code></pre>
+<p>projectObject函数对象递归遍历到的子对象节点进行分类处理，然后WebGL渲染器在对象分类好的不同对象进行渲染器解析，关于进一步的渲染解析过程这里不讲解。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// currentRenderList对象用于存储点、线和和网格模型的对象</span>
+<span class="hljs-keyword">var</span> currentRenderList = renderLists = <span class="hljs-keyword">new</span> WebGLRenderLists();
+currentRenderList = renderLists.<span class="hljs-keyword">get</span>(scene, camera);
+<span class="hljs-comment">// currentRenderList对象用于存储光源、点精灵等对象</span>
+<span class="hljs-keyword">var</span> currentRenderStaterenderStates = <span class="hljs-keyword">new</span> WebGLRenderStates();
+currentRenderState = renderStates.<span class="hljs-keyword">get</span>(scene, camera);
+
+<span class="hljs-comment">// 对象Scene的后代节点对象进行分类处理</span>
+<span class="hljs-function">function <span class="hljs-title">projectObject</span>(<span class="hljs-params"><span class="hljs-keyword">object</span>, camera, sortObjects</span>) </span>{
+...
+  <span class="hljs-keyword">if</span> (visible) {
+<span class="hljs-comment">// 判断对象是不是光源对象，是的话插入WebGL渲染状态对象的state属性中</span>
+<span class="hljs-keyword">if</span> (<span class="hljs-keyword">object</span>.isLight) {
+  <span class="hljs-comment">//光源信息插入到currentRenderState对象的.state.lightsArray属性中</span>
+  currentRenderState.pushLight(<span class="hljs-keyword">object</span>);
+}
+<span class="hljs-comment">// 判断对象是不是精灵对象</span>
+<span class="hljs-function"><span class="hljs-keyword">else</span> <span class="hljs-title">if</span> (<span class="hljs-params"><span class="hljs-keyword">object</span>.isSprite</span>) </span>{
+<span class="hljs-comment">//光源信息插入到currentRenderState对象的.state.spritesArray属性中</span>
+currentRenderState.pushSprite(<span class="hljs-keyword">object</span>);
+}
+ <span class="hljs-function"><span class="hljs-keyword">else</span> <span class="hljs-title">if</span> (<span class="hljs-params"><span class="hljs-keyword">object</span>.isMesh || <span class="hljs-keyword">object</span>.isLine || <span class="hljs-keyword">object</span>.isPoints</span>) </span>{
+  <span class="hljs-comment">// 把模型对象相关信息批量存储到currentRenderList对象</span>
+  currentRenderList.push(<span class="hljs-keyword">object</span>, geometry, material, _vector3.z, <span class="hljs-keyword">null</span>);
+}
+
+  }
+}
+</code></pre>
+<div class="">
+  <a href="http://www.yanhuangxueyuan.com/">作者技术博客</a>
+</div>
+  </body>
+</html>

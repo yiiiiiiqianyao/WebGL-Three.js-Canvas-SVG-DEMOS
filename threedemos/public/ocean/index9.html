@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <style>
+        body{
+            margin: 0;
+            overflow: hidden;
+        }
+    </style>
+    <script src="../src/three.js"></script>
+    <script src="../src/controller/OrbitControls.js"></script>
+    <script type="x-shader/x-vertex" id="vertexShader">
+        varying vec2 vUv;
+
+        void main() {
+    
+          vUv = uv;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+    
+        }
+      </script>
+      <script type="x-shader/x-vertex" id="fragmentShader">
+
+        #ifdef GL_ES
+        precision mediump float;
+        #endif
+
+        #define PI 3.14159265359
+
+        mat2 rotate2d(float _angle){
+            return mat2(cos(_angle),-sin(_angle),
+                        sin(_angle),cos(_angle));
+        }
+
+        float random (vec2 st) {
+            return fract(sin(dot(st.xy,
+                                vec2(12.9898,78.233)))*
+                43758.5453123);
+        }
+
+        // Based on Morgan McGuire @morgan3d
+        // https://www.shadertoy.com/view/4dS3Wd
+        float noise (in vec2 st) {
+            vec2 i = floor(st);
+            vec2 f = fract(st);
+
+            // Four corners in 2D of a tile
+            float a = random(i);
+            float b = random(i + vec2(1.0, 0.0));
+            float c = random(i + vec2(0.0, 1.0));
+            float d = random(i + vec2(1.0, 1.0));
+
+            vec2 u = f * f * (3.0 - 2.0 * f);
+
+            return mix(a, b, u.x) +
+                    (c - a)* u.y * (1.0 - u.x) +
+                    (d - b) * u.x * u.y;
+        }
+
+        #define OCTAVES 6
+        float fbm (in vec2 st) {
+            // Initial values
+            float value = 0.0;
+            float amplitude = .5;
+            float frequency = 0.;
+            //
+            // Loop of octaves
+            for (int i = 0; i < OCTAVES; i++) {
+                value += amplitude * noise(st);
+                st *= 1.4;
+                amplitude *= .5;
+            }
+            return value;
+        }
+        
+        uniform sampler2D tex;
+        uniform float time;
+        uniform vec3 color;
+        varying vec2 vUv;
+
+        void main() {
+
+            vec2 coords1 = rotate2d( .9*PI ) * vUv;
+            vec2 coords2 = rotate2d( .06*PI ) * vUv;
+
+            coords1.x += time*0.1;
+            coords1.y -= time*0.3;
+            
+            coords2.x -= time*0.1;
+            coords2.y -= time*0.2;
+
+            float wave1 = fbm(vec2(coords1.x*30.0,coords1.y*3.0));
+            float wave2 = fbm(vec2(coords2.x*30.0,coords2.y*3.0));
+            
+            float combinedWaves = mix(wave1,wave2,0.5);
+            
+            combinedWaves = pow(combinedWaves,2.0);
+            
+            vec4 samp1 = vec4(combinedWaves);
+            vec2 disp = vUv;
+            disp.x += samp1.x * 0.08;
+            vec4 samp2 = texture2D(tex, disp);
+    
+            gl_FragColor = vec4(mix(samp2, samp1, 0.5).rgb * color, 1.0);
+        }
+      </script>
+</head>
+<body>
+    <div style="position: absolute;top: 0;left: 0;">
+        <input type="range" oninput="input(this)">
+    </div>
+</body>
+<script>
+    var percent = 0.5
+    function input(e) {
+        percent = e.value/100
+    }
+    var scene, camera, renderer, clock, controlller
+    var geometry, material, water, shadermaterial
+    var time = 0.0;
+
+    init()
+    animate()
+
+    // - Functions -
+    function init(){
+        scene = new THREE.Scene()
+        scene.background = new THREE.Color(percent, percent, percent)
+
+        clock = new THREE.Clock();
+        camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000000)
+        camera.position.set(100, 100, 100)
+        renderer = new THREE.WebGLRenderer({    
+            antialias:true, // 开启抗锯齿处理
+            alpha:true
+        })
+        renderer.setSize(window.innerWidth,window.innerHeight)
+      
+        // var waterGeometry = new THREE.PlaneBufferGeometry( 200, 200);
+        var waterGeometry = new THREE.CircleBufferGeometry( 20, 32 );
+     
+        shadermaterial = new THREE.ShaderMaterial( {
+            uniforms: {
+                time: {
+                    value: 0
+                },
+                color: {
+                    value: new THREE.Color('rgb(80, 170, 200)'),
+                },
+                tex: {
+                    value: new THREE.TextureLoader().load('./background.jpg')
+                }
+            },
+            vertexShader:   document.getElementById( 'vertexShader'   ).textContent,
+            fragmentShader: document.getElementById( 'fragmentShader' ).textContent,
+            // side: THREE.FrontSide,
+            // blending: THREE.AdditiveBlending,
+            transparent: true,
+            opacity: 0.5
+      })
+      var water = new THREE.Mesh(waterGeometry, shadermaterial)
+      water.rotation.x = -Math.PI/2
+      scene.add(water)
+      
+
+        var axisHelper = new THREE.AxesHelper( 10 )
+        scene.add( axisHelper )
+
+        /**
+            * 光源设置
+            */
+        // 方向光1
+        var directionalLight = new THREE.DirectionalLight(0xffffff, 9);
+        directionalLight.position.set(400, 200, 300);
+        // directionalLight.castShadow = true
+        scene.add(directionalLight);
+        // 方向光2
+        var directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.9);
+        directionalLight2.position.set(-400, -200, -300);
+        scene.add(directionalLight2);
+        //环境光
+        var ambient = new THREE.AmbientLight(0xffffff, 10);
+        scene.add(ambient);
+
+        controlller = new THREE.OrbitControls(camera,renderer.domElement)
+        document.body.appendChild(renderer.domElement)
+        window.onresize = onResize
+    }
+
+    function animate(){
+        scene.background = new THREE.Color(percent, percent, percent)
+        var time = performance.now() * 0.001;
+        shadermaterial.uniforms[ 'time' ].value += 1.0 / 60.0;
+        requestAnimationFrame(animate)
+        renderer.render(scene, camera)
+        controlller.update(clock.getDelta())
+    }
+
+    function onResize() {
+        camera.aspect = window.innerWidth / window.innerHeight
+        camera.updateProjectionMatrix()
+        renderer.setSize(window.innerWidth, window.innerHeight)
+    }
+</script>
+</html>

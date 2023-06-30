@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+<meta charset="utf-8">
+<title></title>
+  <link href="http://www.yanhuangxueyuan.com/markdown.css" rel="stylesheet" type="text/css">
+  </head>
+  <body>
+<h1 id="-">场景子对象具体的分类结果</h1>
+<p>Three.js渲染器执行渲染方法<code>.render()</code>时候会遍历场景对象，然后对场景对象的后代进行分类，然后把同类的对象进行集中存储，然后再渲染分类好的对象。</p>
+<p>学习本节课需要简单阅读下WebGLRenderLists.js和WebGLRenderStates.js源码文件，渲染器文件WebGLRenderer.js封装的projectObject函数和<code>.render()</code>方法</p>
+<h3 id="webglrenderlists-js">WebGLRenderLists.js</h3>
+<p>执行WebGLRenderLists对象的<code>.get()</code>方法会返回一个对象，返回对象具有<code>.opaque</code>和<code>.transparent</code>属性，<code>.push</code>、<code>.init</code>和<code>.sort</code>方法。</p>
+<p><code>.opaque</code>和<code>.transparent</code>属性的值是数组对象，用来存储场景下所有的点线网格模型。</p>
+<p><code>.push</code>方法，执行该方法会把模型对象相关的信息插入到<code>.opaque</code>或<code>.transparent</code>属性值数组中</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// WebGLRenderLists.js源码</span>
+<span class="hljs-comment">// object：点Points、线Line或网格Mesh模型对象</span>
+<span class="hljs-comment">// geometry：WebGLObjects.js的封装的`.update()`方法返回的`BufferGeometry`</span>
+<span class="hljs-comment">// material：模型对象的材质属性值，比如点材质、高光网格材质等等</span>
+<span class="hljs-function">function <span class="hljs-title">push</span>(<span class="hljs-params"> <span class="hljs-keyword">object</span>, geometry, material, z, <span class="hljs-keyword">group</span> </span>) </span>{
+  <span class="hljs-keyword">var</span> opaque = [];
+  <span class="hljs-keyword">var</span> transparent = [];
+  ...
+  <span class="hljs-comment">// 一个模型对象的相关信息构成的对象作为.opaque属性或.transparent属性的元素</span>
+  renderItem = {
+id: <span class="hljs-keyword">object</span>.id,
+<span class="hljs-keyword">object</span>: <span class="hljs-keyword">object</span>,
+geometry: geometry,
+material: material,
+program: material.program,
+renderOrder: <span class="hljs-keyword">object</span>.renderOrder,
+z: z,
+<span class="hljs-keyword">group</span>: <span class="hljs-keyword">group</span>
+  };
+  ...
+  <span class="hljs-comment">// 判断材质是否开启透明，如果开启，则把renderItem对象归类到透明数组transparent中</span>
+  <span class="hljs-comment">// 如果transparent是flase，则把renderItem对象插入到不透明数组opaque中</span>
+  <span class="hljs-comment">// transparent === false执行opaque.push( renderItem )</span>
+  <span class="hljs-comment">// transparent === true执行transparent.push( renderItem )</span>
+  ( material.transparent === <span class="hljs-keyword">true</span> ? transparent : opaque ).push( renderItem );
+}
+</code></pre>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// WebGLRenderer.js源码</span>
+<span class="hljs-keyword">var</span> renderLists = <span class="hljs-keyword">new</span> WebGLRenderLists();
+currentRenderList = renderLists.<span class="hljs-keyword">get</span>(scene, camera);
+
+<span class="hljs-comment">// 调用对象的方法</span>
+<span class="hljs-function">function <span class="hljs-title">projectObject</span>(<span class="hljs-params"><span class="hljs-keyword">object</span>, camera, sortObjects</span>) </span>{
+  ...
+  <span class="hljs-function"><span class="hljs-keyword">else</span> <span class="hljs-title">if</span> (<span class="hljs-params"><span class="hljs-keyword">object</span>.isMesh || <span class="hljs-keyword">object</span>.isLine || <span class="hljs-keyword">object</span>.isPoints</span>) </span>{
+<span class="hljs-comment">// 把模型对象相关信息批量存储到currentRenderList对象</span>
+currentRenderList.push(<span class="hljs-keyword">object</span>, geometry, material, _vector3.z, <span class="hljs-keyword">null</span>);
+  }
+  ...
+}
+
+<span class="hljs-comment">// 访问对象属性中的数据</span>
+<span class="hljs-keyword">this</span>.render=function(){
+  <span class="hljs-comment">// material.transparent=false，对象材质未开启透明</span>
+  <span class="hljs-keyword">var</span> opaqueObjects = currentRenderList.opaque;
+  <span class="hljs-comment">// material.transparent=true，对象材质开启透明</span>
+  <span class="hljs-keyword">var</span> transparentObjects = currentRenderList.transparent;
+}
+</code></pre>
+<h3 id="webglrenderstates-js">WebGLRenderStates.js</h3>
+<p>执行WebGLRenderStates对象的<code>.get()</code>方法会返回一个对象，返回对象具有<code>.state</code>属性，<code>.pushLight</code>、<code>.pushSprite</code>等方法。</p>
+<p><code>.state</code>属性类似<code>.opaque</code>和<code>.transparent</code>属性用来存储场景中的部分对象，<code>.state.lightsArray</code>属性存储所有光源对象，<code>.state.spritesArray</code>属性存储所有精灵模型对象。</p>
+<p><code>.pushLight()</code>、<code>.pushSprite()</code>等方法类似WebGLRenderLists的<code>.push</code>方法，<code>.pushLight()</code>方法用于光源对象归类，把参数光源对象存储到<code>.state.lightsArray</code>属性数组中，<code>.pushSprite()</code>方法用于精灵模型对象归类，参数精灵模型对象存储到<code>.state.spritesArray</code>属性数组中，</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// WebGLRenderStates.js源码</span>
+<span class="hljs-keyword">var</span> lightsArray = [];
+<span class="hljs-keyword">var</span> spritesArray = [];
+
+<span class="hljs-comment">// 插入光源数组函数</span>
+<span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">pushLight</span>(<span class="hljs-params"> light </span>) </span>{
+lightsArray.push( light );
+}
+<span class="hljs-comment">// 精灵</span>
+<span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">pushSprite</span>(<span class="hljs-params"> shadowLight </span>) </span>{
+spritesArray.push( shadowLight );
+}
+  <span class="hljs-comment">// 存储光源对象、精灵模型对象....</span>
+<span class="hljs-keyword">var</span> state = {
+lightsArray: lightsArray,
+shadowsArray: shadowsArray,
+spritesArray: spritesArray,
+};
+  <span class="hljs-comment">// 返回值</span>
+<span class="hljs-keyword">return</span> {
+state: state,
+pushLight: pushLight,
+pushSprite: pushSprite
+};
+</code></pre>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// WebGLRenderer.js源码</span>
+<span class="hljs-keyword">var</span> renderStates = <span class="hljs-keyword">new</span> WebGLRenderStates();
+currentRenderState = renderStates.<span class="hljs-keyword">get</span>(scene, camera);
+
+<span class="hljs-comment">// 调用对象的方法</span>
+<span class="hljs-function">function <span class="hljs-title">projectObject</span>(<span class="hljs-params"><span class="hljs-keyword">object</span>, camera, sortObjects</span>) </span>{
+  ...
+  <span class="hljs-keyword">if</span> (<span class="hljs-keyword">object</span>.isLight) {
+<span class="hljs-comment">//光源信息插入到currentRenderState对象的.state.lightsArray属性中</span>
+currentRenderState.pushLight(<span class="hljs-keyword">object</span>);
+  }
+  <span class="hljs-comment">// 判断对象是不是精灵对象</span>
+  <span class="hljs-function"><span class="hljs-keyword">else</span> <span class="hljs-title">if</span> (<span class="hljs-params"><span class="hljs-keyword">object</span>.isSprite</span>) </span>{
+  <span class="hljs-comment">//光源信息插入到currentRenderState对象的.state.spritesArray属性中</span>
+  currentRenderState.pushSprite(<span class="hljs-keyword">object</span>);
+  }
+  ...
+}
+
+<span class="hljs-comment">// 访问对象属性中的数据</span>
+<span class="hljs-keyword">this</span>.render=function(){
+  <span class="hljs-keyword">var</span> spritesArray = currentRenderState.state.spritesArray;
+}
+
+<span class="hljs-function">function <span class="hljs-title">initMaterial</span>(<span class="hljs-params">material, fog, <span class="hljs-keyword">object</span></span>) </span>{
+  <span class="hljs-keyword">var</span> lights = currentRenderState.state.lights;
+  <span class="hljs-keyword">var</span> shadowsArray = currentRenderState.state.shadowsArray;
+}
+</code></pre>
+<h3 id="-projectobject-"><code>projectObject</code>函数</h3>
+<p>阅读WebGLRenderer.js源码封装的<code>projectObject</code>函数了解分类过程。</p>
+<p>projectObject函数对象递归遍历到的子对象节点进行分类处理，然后WebGL渲染器在对象分类好的不同对象进行渲染器解析，关于进一步的渲染解析过程这里不讲解。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// 对象Scene的后代节点对象进行分类处理</span>
+<span class="hljs-function">function <span class="hljs-title">projectObject</span>(<span class="hljs-params"><span class="hljs-keyword">object</span>, camera, sortObjects</span>) </span>{
+...
+  <span class="hljs-keyword">if</span> (visible) {
+<span class="hljs-comment">// 判断对象是不是光源对象，是的话插入WebGL渲染状态对象的state属性中</span>
+<span class="hljs-keyword">if</span> (<span class="hljs-keyword">object</span>.isLight) {
+  <span class="hljs-comment">//光源信息插入到currentRenderState对象的.state.lightsArray属性中</span>
+  currentRenderState.pushLight(<span class="hljs-keyword">object</span>);
+}
+<span class="hljs-comment">// 判断对象是不是精灵对象</span>
+<span class="hljs-function"><span class="hljs-keyword">else</span> <span class="hljs-title">if</span> (<span class="hljs-params"><span class="hljs-keyword">object</span>.isSprite</span>) </span>{
+<span class="hljs-comment">//光源信息插入到currentRenderState对象的.state.spritesArray属性中</span>
+currentRenderState.pushSprite(<span class="hljs-keyword">object</span>);
+}
+ <span class="hljs-function"><span class="hljs-keyword">else</span> <span class="hljs-title">if</span> (<span class="hljs-params"><span class="hljs-keyword">object</span>.isMesh || <span class="hljs-keyword">object</span>.isLine || <span class="hljs-keyword">object</span>.isPoints</span>) </span>{
+  <span class="hljs-comment">// 把模型对象相关信息批量存储到currentRenderList对象</span>
+  currentRenderList.push(<span class="hljs-keyword">object</span>, geometry, material, _vector3.z, <span class="hljs-keyword">null</span>);
+}
+
+  }
+}
+</code></pre>
+<h3 id="webglobjects-update-">WebGLObjects的<code>.update()</code>方法</h3>
+<p>执行<code>projectObject</code>函数会调用WebGLObjects.js的封装的<code>.update()</code>方法，调用改变方法会解析点线面网格模型对象的几何体Geometry数据，如果是Geometry会转化为BufferGeometry,然后从BufferGeometry提取顶点数据，并传入创建的顶点缓冲区，更多详细内容参考本章第5节“5.解析几何体提取顶点数据”。</p>
+<p>执行WebGLObjects.js的封装的<code>.update()</code>方法的返回值是<code>BufferGeometry</code>.</p>
+<p>执行完push方法，currentRenderList.transparent或currentRenderList.opaque数组元素的geometry属性值是BufferGeometry。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// 对象Scene的后代节点对象进行分类处理</span>
+<span class="hljs-function">function <span class="hljs-title">projectObject</span>(<span class="hljs-params"><span class="hljs-keyword">object</span>, camera, sortObjects</span>) </span>{
+  <span class="hljs-keyword">var</span> geometry = objects.update(<span class="hljs-keyword">object</span>);
+  <span class="hljs-keyword">var</span> material = <span class="hljs-keyword">object</span>.material;
+  <span class="hljs-comment">// 把模型对象相关信息批量存储到currentRenderList对象</span>
+  currentRenderList.push(<span class="hljs-keyword">object</span>, geometry, material, _vector3.z, <span class="hljs-keyword">null</span>);
+}
+</code></pre>
+<h3 id="webglrenderer-js-render-">WebGLRenderer.js的<code>.render()</code>方法</h3>
+<p>WebGLRenderer.js渲染方法<code>.render()</code>，先调用<code>projectObject</code>函数对场景的后代对象进行分类，然后调用<code>renderObjects</code>函数渲染场景中所有的点、线、网格模型对象。</p>
+<p>gl.drawArrays——&gt;WebGLBufferRenderer.js——&gt;renderBufferDirect——&gt;renderObject——&gt;renderObjects——&gt;render</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// WebGLRenderer.js源码</span>
+<span class="hljs-comment">// currentRenderList对象用于存储点、线和和网格模型的对象</span>
+<span class="hljs-keyword">var</span> renderLists = <span class="hljs-keyword">new</span> WebGLRenderLists();
+currentRenderList = renderLists.get(scene, camera);
+<span class="hljs-comment">// currentRenderList对象用于存储光源、点精灵等对象</span>
+<span class="hljs-keyword">var</span> renderStates = <span class="hljs-keyword">new</span> WebGLRenderStates();
+currentRenderState = renderStates.get(scene, camera);
+
+<span class="hljs-keyword">this</span>.render=<span class="hljs-function"><span class="hljs-keyword">function</span>(<span class="hljs-params"></span>)</span>{
+
+  <span class="hljs-comment">// 场景的后代对象分类</span>
+  ...
+  <span class="hljs-comment">// 遍历场景对象，并对场景对象中的节点进行分类，比如光源对象，比如模型对象</span>
+  projectObject(scene, camera, _this.sortObjects);
+  ...
+
+  <span class="hljs-comment">// 渲染模型对象</span>
+
+  <span class="hljs-comment">// material.transparent=false，对象材质未开启透明</span>
+  <span class="hljs-keyword">var</span> opaqueObjects = currentRenderList.opaque;
+  <span class="hljs-comment">// material.transparent=true，对象材质开启透明</span>
+  <span class="hljs-keyword">var</span> transparentObjects = currentRenderList.transparent;
+  <span class="hljs-comment">// 渲染材质未开启透明的模型对象集合</span>
+  renderObjects(opaqueObjects, scene, camera);
+  <span class="hljs-comment">// 渲染材质开启透明的模型对象集合</span>
+  renderObjects(transparentObjects, scene, camera);
+}
+</code></pre>
+<div class="">
+  <a href="http://www.yanhuangxueyuan.com/">作者技术博客</a>
+</div>
+
+  </body>
+</html>

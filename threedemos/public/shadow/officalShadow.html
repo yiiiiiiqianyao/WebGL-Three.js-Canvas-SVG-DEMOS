@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <link rel="shortcut icon" href="../favicon.ico" />
+    <link rel="bookmark" href="../favicon.ico" />
+    <title>Document</title>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+      }
+    </style>
+    <script src="../src/three.js"></script>
+    <script src="../src/controller/OrbitControls.js"></script>
+    <script src="../src/libs/stats.min.js"></script>
+  </head>
+  <body></body>
+ 
+  <script>
+    var scene, camera, renderer, clock, controller, stats
+    var shader_material, plane, cubebox
+
+    init();
+    animate();
+
+    // - Functions -
+    function init() {
+        scene = new THREE.Scene();
+        clock = new THREE.Clock();
+        camera = new THREE.PerspectiveCamera(
+            45,
+            window.innerWidth / window.innerHeight,
+            0.1,
+            1000
+        );
+        camera.position.set(100, 100, 100)
+        renderer = new THREE.WebGLRenderer({
+            antialias: true, // 开启抗锯齿处理
+            alpha: true,
+            logarithmicDepthBuffer: true
+        });
+        renderer.setClearColor(0xbfd1e5) // set sky color
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio)
+        // console.log(renderer.shadowMap)
+        renderer.shadowMap.enabled = true
+        // renderer.shadowMap.autoUpdate = false
+        // renderer.shadowMap.needsUpdate = true
+        
+        // renderer.shadowMapType=THREE.PCFSoftShadowMap;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap
+
+        // console.log(renderer.capabilities.maxTextureSize)
+
+        var axisHelper = new THREE.AxesHelper(10);
+        scene.add(axisHelper);
+        
+        var directionalLight = new THREE.DirectionalLight(0xffffff, 0.9);
+        directionalLight.position.set(400, 200, 300);
+        // directionalLight.castShadow = true
+        scene.add(directionalLight);
+        
+        stats = new Stats()
+        document.body.appendChild( stats.dom );
+
+        var cubegeometry = new THREE.BoxBufferGeometry( 1, 1, 1 );
+        var cubematerial = new THREE.MeshPhongMaterial( {color: 0x00ff00} );
+        // cubematerial.needsUpdate = false
+        cubebox = new THREE.Mesh( cubegeometry, cubematerial );
+        cubebox.position.y = 3
+        
+        cubebox.castShadow = true
+        cubebox.receiveShadow = true;
+        scene.add( cubebox );
+
+        // --------
+        for(let i = 0;i < 5;i++) {
+            var cubegeometry = new THREE.BoxBufferGeometry( 1, 1, 1 );
+            var cubematerial = new THREE.MeshPhongMaterial( {color: 0x00ff00} );
+            // cubematerial.needsUpdate = false
+            var cube = new THREE.Mesh( cubegeometry, cubematerial );
+            cube.position.y = Math.random() * 50
+            cube.position.x = Math.random()*(-100) + 50
+            cube.position.z = Math.random()*(-100) + 50
+            cube.castShadow = true
+            cube.receiveShadow = true;
+            scene.add( cube );
+        }
+       
+
+        var light = new THREE.PointLight( 0xff0000 );
+        light.position.set( 50, 50, 50 )
+        light.shadow.bias = -0.005
+        // light.shadow.radius = 12
+        light.castShadow = true
+        // 128,256，512，2048
+        // light.shadow.mapSize.width = 2048;
+        // light.shadow.mapSize.height = 2048;
+
+        scene.add( light );
+
+        var planegeometry = new THREE.PlaneBufferGeometry( 200, 200 );
+        var planematerial = new THREE.MeshPhongMaterial( {color: 0xffffff} );
+       
+        plane = new THREE.Mesh(planegeometry, planematerial)
+        plane.receiveShadow = true
+        plane.rotation.x = -Math.PI/2
+        scene.add(plane)
+
+        // --------
+
+        controller = new THREE.OrbitControls(camera, renderer.domElement);
+        document.body.appendChild(renderer.domElement);
+        window.onresize = onResize;
+        
+    }
+
+    function animate() {
+        requestAnimationFrame(animate);
+        renderer.render(scene, camera);
+        stats.update();
+        controller.update(clock.getDelta());
+        cubebox && (cubebox.rotation.y += 0.01)
+    }
+
+
+    function onResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+  </script>
+</html>

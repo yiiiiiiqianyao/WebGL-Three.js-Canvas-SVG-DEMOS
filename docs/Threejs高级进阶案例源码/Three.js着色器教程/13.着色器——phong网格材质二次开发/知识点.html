@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+<meta charset="utf-8">
+<title></title>
+  <link href="http://www.yanhuangxueyuan.com/markdown.css" rel="stylesheet" type="text/css">
+  </head>
+  <body>
+
+<h1 id="-phong-">着色器——phong网格材质二次开发</h1>
+<p>通过着色器材质<code>ShaderMaterial</code>编写着色器代码自定义一个材质对象，保证材质对象实现高光网格材质<code>MeshPhongMaterial</code>的功能，同时增加灰度计算的功能。</p>
+<h4 id="-">实现思路</h4>
+<p>完全重新编写<code>ShaderMaterial</code>的着色器代码比较麻烦，可以复制Three.js高光网格材质<code>MeshPhongMaterial</code>对应的顶点着色器代码meshphong_vert.glsl和片元着色器代码meshphong_frag.glsl，然后在复制的代码基础上进行改写。灰度计算代码属于片元着色器代码，所以只需要修改片元着色器代码meshphong_frag.glsl即可。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-keyword">var</span> material = <span class="hljs-keyword">new</span> THREE.ShaderMaterial({
+  <span class="hljs-comment">// 通过THREE.ShaderLib获得MeshPhongMaterial材质对象的uniforms值</span>
+  <span class="hljs-comment">// 用于给着色器中的uniform变量传值</span>
+  uniforms: THREE.ShaderLib[<span class="hljs-string">'phong'</span>].uniforms,
+  <span class="hljs-comment">// 顶点着色器</span>
+  vertexShader: THREE.ShaderChunk[<span class="hljs-string">'meshphong_vert'</span>],
+  <span class="hljs-comment">// 片元着色器</span>
+  fragmentShader: <span class="hljs-built_in">document</span>.getElementById(<span class="hljs-string">'fragmentShader'</span>).textContent,
+});
+</code></pre>
+<h4 id="meshphong_frag-glsl-">meshphong_frag.glsl修改</h4>
+<p>复制meshphong_frag.glsl着色器代码，然后增加一个灰度计算的功能</p>
+<pre><code class="lang-JavaScript">&lt;script id=<span class="hljs-string">"fragmentShader"</span> type=<span class="hljs-string">"x-shader/x-fragment"</span>&gt;
+<span class="hljs-meta">#<span class="hljs-meta-keyword">define</span> PHONG</span>
+uniform vec3 diffuse;
+...
+uniform <span class="hljs-keyword">float</span> opacity;
+<span class="hljs-meta">#include &lt;common&gt;</span>
+...
+...
+<span class="hljs-meta">#include &lt;envmap_fragment&gt;</span>
+<span class="hljs-comment">// 原来的给片元赋值的代码注释，重新编写加入灰度计算功能</span>
+<span class="hljs-comment">// gl_FragColor = vec4( outgoingLight, diffuseColor.a );</span>
+
+<span class="hljs-comment">//计算RGB三个分量光能量之和，也就是亮度</span>
+<span class="hljs-keyword">float</span> luminance = <span class="hljs-number">0.299</span>*outgoingLight.r+<span class="hljs-number">0.587</span>*outgoingLight.g+<span class="hljs-number">0.114</span>*outgoingLight.b;
+<span class="hljs-comment">//逐片元赋值，RGB相同均为亮度值，用黑白两色表达图片的明暗变化</span>
+gl_FragColor = vec4(luminance,luminance,luminance,diffuseColor.a);
+
+...
+...
+&lt;/script&gt;
+</code></pre>
+<div class="">
+  <a href="http://www.yanhuangxueyuan.com/">作者技术博客</a>
+</div>
+  </body>
+</html>

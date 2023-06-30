@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <script src="../src/webgl_lib/webgl-utils.js"></script>
+    <script src="../src/webgl_lib/webgl-debug.js"></script>
+    <script src="../src/webgl_lib/cuon-utils.js"></script>
+    <script src="../src/webgl_lib/cuon-matrix.js"></script>
+    <style>
+        #canvas{
+            display: block;
+            margin: 0 auto;
+            border: 1px solid;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas" width="800px" height="600px"></canvas>
+</body>
+<script>
+    var canvas = document.getElementById('canvas')
+    canvas.width = 800
+    canvas.height = 600
+    
+    // 获取 webgl 绘图上下文
+    var gl = getWebGLContext(canvas)
+    if(!gl) { 
+        console.log('not support')
+    }
+
+    // 获取着色器片段
+    var vertexShader = getPointVSHADER()
+    var fragmentShader = getPointFSHADER()
+
+    // 初始化着色器
+    if(!initShaders(gl, vertexShader, fragmentShader)){   // initShaders => true : 创建成功, false : 创建失败
+        console.log('failed initShader')
+    }
+
+    gl.clearColor(0.0, 1.0, 1.0, 1.0) // 指定清空 canvas 的颜色 (背景色)
+    gl.clear(gl.COLOR_BUFFER_BIT) // 清空 canvas 
+
+    let shaderAttriPos = gl.getAttribLocation(gl.program, "aPos")
+    if(shaderAttriPos < 0) {
+        console.log("failed get pos attribute location")
+    }
+
+    drawPoint(0, 0, 0)
+    drawPoint(0, 0.5, 0)
+
+    function drawPoint(posX, posY, posZ) {
+        gl.vertexAttrib3f(shaderAttriPos, posX, posY, posZ)
+        gl.drawArrays(gl.POINTS, 0, 1)
+    }
+
+    function getPointVSHADER(){
+        return `
+            attribute vec3 aPos;
+            void main(){
+                gl_Position = vec4(aPos, 1.0);
+                gl_PointSize = 10.0;
+            }
+        `
+    }
+
+    function getPointFSHADER(){
+        return `
+            void main(){
+                gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+            }
+        `
+    }
+  
+</script>
+</html>

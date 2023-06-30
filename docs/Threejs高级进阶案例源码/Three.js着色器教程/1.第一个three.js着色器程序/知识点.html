@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+<meta charset="utf-8">
+<title></title>
+  <link href="http://www.yanhuangxueyuan.com/markdown.css" rel="stylesheet" type="text/css">
+  </head>
+  <body>
+<h1 id="three-js-shader">Three.js自定义着色器Shader</h1>
+<p>学习Three.js的着色器的内容之前，最好有一些WebGL的基础，可以不深入了解，但是要对WebGL渲染流程和着色器语言GLSL有一定的基本认知。如果你没有WebGL基础，可以学习下本站的WebGL视频教程。</p>
+<p>MeshPhongMaterial、PointsMaterial等three.js的材质材质对象本质上都是着色器代码，
+Three.js的WebGL渲染器在调用渲染方法render渲染场景的时候，会根据材质的type值调用路径
+<code>src\renderers\shaders</code>下的着色器代码编译后在GPU中执行。</p>
+<p>Three.js提供了<code>RawShaderMaterial</code>和<code>ShaderMaterial</code>两个API用来辅助开发者自定义着色器代码。这个着色器API和其它的three.js的材质对象的基类一样都是<code>Material</code>，会继承基类<code>Material</code>的属性和方法。</p>
+<h4 id="-">视频和源码</h4>
+<p>视频讲解和源码下载——Three.js视频教程进阶部分</p>
+<h2 id="shadermaterial">ShaderMaterial</h2>
+<p>ShaderMaterial构造函数的参数和其它材质对象构造函数一样是一个对象，参数对象包含一些特定的属性，执行构造函数参数对象的属性会转化为材质对象对应的属性。</p>
+<h4 id="shadermaterial-">ShaderMaterial顶点着色器和片元着色器属性</h4>
+<p>GPU的顶点着色器单元用来处理顶点位置、顶点颜色、顶点向量等等顶点数据，片元着色器单元用来处理片元(像素)数据。一个WebGL程序的着色器代码包含顶点着色器和片元着色器，顶点着色器代码运行在GPU的顶点着色器单元，片元着色器代码运行在片元着色器单元。</p>
+<p>ShaderMaterial对象具有两个用来设置自定义着色器代码的属性，顶点着色器属性<code>vertexShader</code>和片元着色器属性<code>fragmentShader</code>，顶点着色器属性<code>vertexShader</code>的属性值是顶点着色器代码字符串，片元着色器属性<code>fragmentShader</code>的属性值是片元着色器代码字符串。</p>
+<h4 id="-">着色器代码编写</h4>
+<p>通过three.js的着色器材质构造函数ShaderMaterial编写着色器代码和原生WebGL中编写着色器代码语法上是一样的，不同的地方在于更加方便，有些代码不用自己写，Three.js渲染器会帮你自动设置一些代码，比如声明一些常见的变量，通常来说在顶点着色器中把表示顶点的位置数据的变量<code>position</code>赋值给着色器内置变量<code>gl_Position</code>，需要首先声明<code>attribute vec3 position;</code>,如果使用<code>ShaderMaterial</code>构造函数，则不用程序员手动声明<code>position</code>变量，Three.js渲染器后自动帮你拼接一段该代码，具体的原理可以参考路径<code>three.js-master\src\renderers\webgl\WebGLProgram.js</code>下的<code>WebGLProgram.js</code>代码模块，Threejs渲染器在渲染场景的时候从ShaderMaterial提取着色器代码后，会拼接一段前缀字符串，然后才会传入GPU中执行，前缀包含一些常用的<code>attribute</code>变量和<code>uniform</code>变量。关于着色器材质对象ShaderMaterial的一些系统自动化处理的地方这里先不展开讲解，后面会逐步讲解。</p>
+<h5 id="-">顶点着色器代码</h5>
+<pre><code class="lang-JavaScript"><span class="hljs-tag">&lt;<span class="hljs-name">script</span> <span class="hljs-attr">id</span>=<span class="hljs-string">"vertexShader"</span> <span class="hljs-attr">type</span>=<span class="hljs-string">"x-shader/x-vertex"</span>&gt;</span><span class="javascript">
+  <span class="hljs-comment">// 使用ShaderMaterial类，顶点位置变量position无需声明，顶点着色器可以直接调用</span>
+  <span class="hljs-comment">// attribute vec3 position;</span>
+  <span class="hljs-keyword">void</span> main(){
+<span class="hljs-comment">// 逐顶点处理：顶点位置数据赋值给内置变量gl_Position</span>
+gl_Position = vec4( position, <span class="hljs-number">1.0</span> );
+  }
+</span><span class="hljs-tag">&lt;/<span class="hljs-name">script</span>&gt;</span>
+</code></pre>
+<h5 id="-">片元着色器代码</h5>
+<pre><code class="lang-JavaScript"><span class="hljs-tag">&lt;<span class="hljs-name">script</span> <span class="hljs-attr">id</span>=<span class="hljs-string">"fragmentShader"</span> <span class="hljs-attr">type</span>=<span class="hljs-string">"x-shader/x-fragment"</span>&gt;</span><span class="javascript">
+  <span class="hljs-keyword">void</span> main() {
+<span class="hljs-comment">// 逐片元处理：每个片元或者说像素设置为红色</span>
+gl_FragColor = vec4(<span class="hljs-number">1.0</span>,<span class="hljs-number">0.0</span>,<span class="hljs-number">0.0</span>,<span class="hljs-number">1.0</span>);
+  }
+</span><span class="hljs-tag">&lt;/<span class="hljs-name">script</span>&gt;</span>
+</code></pre>
+<h3 id="-vertexshader-fragmentshader-">设置<code>vertexShader</code>和<code>fragmentShader</code>属性值</h3>
+<p>通过元素<code>.textContent</code>属性返回<code>&lt;script&gt;</code>标签中着色器代码字符串，然后把着色器字符串赋值给ShaderMaterial材质对象对应的属性。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-keyword">var</span> material = <span class="hljs-keyword">new</span> THREE.ShaderMaterial({
+  vertexShader: <span class="hljs-built_in">document</span>.getElementById(<span class="hljs-string">'vertexShader'</span>).textContent,
+  fragmentShader: <span class="hljs-built_in">document</span>.getElementById(<span class="hljs-string">'fragmentShader'</span>).textContent,
+});
+</code></pre>
+<p>ShaderMaterial和其它Three.js的材质一样作为网格模型或点线模型对象的参数使用。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-keyword">var</span> mesh = <span class="hljs-keyword">new</span> THREE.Mesh(geometry, material); <span class="hljs-comment">//网格模型对象Mesh</span>
+scene.add(mesh); <span class="hljs-comment">//网格模型添加到场景中</span>
+</code></pre>
+<h3 id="-">顶点数据自动化传递</h3>
+<p>在原生WebGL代码中，如果顶点或片元着色器代码如果声明了一个变量，比如顶点着色器中声明了一个顶点位置变量<code>attribute vec3 position;</code>，需要通过WebGL API把JavaScript中的几何体顶点位置数据传递给顶点着色器中的顶点位置变量<code>position</code>，这样的话，CPU执行顶点着色器代码的时候才能够处理顶点数据。</p>
+<p>使用ShaderMaterial API的好处就是这个过程Three.js渲染器系统会自动解析几何体对象<code>Geometry</code>中顶点位置、颜色、法向量等数据，然后传递给着色器中的相应变量。具体的解析过程可以参考路径<code>three.js-master\src\renderers\</code>下的渲染器代码<code>WebGLRenderer.js</code>文件和路径<code>three.js-master\src\renderers\webgl</code>下面多个three.js文件。</p>
+<p>WebGL渲染器在解析模型几何体中顶点数据的时候，<code>Geometry</code>类型的几何体会自动转化为缓冲类型的几何体<code>BufferGeometry</code>,
+BufferGeometry几何体对象具有<code>.attributes</code>属性，<code>BufferGeometry.attributes</code>具有顶点位置、顶点法向量、顶点uv坐标等属性，对应着色器中相应的attribute变量。</p>
+<p>可以通过<code>BufferGeometry</code>或<code>Geometry</code>API创建一个空的几何体，然后手动设置顶点数据，也可以使用一些立方体或其他几何体的API创建一个几何体API，使用这些几何体API的时候，会自动生成顶点的相关数据，然后渲染的时候，WebGL渲染器自动传递给着色器中声明的相应变量。关于几何体<code>BufferGeometry</code>和顶点相关知识这里不再展示详述，有不理解的地方可以多学习原生WebGL教程和本站Threejs视频教程中关于几何体顶点讲解的章节。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-keyword">var</span> geometry = <span class="hljs-keyword">new</span> THREE.BufferGeometry(); <span class="hljs-comment">//创建一个Buffer类型几何体对象</span>
+<span class="hljs-keyword">var</span> vertices = <span class="hljs-keyword">new</span> <span class="hljs-built_in">Float32Array</span>([
+  <span class="hljs-number">0.6</span>, <span class="hljs-number">0.2</span>, <span class="hljs-number">0</span>, <span class="hljs-comment">//顶点1坐标</span>
+  <span class="hljs-number">0.7</span>, <span class="hljs-number">0.6</span>, <span class="hljs-number">0</span>, <span class="hljs-comment">//顶点2坐标</span>
+  <span class="hljs-number">0.8</span>, <span class="hljs-number">0.2</span>, <span class="hljs-number">0</span>, <span class="hljs-comment">//顶点3坐标</span>
+  <span class="hljs-number">-0.6</span>, <span class="hljs-number">-0.2</span>, <span class="hljs-number">0</span>, <span class="hljs-comment">//顶点4坐标</span>
+  <span class="hljs-number">-0.7</span>, <span class="hljs-number">-0.6</span>, <span class="hljs-number">0</span>, <span class="hljs-comment">//顶点5坐标</span>
+  <span class="hljs-number">-0.8</span>, <span class="hljs-number">-0.2</span>, <span class="hljs-number">0</span>, <span class="hljs-comment">//顶点6坐标</span>
+]);
+<span class="hljs-comment">// 创建属性缓冲区对象  3个为一组，表示一个顶点的xyz坐标</span>
+<span class="hljs-keyword">var</span> attribue = <span class="hljs-keyword">new</span> THREE.BufferAttribute(vertices, <span class="hljs-number">3</span>);
+<span class="hljs-comment">// 设置几何体attributes属性的位置属性</span>
+geometry.addAttribute( <span class="hljs-string">'position'</span>, attribue );
+</code></pre>
+<h2 id="rawshadermaterial">RawShaderMaterial</h2>
+<p>原生着色器材质对象RawShaderMaterial和着色器材质对象ShaderMaterial一样具有顶点着色器和片元着色器属性，同样可以自动传递顶点数据，区别在于着色器中使用的一些常见attribute或uniform变量，原生着色器材质对象RawShaderMaterial需要程序员手动编写，系统不会自动化添加变量声明的前缀。</p>
+<p>顶点着色器代码，自动声明顶点位置属性<code>position</code>变量。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-tag">&lt;<span class="hljs-name">script</span> <span class="hljs-attr">id</span>=<span class="hljs-string">"vertexShader"</span> <span class="hljs-attr">type</span>=<span class="hljs-string">"x-shader/x-vertex"</span>&gt;</span><span class="javascript">
+  attribute vec3 position;
+  <span class="hljs-keyword">void</span> main(){
+gl_Position = vec4( position, <span class="hljs-number">1.0</span> );
+  }
+</span><span class="hljs-tag">&lt;/<span class="hljs-name">script</span>&gt;</span>
+</code></pre>
+<h3 id="-">绘制模式</h3>
+<p>如果你对WebGL或OpenGL有一点了解，应该都知道，一系列的顶点数据可以通过绘制模式来控制渲染效果，一个顶点数据可以渲染为一个点，也可以使用线条模式把点连成线绘制出来，也可以通过三角形模式每三个点绘制一个三角面来，一系列三角形构成一个网格模型。
+Three.js渲染器解析渲染的时候会根据模型的类型来判断如何渲染，解析点模型<code>Points</code>的时候，会启用点渲染模式，解析线模型<code>Line</code>、<code>LineLoop</code>、<code>LineSegments</code>的时候，会启用对应的线条绘制模式，解析网格模型<code>Mesh</code>会启用三角形绘制模式。</p>
+<p>点绘制模式，在顶点着色器代码中可以通过设置内置变量<code>gl_PointSize</code>设置点的渲染大小，如果直线或三角形绘制模式不需要内置变量<code>gl_PointSize</code>。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-keyword">var</span> point = <span class="hljs-keyword">new</span> THREE.Points(geometry, material);
+</code></pre>
+<pre><code class="lang-JavaScript"><span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span>{
+  gl_PointSize=<span class="hljs-number">20.0</span>;<span class="hljs-comment">// 控制渲染的点大小</span>
+  gl_Position = vec4( position, <span class="hljs-number">1.0</span> );
+}
+</code></pre>
+<p>直线绘制模式，连点成线</p>
+<pre><code class="lang-JavaScript"><span class="hljs-keyword">var</span> line = <span class="hljs-keyword">new</span> THREE.Line(geometry, material);
+</code></pre>
+<p>三角形绘制模式，三个顶点确定一个三角形，一个个三角形区域构成一个网格模型</p>
+<pre><code class="lang-JavaScript"><span class="hljs-keyword">var</span> mesh = <span class="hljs-keyword">new</span> THREE.Mesh(geometry, material);
+</code></pre>
+<div class="">
+  <a href="http://www.yanhuangxueyuan.com/">作者技术博客</a>
+</div>
+  </body>
+</html>

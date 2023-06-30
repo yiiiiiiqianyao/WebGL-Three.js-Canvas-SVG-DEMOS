@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+<meta charset="utf-8">
+<title></title>
+  <link href="http://www.yanhuangxueyuan.com/markdown.css" rel="stylesheet" type="text/css">
+  </head>
+  <body>
+<h1 id="three-js-webgl-">Three.js封装WebGL顶点数据</h1>
+<p>如果已有一定的WebGL基础，自然都有顶点数据的概念，比如顶点位置、顶点法向量、顶点UV坐标、顶点颜色等等。
+如果直接使用WebGL编写程序肯定比较麻烦，所以对WebGL进行一定的封装，这样的话对于开发者肯定会更有好，因此这节课来讲解Threejs是如何对象对WebGL中顶点数据进行封装和组织。</p>
+<ul>
+<li>相比很多Geometry和BufferGeometry有什么区别？本节课也可以回答你。</li>
+</ul>
+<h3 id="-webgl-">原生WebGL代码</h3>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">/**
+ 创建顶点位置数据数组data,Javascript中小数点前面的0可以省略
+ **/</span>
+<span class="hljs-keyword">var</span> data=<span class="hljs-keyword">new</span> <span class="hljs-built_in">Float32Array</span>([
+<span class="hljs-number">.5</span>,<span class="hljs-number">.5</span>,<span class="hljs-number">.5</span>,<span class="hljs-number">-.5</span>,<span class="hljs-number">.5</span>,<span class="hljs-number">.5</span>,<span class="hljs-number">-.5</span>,<span class="hljs-number">-.5</span>,<span class="hljs-number">.5</span>,<span class="hljs-number">.5</span>,<span class="hljs-number">.5</span>,<span class="hljs-number">.5</span>,<span class="hljs-number">-.5</span>,<span class="hljs-number">-.5</span>,<span class="hljs-number">.5</span>,<span class="hljs-number">.5</span>,<span class="hljs-number">-.5</span>,<span class="hljs-number">.5</span>,  <span class="hljs-comment">//面1</span>
+<span class="hljs-number">.5</span>,<span class="hljs-number">.5</span>,<span class="hljs-number">.5</span>,<span class="hljs-number">.5</span>,<span class="hljs-number">-.5</span>,<span class="hljs-number">.5</span>,<span class="hljs-number">.5</span>,<span class="hljs-number">-.5</span>,<span class="hljs-number">-.5</span>,<span class="hljs-number">.5</span>,<span class="hljs-number">.5</span>,<span class="hljs-number">.5</span>,<span class="hljs-number">.5</span>,<span class="hljs-number">-.5</span>,<span class="hljs-number">-.5</span>,<span class="hljs-number">.5</span>,<span class="hljs-number">.5</span>,<span class="hljs-number">-.5</span>,  <span class="hljs-comment">//面2</span>
+<span class="hljs-number">.5</span>,<span class="hljs-number">.5</span>,<span class="hljs-number">.5</span>,<span class="hljs-number">.5</span>,<span class="hljs-number">.5</span>,<span class="hljs-number">-.5</span>,<span class="hljs-number">-.5</span>,<span class="hljs-number">.5</span>,<span class="hljs-number">-.5</span>,<span class="hljs-number">.5</span>,<span class="hljs-number">.5</span>,<span class="hljs-number">.5</span>,<span class="hljs-number">-.5</span>,<span class="hljs-number">.5</span>,<span class="hljs-number">-.5</span>,<span class="hljs-number">-.5</span>,<span class="hljs-number">.5</span>,<span class="hljs-number">.5</span>,  <span class="hljs-comment">//面3</span>
+<span class="hljs-number">-.5</span>,<span class="hljs-number">.5</span>,<span class="hljs-number">.5</span>,<span class="hljs-number">-.5</span>,<span class="hljs-number">.5</span>,<span class="hljs-number">-.5</span>,<span class="hljs-number">-.5</span>,<span class="hljs-number">-.5</span>,<span class="hljs-number">-.5</span>,<span class="hljs-number">-.5</span>,<span class="hljs-number">.5</span>,<span class="hljs-number">.5</span>,<span class="hljs-number">-.5</span>,<span class="hljs-number">-.5</span>,<span class="hljs-number">-.5</span>,<span class="hljs-number">-.5</span>,<span class="hljs-number">-.5</span>,<span class="hljs-number">.5</span>,<span class="hljs-comment">//面4</span>
+<span class="hljs-number">-.5</span>,<span class="hljs-number">-.5</span>,<span class="hljs-number">-.5</span>,<span class="hljs-number">.5</span>,<span class="hljs-number">-.5</span>,<span class="hljs-number">-.5</span>,<span class="hljs-number">.5</span>,<span class="hljs-number">-.5</span>,<span class="hljs-number">.5</span>,<span class="hljs-number">-.5</span>,<span class="hljs-number">-.5</span>,<span class="hljs-number">-.5</span>,<span class="hljs-number">.5</span>,<span class="hljs-number">-.5</span>,<span class="hljs-number">.5</span>,<span class="hljs-number">-.5</span>,<span class="hljs-number">-.5</span>,<span class="hljs-number">.5</span>,<span class="hljs-comment">//面5</span>
+<span class="hljs-number">.5</span>,<span class="hljs-number">-.5</span>,<span class="hljs-number">-.5</span>,<span class="hljs-number">-.5</span>,<span class="hljs-number">-.5</span>,<span class="hljs-number">-.5</span>,<span class="hljs-number">-.5</span>,<span class="hljs-number">.5</span>,<span class="hljs-number">-.5</span>,<span class="hljs-number">.5</span>,<span class="hljs-number">-.5</span>,<span class="hljs-number">-.5</span>,<span class="hljs-number">-.5</span>,<span class="hljs-number">.5</span>,<span class="hljs-number">-.5</span>,<span class="hljs-number">.5</span>,<span class="hljs-number">.5</span>,<span class="hljs-number">-.5</span> <span class="hljs-comment">//面6</span>
+]);
+<span class="hljs-comment">/**
+ 创建顶点颜色数组colorData
+ **/</span>
+<span class="hljs-keyword">var</span> colorData = <span class="hljs-keyword">new</span> <span class="hljs-built_in">Float32Array</span>([
+<span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>, <span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>, <span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>, <span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>, <span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>, <span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-comment">//红色——面1</span>
+<span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>, <span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>, <span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>, <span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>, <span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>, <span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-comment">//红色——面2</span>
+<span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>, <span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>, <span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>, <span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>, <span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>, <span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-comment">//红色——面3</span>
+<span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>, <span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>, <span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>, <span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>, <span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>, <span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-comment">//红色——面4</span>
+<span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>, <span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>, <span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>, <span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>, <span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>, <span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-comment">//红色——面5</span>
+<span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>, <span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>, <span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>, <span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>, <span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>, <span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span> <span class="hljs-comment">//红色——面6</span>
+]);
+<span class="hljs-comment">/**
+ *顶点法向量数组normalData
+ **/</span>
+<span class="hljs-keyword">var</span> normalData = <span class="hljs-keyword">new</span> <span class="hljs-built_in">Float32Array</span>([
+<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">1</span>,<span class="hljs-comment">//z轴正方向——面1</span>
+<span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-comment">//x轴正方向——面2</span>
+<span class="hljs-number">0</span>,<span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-comment">//y轴正方向——面3</span>
+<span class="hljs-number">-1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">-1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">-1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">-1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">-1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">-1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-comment">//x轴负方向——面4</span>
+<span class="hljs-number">0</span>,<span class="hljs-number">-1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">-1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">-1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">-1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">-1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">-1</span>,<span class="hljs-number">0</span>,<span class="hljs-comment">//y轴负方向——面5</span>
+<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">-1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">-1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">-1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">-1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">-1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>,<span class="hljs-number">-1</span><span class="hljs-comment">//z轴负方向——面6</span>
+]);
+</code></pre>
+<h3 id="-bufferattribute-"><code>BufferAttribute</code>对象</h3>
+<p>Three.js通过<code>BufferAttribute</code>对象对顶点数据进行了封装，该对象<code>.array</code>属性的值就是一个存储了一系列顶点数据的数组。
+<code>BufferAttribute</code>对象可以表示一组顶点位置数据，可以表示一组顶点法向量数据，可以表示一组顶点颜色数据...</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">//类型数组创建顶点数据</span>
+<span class="hljs-keyword">var</span> vertices = <span class="hljs-keyword">new</span> <span class="hljs-built_in">Float32Array</span>([
+  <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-comment">//顶点1坐标</span>
+  <span class="hljs-number">50</span>, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-comment">//顶点2坐标</span>
+  <span class="hljs-number">0</span>, <span class="hljs-number">100</span>, <span class="hljs-number">0</span>, <span class="hljs-comment">//顶点3坐标</span>
+  <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-number">10</span>, <span class="hljs-comment">//顶点4坐标</span>
+  <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-number">100</span>, <span class="hljs-comment">//顶点5坐标</span>
+  <span class="hljs-number">50</span>, <span class="hljs-number">0</span>, <span class="hljs-number">10</span>, <span class="hljs-comment">//顶点6坐标</span>
+]);
+<span class="hljs-comment">// 创建属性缓冲区对象表示一组顶点坐标</span>
+<span class="hljs-comment">// 参数3表示类型化数组vertices中的顶点数据3个为一组，表示一个顶点的xyz坐标</span>
+<span class="hljs-keyword">var</span> attribue = <span class="hljs-keyword">new</span> THREE.BufferAttribute(vertices, <span class="hljs-number">3</span>);
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">'查看顶点数据'</span>,attribue.array);
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">'attribue.itemSize'</span>,attribue.itemSize);
+</code></pre>
+<p>可以通过构造函数<code>BufferAttribute</code>参数设置<code>.array</code>和<code>.itemSize</code>属性，也可以直接设置这两个属性的值。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-keyword">var</span> attribue = <span class="hljs-keyword">new</span> THREE.BufferAttribute();
+<span class="hljs-comment">// 设置顶点数据</span>
+attribue.<span class="hljs-keyword">array</span> = vertices;
+<span class="hljs-comment">// 设置多少个元素为一组，与WebGL的一个方法gl.vertexAttribPointer()第二个参数相关。</span>
+<span class="hljs-comment">// 比如UV坐标只有xy，需要设置itemSize=2，比如顶点坐标只设置xy，z使用系统默认值，也可以只设置itemSize=2</span>
+attribue.itemSize = <span class="hljs-number">3</span>;
+</code></pre>
+<p>Three.js构造函数<code>BufferAttribute</code>的名字由Buffer和attribute两个单词组成，顶点数据需要传入WebGL API<code>gl.createBuffer()</code>创建顶点缓冲区中，这是<code>BufferAttribute</code>类名Buffer部分的来源，顶点数据在着色器代码中对应了attribute变量，比如<code>attribute vec4 position;</code>声明了一个顶点位置变量，对应缓冲区中的顶点位置数据；<code>attribute vec4 normal;</code>声明了一个顶点法向量变量，对应顶点缓冲区中的顶点颜色数据，这是<code>BufferAttribute</code>类名Attribute部分的来源，<code>BufferAttribute</code>对象可以翻译为顶点缓冲属性对象。</p>
+<h3 id="-buffergeometry-">缓冲几何体对象<code>BufferGeometry</code></h3>
+<p>一个几何体对象<code>BufferGeometry</code>可以理解为所有种类顶点数据的一个集合，<code>BufferGeometry</code>对象<code>.attributes</code>的属性包含了所有顶点数据，通过<code>BufferGeometry.attributes.position</code>设置或返回顶点位置数据，通过<code>BufferGeometry.attributes.uv</code>设置或返回顶点UV坐标数据，通过<code>BufferGeometry.attributes.normal</code>设置或返回顶点法向量数据等等。<code>.attributes.position</code>、<code>.attributes.uv</code>、<code>.attributes.normal</code>的属性值都是包含顶点数据的<code>BufferAttribute</code>对象</p>
+<pre><code class="lang-JavaScript"><span class="hljs-keyword">var</span> geometry = <span class="hljs-keyword">new</span> THREE.BufferGeometry(); <span class="hljs-comment">//声明一个缓冲几何体对象</span>
+
+<span class="hljs-comment">//类型数组创建顶点位置position数据</span>
+<span class="hljs-keyword">var</span> vertices = <span class="hljs-keyword">new</span> <span class="hljs-built_in">Float32Array</span>([
+  <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-comment">//顶点1坐标</span>
+  <span class="hljs-number">50</span>, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-comment">//顶点2坐标</span>
+  <span class="hljs-number">0</span>, <span class="hljs-number">100</span>, <span class="hljs-number">0</span>, <span class="hljs-comment">//顶点3坐标</span>
+
+  <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-number">10</span>, <span class="hljs-comment">//顶点4坐标</span>
+  <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-number">100</span>, <span class="hljs-comment">//顶点5坐标</span>
+  <span class="hljs-number">50</span>, <span class="hljs-number">0</span>, <span class="hljs-number">10</span>, <span class="hljs-comment">//顶点6坐标</span>
+]);
+<span class="hljs-comment">// 创建属性缓冲区对象</span>
+<span class="hljs-keyword">var</span> attribue = <span class="hljs-keyword">new</span> THREE.BufferAttribute(vertices, <span class="hljs-number">3</span>); <span class="hljs-comment">//3个为一组，作为一个顶点的xyz坐标</span>
+<span class="hljs-comment">// 设置几何体attributes属性的位置position属性</span>
+geometry.attributes.position = attribue;
+
+<span class="hljs-comment">//类型数组创建顶点颜色color数据</span>
+<span class="hljs-keyword">var</span> colors = <span class="hljs-keyword">new</span> <span class="hljs-built_in">Float32Array</span>([
+  <span class="hljs-number">1</span>, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-comment">//顶点1颜色</span>
+  <span class="hljs-number">0</span>, <span class="hljs-number">1</span>, <span class="hljs-number">0</span>, <span class="hljs-comment">//顶点2颜色</span>
+  <span class="hljs-number">0</span>, <span class="hljs-number">0</span>, <span class="hljs-number">1</span>, <span class="hljs-comment">//顶点3颜色</span>
+
+  <span class="hljs-number">1</span>, <span class="hljs-number">1</span>, <span class="hljs-number">0</span>, <span class="hljs-comment">//顶点4颜色</span>
+  <span class="hljs-number">0</span>, <span class="hljs-number">1</span>, <span class="hljs-number">1</span>, <span class="hljs-comment">//顶点5颜色</span>
+  <span class="hljs-number">1</span>, <span class="hljs-number">0</span>, <span class="hljs-number">1</span>, <span class="hljs-comment">//顶点6颜色</span>
+]);
+<span class="hljs-comment">// 设置几何体attributes属性的颜色color属性</span>
+<span class="hljs-comment">//3个为一组,表示一个顶点的颜色数据RGB</span>
+geometry.attributes.color = <span class="hljs-keyword">new</span> THREE.BufferAttribute(colors, <span class="hljs-number">3</span>);
+</code></pre>
+<p>创建特定几何形状的缓冲类型API的基类都是<code>BufferGeometry</code>,比如<code>BoxBufferGeometry</code>,这些API本质上都是通过一定的算法自动化生成各种几何形状对应的顶点数据。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">//创建一个缓冲区类型立方体</span>
+<span class="hljs-keyword">var</span> geometry = <span class="hljs-keyword">new</span> THREE.BoxBufferGeometry(<span class="hljs-number">100</span>, <span class="hljs-number">100</span>,<span class="hljs-number">100</span>);
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">'几何体所有顶点数据'</span>,geometry.attributes);
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">'几何体顶点位置数据'</span>,geometry.attributes.position);
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">'几何体顶点法向量数据'</span>,geometry.attributes.normal);
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">'几何体顶点索引数据'</span>,geometry.index);
+</code></pre>
+<h3 id="-buffergeometry-index-"><code>BufferGeometry</code>的顶点索引属性<code>.index</code></h3>
+<p>如果你了解WebGL的顶点索引绘制肯定对顶点索引数据并不陌生，这样的话自然更容易理解该属性，<code>BufferGeometry.index</code>的属性值和<code>.attributes.position</code>一样都是包含顶点数据的<code>BufferAttribute</code>对象。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">//  顶点索引数组</span>
+<span class="hljs-keyword">var</span> indexes = <span class="hljs-keyword">new</span> <span class="hljs-built_in">Uint8Array</span>([<span class="hljs-number">0</span>,<span class="hljs-number">1</span>,<span class="hljs-number">2</span>,<span class="hljs-number">3</span>,<span class="hljs-number">4</span>,<span class="hljs-number">5</span>,<span class="hljs-number">6</span>,<span class="hljs-number">7</span>,<span class="hljs-number">0</span>,<span class="hljs-number">4</span>,<span class="hljs-number">1</span>,<span class="hljs-number">5</span>,<span class="hljs-number">2</span>,<span class="hljs-number">6</span>,<span class="hljs-number">3</span>,<span class="hljs-number">7</span>]);
+<span class="hljs-comment">//创建缓冲区对象</span>
+<span class="hljs-keyword">var</span> indexesBuffer=gl.createBuffer();
+<span class="hljs-comment">//绑定缓冲区对象</span>
+gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,indexesBuffer);
+<span class="hljs-comment">//索引数组indexes数据传入缓冲区</span>
+gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,indexes,gl.STATIC_DRAW);
+</code></pre>
+<h3 id="geometry-buffergeometry-">Geometry和BufferGeometry区别</h3>
+<p>几何体对象<code>Geometry</code>和缓冲几何体对象<code>BufferGeometry</code>表达的信息是一样的，都是对几何体顶点数据的封装，只是数据结构不同，也就是属性不同。<code>Geometry</code>和<code>BufferGeometry</code>可以相互转化，Three.js渲染器解析几何体，会从几何体对象提取顶点数据传入WebGL顶点缓冲区，如果解析的是<code>BufferGeometry</code>对象，直接访问<code>.attributes</code>属性提取顶点数据就可以，如果几何体<code>Geometry</code>对象，Three.js渲染器会先把<code>Geometry</code>转化<code>BufferGeometry</code>对象，然后提取顶点数据，关于Three.js是如何解析几何体传入顶点缓冲区，然后与顶点着色器中的attribute变量绑定，在后面的课程会详细介绍Threejs渲染器是如何解析几何体的，本节课主要是讲解Threejs是如何封装顶点数据的，不详细讲解Three.js如何解析顶点封装后的得到的几何体对象。</p>
+<h4 id="geometry-">Geometry数据结构</h4>
+<pre><code class="lang-JavaScript"> <span class="hljs-comment">//创建一个立方体几何对象Geometry</span>
+<span class="hljs-keyword">var</span> geometry = <span class="hljs-keyword">new</span> THREE.BoxGeometry(<span class="hljs-number">100</span>, <span class="hljs-number">100</span>, <span class="hljs-number">100</span>);
+<span class="hljs-built_in">console</span>.log(geometry);
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">'几何体顶点位置数据'</span>,geometry.vertices);
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">'三角面数据'</span>,geometry.faces);
+</code></pre>
+
+<div class="">
+  <a href="http://www.yanhuangxueyuan.com/">作者技术博客</a>
+</div>
+  </body>
+</html>

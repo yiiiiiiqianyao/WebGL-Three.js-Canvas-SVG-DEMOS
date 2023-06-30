@@ -1,0 +1,2 @@
+#extension GL_EXT_draw_buffers : require
+GL_EXT_draw_buffers

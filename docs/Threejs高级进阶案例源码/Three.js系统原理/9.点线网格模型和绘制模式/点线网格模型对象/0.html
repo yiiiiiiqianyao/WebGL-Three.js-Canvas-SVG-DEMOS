@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+
+<head>
+  <meta charset="utf-8">
+  <title></title>
+  <!--引入three.js三维引擎-->
+  <script src="http://www.yanhuangxueyuan.com/versions/threejsR92/build/three.js"></script>
+</head>
+
+<body>
+  <script>
+    var Points = new THREE.Points()
+
+    var Line = new THREE.Line()
+    var LineSegments = new THREE.LineSegments()
+    var LineLoop = new THREE.LineLoop()
+    
+    var Mesh = new THREE.Mesh()
+
+    console.log(Points.isPoints);
+    console.log(Line.isLine);
+    console.log(LineSegments.isLineSegments);
+    console.log(LineLoop.isLineLoop);
+    console.log(Mesh.isMesh);
+
+  </script>
+
+</body>
+
+</html>

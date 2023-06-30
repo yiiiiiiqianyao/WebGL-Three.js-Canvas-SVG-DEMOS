@@ -128,6 +128,7 @@ var setupWebGL = function(canvas, opt_attribs, opt_onError) {
         }, false);
   }
   var context = create3DContext(canvas, opt_attribs);
+  
   if (!context) {
     if (!window.WebGLRenderingContext) {
       opt_onError("");
@@ -135,7 +136,7 @@ var setupWebGL = function(canvas, opt_attribs, opt_onError) {
       opt_onError("");
     }
   }
-
+  
   return context;
 };
 

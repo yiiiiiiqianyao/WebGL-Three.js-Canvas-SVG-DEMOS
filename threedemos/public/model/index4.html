@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <style>
+        body{
+            margin: 0;
+            overflow: hidden;
+        }
+    </style>
+    <script src="../src/three.js"></script>
+    <script src="../src/controller/OrbitControls.js"></script>
+    <script src="../src/libs/Reflector.js"></script>
+    <script src="./OBJLoader.js"></script>
+    <script src="./MTLLoader.js"></script>
+
+    <!-- <script src="../src/three.js"></script>
+    <script src="../src/OrbitControls.js"></script>
+    <script src="../src/objects/Reflector.js"></script> -->
+</head>
+<body>
+    
+</body>
+<script type="x-shader/x-vertex" id="vertexShader">
+    uniform mat4 textureMatrix;
+    varying vec4 vUv;
+    void main() {
+        //vUv = textureMatrix * vec4( position, 1.0 );
+        //gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+</script>
+<script type="x-shader/x-vertex" id="fragmentShader">
+    uniform vec3 color;
+    uniform sampler2D tDiffuse;
+    varying vec4 vUv;
+    float blendOverlay( float base, float blend ) {
+    	return( base < 0.5 ? ( 2.0 * base * blend ) : ( 1.0 - 2.0 * ( 1.0 - base ) * ( 1.0 - blend ) ) );
+    }
+
+    vec3 blendOverlay( vec3 base, vec3 blend ) {
+    	return vec3( blendOverlay( base.r, blend.r ), blendOverlay( base.g, blend.g ), blendOverlay( base.b, blend.b ) );
+    }
+
+    void main() {
+    	//vec4 base = texture2DProj( tDiffuse, vUv );
+        //gl_FragColor = vec4( blendOverlay( base.rgb, color ), 0.2 );
+        gl_FragColor = vec4(1.,1.,0.0,1.);
+    }
+</script>
+<script>
+    var scene, camera, renderer, clock, controlller
+    var geometry, mirror
+    // var shadermaterial
+    init()
+    animate()
+
+    // - Functions -
+    function init(){
+        scene = new THREE.Scene()
+
+        clock = new THREE.Clock();
+        camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100000)
+        camera.position.set(100, 100, 100)
+        renderer = new THREE.WebGLRenderer({    
+            antialias:true, // 开启抗锯齿处理
+            alpha:true
+        })
+        renderer.setSize(window.innerWidth,window.innerHeight)
+        renderer.setClearColor(0x000000)
+    
+        shadermaterial = new THREE.ShaderMaterial( {
+            uniforms: {
+                color: {
+                    type: 'c',
+                    value: null
+                },
+                tDiffuse: {
+                    type: 't',
+                    value: null
+                },
+                textureMatrix: {
+                    type: 'm4',
+                    value: null
+                }
+            },
+            vertexShader: document.getElementById( 'vertexShader' ).textContent,
+            fragmentShader: document.getElementById( 'fragmentShader' ).textContent
+        } )
+       
+
+
+    // new THREE.MTLLoader().load( './room/room.mtl', function ( materials ) {
+    //     materials.preload();
+    //     new THREE.OBJLoader() .setMaterials( materials )
+    //       .load( './room/room.obj', function ( objects ) {
+    //             console.log(materials, objects)
+    //             scene.add(objects)
+    //             objects.traverse(e => {
+    //                 if(e.material) {
+    //                     console.log(e.material.transparent)
+    //                     console.log(e.material.opacity)
+    //                     e.material.opacity = 0.5
+    //                 }
+    //             })
+    //         })
+    //     })
+
+    new THREE.MTLLoader().load( './装配车间uv绘制/拆uv厂房.mtl', function ( materials ) {
+        materials.preload();
+        new THREE.OBJLoader() .setMaterials( materials )
+          .load( './装配车间uv绘制/拆uv厂房.obj', function ( objects ) {
+                console.log(materials, objects)
+                scene.add(objects)
+                objects.traverse(e => {
+                    if(e.material) {
+                        console.log(e.material.transparent)
+                        console.log(e.material.opacity)
+                        e.material.opacity = 0.5
+                    }
+                })
+            })
+        })
+
+        /**
+            * 光源设置
+            */
+        // 方向光1
+        var directionalLight = new THREE.DirectionalLight(0xffffff, 0.9);
+        directionalLight.position.set(400, 200, 300);
+        scene.add(directionalLight);
+        // 方向光2
+        var directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.9);
+        directionalLight2.position.set(-400, -200, -300);
+        scene.add(directionalLight2);
+        //环境光
+        var ambient = new THREE.AmbientLight(0xffffff, 1);
+        scene.add(ambient);
+
+        controlller = new THREE.OrbitControls(camera,renderer.domElement)
+        document.body.appendChild(renderer.domElement)
+        window.onresize = onResize
+    }
+
+    function animate(){
+        requestAnimationFrame(animate)
+        renderer.render(scene, camera)
+        controlller.update(clock.getDelta())
+    }
+
+    function onResize() {
+        camera.aspect = window.innerWidth / window.innerHeight
+        camera.updateProjectionMatrix()
+        renderer.setSize(window.innerWidth, window.innerHeight)
+    }
+</script>
+</html>

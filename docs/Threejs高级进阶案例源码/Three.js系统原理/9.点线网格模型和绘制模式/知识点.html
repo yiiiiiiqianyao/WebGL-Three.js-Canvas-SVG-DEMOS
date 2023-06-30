@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+<meta charset="utf-8">
+<title></title>
+  <link href="http://www.yanhuangxueyuan.com/markdown.css" rel="stylesheet" type="text/css">
+  </head>
+  <body>
+<h1 id="-">点线网格模型和绘制模式</h1>
+<p>Three.js点Points、线Line、网格Mesh模型都有几何体geometry数据，对于这些不同类别的模型对象Threejs渲染的时候调用WebGL绘制函数<code>gl.drawArrays()</code>或<code>gl.drawElements()</code>的时候系统设置的绘制模式不同。</p>
+<p>学习本节课的内容需要先简单阅读以下源码：</p>
+<ul>
+<li>WebGLRenderer.js源码封装的的<code>.renderBufferDirect()</code>方法</li>
+<li>WebGLBufferRenderer.js源码</li>
+<li>WebGLIndexedBufferRenderer.js源码</li>
+</ul>
+<h3 id="webglrenderer-js">WebGLRenderer.js</h3>
+<p>WebGLRenderer.js封装了WebGL绘制函数<code>gl.drawArrays( mode, start, count );</code></p>
+<p><code>.setMode()</code>方法,设置<code>gl.drawArrays();</code>的绘制模式mode。</p>
+<p><code>.render()</code>方法，封装了WebGL API<code>gl.drawArrays();</code></p>
+<h3 id="webglindexedbufferrenderer-js">WebGLIndexedBufferRenderer.js</h3>
+<p>WebGLIndexedBufferRenderer.js封装了WebGL绘制函数<code>gl.drawElements();</code></p>
+<p><code>.setMode()</code>方法,设置<code>gl.drawElements();</code>的绘制模式mode。</p>
+<p><code>.render()</code>方法，封装了WebGL API<code>gl.drawElements();</code></p>
+<h3 id="-renderbufferdirect-"><code>.renderBufferDirect()</code>方法</h3>
+<p>执行<code>.renderBufferDirect()</code>方法会调用WebGL绘制函数<code>gl.drawArrays()</code>或<code>gl.drawElements()</code>绘制顶点数据，渲染点Points、线Line、网格Mesh模型的时候，在执行绘制函数之前需要根据模型的类别设置绘制函数的绘制模式mode。</p>
+<pre><code class="lang-JavaScript">import {WebGLBufferRenderer} <span class="hljs-keyword">from</span> <span class="hljs-string">'./webgl/WebGLBufferRenderer.js'</span>;
+import {WebGLIndexedBufferRenderer} <span class="hljs-keyword">from</span> <span class="hljs-string">'./webgl/WebGLIndexedBufferRenderer.js'</span>;
+bufferRenderer = <span class="hljs-keyword">new</span> WebGLBufferRenderer(_gl, extensions, info);
+indexedBufferRenderer = <span class="hljs-keyword">new</span> WebGLIndexedBufferRenderer(_gl, extensions, info);
+<span class="hljs-keyword">this</span>.renderBufferDirect = function(camera, fog, geometry, material, <span class="hljs-keyword">object</span>, <span class="hljs-keyword">group</span>) {
+...
+
+  <span class="hljs-keyword">var</span> renderer = bufferRenderer;
+
+  <span class="hljs-comment">// 如果存在顶点索引数据，把渲染器设置为WebGLIndexedBufferRenderer</span>
+  <span class="hljs-keyword">if</span> (index !== <span class="hljs-keyword">null</span>) {
+  attribute = attributes.<span class="hljs-keyword">get</span>(index);
+  renderer = indexedBufferRenderer;
+  renderer.setIndex(attribute);
+  }
+  ...
+  <span class="hljs-keyword">if</span> (<span class="hljs-keyword">object</span>.isMesh) {
+  <span class="hljs-comment">// wireframe默认false</span>
+  <span class="hljs-keyword">if</span> (material.wireframe === <span class="hljs-keyword">true</span>) {
+<span class="hljs-comment">// 开启材质线框显示效果，使用线绘制模式gl.LINES</span>
+state.setLineWidth(material.wireframeLinewidth * getTargetPixelRatio());
+renderer.setMode(_gl.LINES);
+  } <span class="hljs-keyword">else</span> {
+<span class="hljs-comment">// 网格模型对象具有drawMode属性，默认值为TrianglesDrawMode</span>
+<span class="hljs-keyword">switch</span> (<span class="hljs-keyword">object</span>.drawMode) {
+  <span class="hljs-keyword">case</span> TrianglesDrawMode:
+renderer.setMode(_gl.TRIANGLES);
+<span class="hljs-keyword">break</span>;
+  <span class="hljs-keyword">case</span> TriangleStripDrawMode:
+renderer.setMode(_gl.TRIANGLE_STRIP);
+<span class="hljs-keyword">break</span>;
+  <span class="hljs-keyword">case</span> TriangleFanDrawMode:
+renderer.setMode(_gl.TRIANGLE_FAN);
+<span class="hljs-keyword">break</span>;
+}
+  }
+} <span class="hljs-function"><span class="hljs-keyword">else</span> <span class="hljs-title">if</span> (<span class="hljs-params"><span class="hljs-keyword">object</span>.isLine</span>) </span>{
+  <span class="hljs-keyword">var</span> lineWidth = material.linewidth;
+  <span class="hljs-keyword">if</span> (lineWidth === undefined) lineWidth = <span class="hljs-number">1</span>; <span class="hljs-comment">// Not using Line*Material</span>
+  state.setLineWidth(lineWidth * getTargetPixelRatio());
+  <span class="hljs-keyword">if</span> (<span class="hljs-keyword">object</span>.isLineSegments) {
+<span class="hljs-comment">// LineSegments模型对象</span>
+renderer.setMode(_gl.LINES);
+  } <span class="hljs-function"><span class="hljs-keyword">else</span> <span class="hljs-title">if</span> (<span class="hljs-params"><span class="hljs-keyword">object</span>.isLineLoop</span>) </span>{
+<span class="hljs-comment">// LineLoop模型对象</span>
+renderer.setMode(_gl.LINE_LOOP);
+  } <span class="hljs-keyword">else</span> {
+<span class="hljs-comment">// Line模型对象</span>
+renderer.setMode(_gl.LINE_STRIP);
+  }
+} <span class="hljs-function"><span class="hljs-keyword">else</span> <span class="hljs-title">if</span> (<span class="hljs-params"><span class="hljs-keyword">object</span>.isPoints</span>) </span>{
+ <span class="hljs-comment">// 点模型对象Points</span>
+  renderer.setMode(_gl.POINTS);
+}<span class="hljs-function"><span class="hljs-keyword">else</span> <span class="hljs-title">if</span> (<span class="hljs-params"><span class="hljs-keyword">object</span>.isPoints</span>) </span>{
+  <span class="hljs-comment">// 点模型对象使用点绘制模式</span>
+  renderer.setMode(_gl.POINTS);
+
+}
+...
+
+<span class="hljs-comment">// 设置好绘制模式后，调用WebGLRenderer.js封装的render函数，相当于执行`gl.drawArrays();`</span>
+renderer.render(drawStart, drawCount);
+}
+</code></pre>
+
+<div class="">
+  <a href="http://www.yanhuangxueyuan.com/">作者技术博客</a>
+</div>
+  </body>
+</html>

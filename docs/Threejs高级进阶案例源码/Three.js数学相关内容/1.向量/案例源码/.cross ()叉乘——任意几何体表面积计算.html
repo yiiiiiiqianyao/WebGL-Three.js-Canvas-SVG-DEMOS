@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <script src="http://www.yanhuangxueyuan.com/versions/threejsR92/build/three.js"></script>
+</head>
+<body>
+  <script>
+    // var geometry = new THREE.SphereGeometry(10, 50, 50);
+    var geometry = new THREE.BoxGeometry(10, 10, 10);
+    // 声明一个变量表示几何体的表面
+    var area = 0.0;
+    // 遍历一个几何体的全部三角形geometry.faces，所有三角形面积累积就是几何体的表面积
+    // 对于不规则曲面，细分程度越高，面积计算精度越高
+    for (var i = 0; i < geometry.faces.length; i++) {
+      //三角形的对应顶点索引
+      var a = geometry.faces[i].a;
+      var b = geometry.faces[i].b;
+      var c = geometry.faces[i].c;
+      // 获得三角形对三个顶点的坐标
+      var p1 = geometry.vertices[a];
+      var p2 = geometry.vertices[b];
+      var p3 = geometry.vertices[c];
+      // 调用三角形面积计算函数AreaOfTriangle
+      area += AreaOfTriangle(p1, p2, p3); //三角形Face3面积累计计算
+    }
+    // 查看面积计算结果
+    document.write("面积:" + area)
+
+    //三角形面积计算
+    function AreaOfTriangle(p1, p2, p3){
+      var v1 = new THREE.Vector3();
+      var v2 = new THREE.Vector3();
+      // 通过两个顶点坐标计算其中两条边构成的向量
+      v1 = p1.clone().sub(p2);
+      v2 = p1.clone().sub(p3);
+
+      var v3 = new THREE.Vector3();
+      // 三角形面积计算
+      v3.crossVectors(v1,v2);
+      var s = v3.length()/2;
+      return s
+    }
+  </script>
+</body>
+
+</html>

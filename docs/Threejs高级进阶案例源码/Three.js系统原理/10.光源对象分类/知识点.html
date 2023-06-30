@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+<meta charset="utf-8">
+<title></title>
+  <link href="http://www.yanhuangxueyuan.com/markdown.css" rel="stylesheet" type="text/css">
+  </head>
+  <body>
+
+<h1 id="-">光源对象分类</h1>
+<p>THree.js渲染函数会通过调用<code>projectObject</code>函数递归遍历场景对象，然后对场景对象的后代进行分类，这种光源全部划分为一类，存入<code>currentRenderState.state.lightsArray</code>属性中，作为属性值数组的元素。</p>
+<h3 id="-projectobject-"><code>projectObject</code>函数</h3>
+<p>阅读WebGLRenderer.js源码封装的<code>projectObject</code>函数了解分类过程，递归遍历场景，所有<code>object.isLight=true</code>的对象全部归类为<code>currentRenderState.state.lightsArray</code>属性中。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// 对象Scene的后代节点对象进行分类处理</span>
+<span class="hljs-function">function <span class="hljs-title">projectObject</span>(<span class="hljs-params"><span class="hljs-keyword">object</span>, camera, sortObjects</span>) </span>{
+  <span class="hljs-comment">// 判断对象是不是光源对象，是的话插入WebGL渲染状态对象的state属性中</span>
+  <span class="hljs-keyword">if</span> (<span class="hljs-keyword">object</span>.isLight) {
+<span class="hljs-comment">//光源信息插入到currentRenderState对象的.state.lightsArray属性中</span>
+currentRenderState.pushLight(<span class="hljs-keyword">object</span>);
+  }
+}
+</code></pre>
+<h3 id="-">光源对象封装</h3>
+<p>点光源<code>PointLight</code>、平行光<code>DirectionalLight</code>、环境光<code>AmbientLight</code>等所有种类光源对象的基类都是<code>Light</code>,点光源<code>PointLight</code>具有<code>isPointLight</code>属性，平行光<code>DirectionalLight</code>具有<code>isDirectionalLight</code>属性，环境光<code>AmbientLight</code>具有<code>isAmbientLight</code>属性，这些光源对象也会继承基类<code>Light</code>的属性<code>isLight</code>。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-keyword">var</span> PointLight = <span class="hljs-keyword">new</span> THREE.PointLight()
+<span class="hljs-comment">// 点光源PointLight属性isPointLight默认值true</span>
+<span class="hljs-built_in">console</span>.log(PointLight.isPointLight);
+<span class="hljs-comment">// 点光源PointLight继承基类Light的isLight属性</span>
+<span class="hljs-built_in">console</span>.log(PointLight.isLight);
+</code></pre>
+<h3 id="-webgllights-js-"><code>WebGLLights.js</code></h3>
+<p>WebGLLights.js文件封装了光源分类的具体函数和属性。new实例化<code>WebGLLights</code>工厂函数返回一个对象具有<code>.set()</code>方法和<code>.state</code>属性，<code>.state</code>
+具有一些属性对应光源对象的分类。</p>
+<h3 id="-webglrenderstate-js-"><code>WebGLRenderState.js</code></h3>
+<pre><code class="lang-JavaScript"><span class="hljs-keyword">import</span> { WebGLLights } <span class="hljs-keyword">from</span> <span class="hljs-string">'./WebGLLights.js'</span>;
+
+<span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">WebGLRenderState</span>(<span class="hljs-params"></span>) </span>{
+...
+<span class="hljs-keyword">var</span> lights = <span class="hljs-keyword">new</span> WebGLLights();
+
+<span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">setupLights</span>(<span class="hljs-params"> camera </span>) </span>{
+  <span class="hljs-comment">// 调用WebGLLights对象的set方法对已经分类的光源对象进行二次分类</span>
+  lights.setup( lightsArray, shadowsArray, camera );
+
+}
+
+<span class="hljs-keyword">var</span> state = {
+  <span class="hljs-comment">// 存储所有光源对象的数组</span>
+  lightsArray: lightsArray,
+  shadowsArray: shadowsArray,
+  <span class="hljs-comment">// 存储所有精灵模型对象的数据</span>
+  spritesArray: spritesArray,
+  <span class="hljs-comment">// 属性值是WebGLLights对象，具有state属性，state属性又具有directional、point等属性，用来分别存储方向光、点光源等类型光源</span>
+  lights: lights
+};
+...
+}
+</code></pre>
+<h3 id="webglrenderer-js">WebGLRenderer.js</h3>
+<p>调用<code>.setupLights</code>方法对象光源进行二次分类，分类结果存储到<code>currentRenderState.state.lights</code>属性</p>
+<pre><code class="lang-JavaScript">
+<span class="hljs-keyword">this</span>.render=<span class="hljs-function"><span class="hljs-keyword">function</span>(<span class="hljs-params"></span>)</span>{
+
+  projectObject(scene, camera, _this.sortObjects);
+
+  currentRenderState.setupLights(camera);
+}
+
+<span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">initMaterial</span>(<span class="hljs-params">material, fog, object</span>) </span>{
+  <span class="hljs-keyword">var</span> lights = currentRenderState.state.lights;
+}
+
+<span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">setProgram</span>(<span class="hljs-params">camera, fog, material, object</span>) </span>{
+  <span class="hljs-keyword">var</span> lights = currentRenderState.state.lights;
+}
+</code></pre>
+<div class="">
+  <a href="http://www.yanhuangxueyuan.com/">作者技术博客</a>
+</div>
+  </body>
+</html>

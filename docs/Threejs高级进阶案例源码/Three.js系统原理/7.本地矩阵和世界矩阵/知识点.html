@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+<meta charset="utf-8">
+<title></title>
+  <link href="http://www.yanhuangxueyuan.com/markdown.css" rel="stylesheet" type="text/css">
+  </head>
+  <body>
+<h1 id="-materix-matrixworld-">本地矩阵<code>.materix</code>和世界矩阵<code>.matrixWorld</code></h1>
+<p>一个对象的本地矩阵<code>.materix</code>包含了该对象的旋转、平移和缩放变换，本地矩阵是平移矩阵、缩放矩阵和旋转矩阵的乘积。</p>
+<p>一个对象的世界矩阵<code>.matrixWorld</code>是该对象本地矩阵及其所有所有祖宗对象本地矩阵的乘积，或者每一个对象的世界矩阵是对象本地矩阵和父对象的世界矩阵的乘积。</p>
+<h3 id="-object3d-"><code>Object3D</code></h3>
+<p><code>Object3D</code>是网格Mesh、点Points、线Line等模型对象的基类，组对象<code>Group</code>也是<code>Object3D</code>对象的基类。</p>
+<p><code>Object3D</code>封装本地矩阵<code>.matrix</code>、位置<code>.position</code>、缩放<code>.scale</code>、角度<code>.rotation</code>等属性，封装了旋转相关方法<code>.rotateX()</code>、<code>.rotateZ()</code>，平移相关方法<code>.translateX()</code>、<code>.translateZ()</code>。</p>
+<h3 id="-quaternion-rotation-">四元数属性<code>.quaternion</code>和角度属性<code>.rotation</code></h3>
+<p>两个属性表达的含义是一样的，都是旋转相关的信息，都会被转化为旋转矩阵。</p>
+<h3 id="-">方法改变属性</h3>
+<p>对于Three.js一些对象的属性可以直接设置属性值，也可以通过方法改变属性值。</p>
+<p>执行旋转方法<code>.rotateZ()</code>查看，查看角度属性<code>.rotation</code>属性值欧拉对象z属性的变化</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// 一个网格模型对象，基类是Object3D</span>
+<span class="hljs-keyword">var</span> mesh = <span class="hljs-keyword">new</span> THREE.Mesh()
+<span class="hljs-comment">// 绕z轴旋转</span>
+mesh.rotateZ(<span class="hljs-built_in">Math</span>.PI)
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">'查看角度属性值的变化'</span>,mesh.rotation);
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">'查看四元数属性变化'</span>,mesh.quaternion);
+</code></pre>
+<p>执行平移方法<code>.translateX()</code>查看，查看位置<code>.position</code>属性值x分量变化</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// 一个网格模型对象，基类是Object3D</span>
+<span class="hljs-keyword">var</span> mesh = <span class="hljs-keyword">new</span> THREE.Mesh()
+<span class="hljs-comment">// 沿着x轴平移100</span>
+mesh.translateX(<span class="hljs-number">100</span>)
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">'查看位置属性的变化'</span>,mesh.position);
+</code></pre>
+<h3 id="-updatematrix-">更新本地矩阵属性<code>.updateMatrix()</code></h3>
+<p>执行<code>Object3D</code>的<code>.updateMatrix()</code>方法可以提取位置<code>.position</code>、缩放<code>.scale</code>和四元数<code>.quaternion</code>的属性值转化为变换矩阵设置本地矩阵属性<code>.matrix</code>。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// Object3D.js源码</span>
+updateMatrix: <span class="hljs-function"><span class="hljs-keyword">function</span> (<span class="hljs-params"></span>) </span>{
+  <span class="hljs-comment">// 把位置、四元数、缩放属性转化为平移、旋转、缩放矩阵，三个矩阵的乘积是本地矩阵</span>
+  <span class="hljs-keyword">this</span>.matrix.compose( <span class="hljs-keyword">this</span>.position, <span class="hljs-keyword">this</span>.quaternion, <span class="hljs-keyword">this</span>.scale );
+  <span class="hljs-keyword">this</span>.matrixWorldNeedsUpdate = <span class="hljs-literal">true</span>;
+},
+</code></pre>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// Matrix4.js源码</span>
+<span class="hljs-comment">// 通过属性值设置变换矩阵</span>
+compose: <span class="hljs-function"><span class="hljs-keyword">function</span> (<span class="hljs-params"> position, quaternion, scale </span>) </span>{
+  <span class="hljs-comment">// 四元数矩阵转化为旋转矩阵，然后改变本地矩阵</span>
+  <span class="hljs-keyword">this</span>.makeRotationFromQuaternion( quaternion );
+  <span class="hljs-comment">// 缩放属性转化为缩放矩阵，然后改变本地矩阵</span>
+  <span class="hljs-keyword">this</span>.scale( scale );
+  <span class="hljs-comment">// 位置属性转化为平移矩阵，然后改变本地矩阵</span>
+  <span class="hljs-keyword">this</span>.setPosition( position );
+  <span class="hljs-keyword">return</span> <span class="hljs-keyword">this</span>;
+},
+</code></pre>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// 一个网格模型对象，基类是Object3D</span>
+<span class="hljs-keyword">var</span> mesh = <span class="hljs-keyword">new</span> THREE.Mesh()
+<span class="hljs-comment">// 缩放网格模型</span>
+mesh.scale.<span class="hljs-keyword">set</span>(<span class="hljs-number">900</span>,<span class="hljs-number">900</span>,<span class="hljs-number">900</span>)
+<span class="hljs-comment">// 位置、角度、缩放属性值更新到矩阵属性matrix</span>
+mesh.updateMatrix();
+console.log(<span class="hljs-string">'查看本地矩阵属性matrix'</span>,mesh.matrix.elements);
+</code></pre>
+<h3 id="-updatematrixworld-">更新世界矩阵属性<code>.updateMatrixWorld()</code></h3>
+<p>调用<code>.updateMatrixWorld()</code>方法首先会更新对象的本地矩阵属性，然后更新对象的世界矩阵属性。</p>
+<p><code>.updateMatrixWorld()</code>方法封装了递归算法，会遍历对象的所有子对象，对象本身和</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// Object3D.js源码</span>
+updateMatrixWorld: <span class="hljs-function"><span class="hljs-keyword">function</span> (<span class="hljs-params"> force </span>) </span>{
+  <span class="hljs-comment">// 更新对象的本地矩阵属性</span>
+  <span class="hljs-keyword">if</span> ( <span class="hljs-keyword">this</span>.matrixAutoUpdate ) <span class="hljs-keyword">this</span>.updateMatrix();
+  ...
+  <span class="hljs-keyword">if</span> ( <span class="hljs-keyword">this</span>.parent === <span class="hljs-literal">null</span> ) {
+<span class="hljs-comment">// 如果一个对象没有父对象，也就是树结构对象的根节点对象，世界矩阵就等于本地矩阵</span>
+<span class="hljs-keyword">this</span>.matrixWorld.copy( <span class="hljs-keyword">this</span>.matrix );
+
+  } <span class="hljs-keyword">else</span> {
+<span class="hljs-comment">// 更新对象的世界矩阵，父对象的世界矩阵和对象本地矩阵的乘积</span>
+<span class="hljs-keyword">this</span>.matrixWorld.multiplyMatrices( <span class="hljs-keyword">this</span>.parent.matrixWorld, <span class="hljs-keyword">this</span>.matrix );
+  }
+  ...
+ <span class="hljs-comment">// 通过递归算法遍历一个对象的所有子对象，执行与根对象一样的操作更新本地和世界矩阵属性</span>
+  <span class="hljs-keyword">var</span> children = <span class="hljs-keyword">this</span>.children;
+  <span class="hljs-keyword">for</span> ( <span class="hljs-keyword">var</span> i = <span class="hljs-number">0</span>, l = children.length; i &lt; l; i ++ ) {
+children[ i ].updateMatrixWorld( force );
+  }
+},
+</code></pre>
+<h3 id="webgl-">WebGL渲染器</h3>
+<p>场景对象的<code>.autoUpdate</code>属性默认值是true，执行<code>.render()</code>方法的时候<code>scene.updateMatrixWorld()</code>默认执行，也就是说执行
+Threejs执行渲染器渲染方法的时候，场景对象所有子孙对象的世界矩阵属性和本地矩阵属性才会更新。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// WebGLRenderer.js源码</span>
+<span class="hljs-keyword">this</span>.render=<span class="hljs-function"><span class="hljs-keyword">function</span>(<span class="hljs-params"></span>)</span>{
+  ...
+  <span class="hljs-comment">// WebGL渲染器中执行场景对象的updateMatrixWorld()方法，更新场景和场景所有子孙对象的本地矩阵</span>
+  <span class="hljs-keyword">if</span> (scene.autoUpdate === <span class="hljs-literal">true</span>) scene.updateMatrixWorld();
+  ...
+}
+</code></pre>
+<h3 id="-">世界坐标和本地坐标</h3>
+<p>位置属性<code>.position</code>表示本地坐标，也就是说该对象相对父对象的偏移位置。通过<code>Object3D</code>的<code>.getWorldPosition()</code>方法可以返回一个模型的世界坐标，是模型对象相对坐标原点的位置坐标，也就是该对象位置属性<code>.position</code>及其所有祖宗对象的<code>.position</code>相加。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-keyword">var</span> worldPosition = <span class="hljs-keyword">new</span> THREE.Vector3();
+mesh.getWorldPosition(worldPosition)
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">'世界坐标'</span>,worldPosition);
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">'本地坐标'</span>,mesh.position);
+</code></pre>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// Object3D.js源码</span>
+getWorldPosition: <span class="hljs-function"><span class="hljs-keyword">function</span> (<span class="hljs-params"> target </span>) </span>{
+  <span class="hljs-keyword">if</span> ( target === <span class="hljs-literal">undefined</span> ) {
+<span class="hljs-built_in">console</span>.warn( <span class="hljs-string">'THREE.Object3D: .getWorldPosition() target is now required'</span> );
+target = <span class="hljs-keyword">new</span> Vector3();
+  }
+  <span class="hljs-keyword">this</span>.updateMatrixWorld( <span class="hljs-literal">true</span> );
+  通过矩阵对象setFromMatrixPosition方法从世界矩阵中提取平移矩阵分量，然后转化为position属性
+  <span class="hljs-keyword">return</span> target.setFromMatrixPosition( <span class="hljs-keyword">this</span>.matrixWorld );
+},
+</code></pre>
+
+<div class="">
+  <a href="http://www.yanhuangxueyuan.com/">作者技术博客</a>
+</div>
+
+  </body>
+</html>

@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <link rel="shortcut icon" href="../favicon.ico" />
+    <link rel="bookmark" href="../favicon.ico" />
+    <title>Document</title>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+      }
+    </style>
+    <script src="../src/three.js"></script>
+    <script src="../src/controller/OrbitControls.js"></script>
+    <script src="../src/libs/stats.min.js"></script>
+  </head>
+  <body></body>
+  <script type="x-shader/x-vertex" id="vertexShader">
+    varying vec2 vUv;
+    void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }</script>
+  <script type="x-shader/x-vertex" id="fragmentShader">
+    varying vec2 vUv;
+    uniform vec3 color;
+    void main() {
+      gl_FragColor = vec4(color, vUv.x);
+    }
+  </script>
+ 
+  <script>
+    var scene, camera, renderer, clock, controller, stats
+    var shader_material, cloud, range = 50
+
+    init();
+    animate();
+
+    // - Functions -
+    function init() {
+      scene = new THREE.Scene();
+      clock = new THREE.Clock();
+      camera = new THREE.PerspectiveCamera(
+        45,
+        window.innerWidth / window.innerHeight,
+        0.1,
+        1000
+      );
+      camera.position.set(10, 10, 10)
+      renderer = new THREE.WebGLRenderer({
+        antialias: true, // 开启抗锯齿处理
+        alpha: true,
+      });
+      renderer.setClearColor(0xbfd1e5) // set sky color
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(window.devicePixelRatio)
+
+
+      var axisHelper = new THREE.AxesHelper(10);
+      scene.add(axisHelper);
+     
+      var directionalLight = new THREE.DirectionalLight(0xffffff, 0.9);
+      directionalLight.position.set(400, 200, 300);
+      // directionalLight.castShadow = true
+      scene.add(directionalLight);
+      // 方向光2
+      var directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.9);
+      directionalLight2.position.set(-400, -200, -300);
+      scene.add(directionalLight2);
+      //环境光
+      var ambient = new THREE.AmbientLight(0x404040, 0.6);
+      scene.add(ambient);
+
+      stats = new Stats()
+      document.body.appendChild( stats.dom );
+
+      // --------
+      var geometry = new THREE.BoxBufferGeometry( 1, 1, 1 );
+      var material = new THREE.MeshPhongMaterial( { 
+        color: 0x00ff00, 
+        // map: initTexture(10, 10) 
+      } );
+      var cube = new THREE.Mesh( geometry, material );
+      scene.add( cube );
+
+      cloud = new THREE.Group()
+      scene.add(cloud)
+      let width = 64, height = 64
+      
+      for(var i = 0; i < 100;i ++) {
+        var pos = new THREE.Vector3(
+          Math.random()*range - range/2, 
+          Math.random()*range - range/2, 
+          Math.random()*range - range/2)
+
+        pos.vX = ((Math.random() - 0.5) / 3) / 10
+        pos.vY = (0.05 + Math.random()*0.1)/5
+        let texture = initTexture(width, height)
+        let material = new THREE.SpriteMaterial({
+          map: texture,
+          depthWrite: false,
+          depthTest: false,
+          opacity: 0.5,
+        }); // depthTest: false
+        let s = new THREE.Sprite(material);
+        s.position.copy(pos)
+        s.userData.pos = pos
+        s.userData.texture = texture
+        s.scale.set(1, 1, 1);
+        cloud.add(s)
+      }
+
+      // --------
+
+      controller = new THREE.OrbitControls(camera, renderer.domElement);
+      document.body.appendChild(renderer.domElement);
+      window.onresize = onResize;
+    }
+
+    function initTexture(width, height) {
+      let canvas = document.createElementNS('http://www.w3.org/1999/xhtml', 'canvas')
+      canvas.width = width
+      canvas.height = height
+      canvas.style.width = width + 'px'
+      canvas.style.height = height + 'px'
+      // console.log(canvas)
+      let ctx = canvas.getContext('2d')
+      // ctx.fillRect(0, 0, width, height)
+      ctx.font="20px Arial";
+      ctx.fillText("5",10,50);
+
+      let texture = new THREE.Texture(canvas);
+      texture.draw_canvas_ctx = ctx
+      texture.needsUpdate = true;
+      return texture;
+
+    }
+
+    function updateTexture(sprite) {
+      let texture = sprite.userData.texture
+      let ctx = texture.draw_canvas_ctx
+      ctx.clearRect(0, 0, 64, 64)
+      ctx.fillText(Math.floor(Math.random()*10),10,50);
+      texture.needsUpdate = true
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      renderer.render(scene, camera);
+      stats.update();
+      controller.update(clock.getDelta());
+      snowanimate()
+    }
+
+    function snowanimate(){
+      if(cloud) {
+        cloud.children.map(s => {
+          let pos = s.userData.pos
+          s.position.x -= pos.vX
+          s.position.y -= pos.vY
+          if(s.position.x <= -range/2 || s.position.x >= range/2) pos.vX *= -1
+          if(s.position.y <= -range/2) s.position.y = range/2
+
+          updateTexture(s)
+        })
+      }
+    }
+
+    function onResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+  </script>
+</html>

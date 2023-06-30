@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <style>
+        body{
+            margin: 0;
+            overflow: hidden;
+        }
+    </style>
+    <script src="../src/three.js"></script>
+    <script src="../src/controller/OrbitControls.js"></script>
+
+</head>
+<body style="background-color: black;">
+    <div style="position: absolute;top: 0;left: 0;">
+        <input type="range" oninput="input(this)">
+    </div>
+</body>
+<script type="x-shader/x-vertex" id="vertexShader">
+   
+    varying vec4 vUv;
+    void main() {
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+</script>
+<script type="x-shader/x-vertex" id="fragmentShader">
+    uniform vec3 color;
+    uniform float width;
+    uniform float height;
+    varying vec4 vUv;
+
+    void main() {
+
+        vec2 center = vec2(width/2., height/2.);
+        float r = distance(vec2(gl_FragCoord.xy), center) / distance(vec2(0.), center);
+
+       
+        gl_FragColor = vec4(r, 0, 0, 1);
+    }
+</script>
+<script>
+    var percent = 0.5
+    function input(e) {
+        console.log(e.value/100)
+        percent = e.value/100
+    }
+    var scene, camera, renderer, clock, controlller
+ 
+    var shader_material
+    init()
+    animate()
+
+    // - Functions -
+    function init(){
+        scene = new THREE.Scene()
+        scene.background = new THREE.Color('#fff')
+
+        clock = new THREE.Clock();
+        camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000)
+        camera.position.z = 20
+        renderer = new THREE.WebGLRenderer({    
+            antialias:true, // 开启抗锯齿处理
+            alpha:true
+        })
+        renderer.setSize(window.innerWidth,window.innerHeight)
+        var geometry = new THREE.SphereGeometry( 5, 32, 32 );
+        shader_material = new THREE.ShaderMaterial( {
+            uniforms: {
+              color: {
+                  type: 'c',
+                  value: new THREE.Color('#000')
+              },
+              width: {
+                  type: 'f',
+                  value: window.innerWidth
+              },
+              height: {
+                  type: 'f',
+                  value: window.innerHeight
+              }
+            },
+            vertexShader: document.getElementById( 'vertexShader' ).textContent,
+            fragmentShader: document.getElementById( 'fragmentShader' ).textContent,
+            transparent: true,
+            // depthTest: false,
+            side: THREE.DoubleSide
+        } );
+        var sphere = new THREE.Mesh( geometry, shader_material );
+        scene.add( sphere );
+      
+
+        var geo = new THREE.BoxGeometry( 1, 1, 1 );
+
+        var mat = new THREE.MeshBasicMaterial( {color: 0x00ff00} )
+        var mat2 = new THREE.MeshBasicMaterial( {color: 0xffff00} )
+
+        var cube = new THREE.Mesh( geo, mat )
+        var cube2 = new THREE.Mesh( geo, mat2 )
+
+        cube.position.z = 5
+        cube2.position.z = 5
+        cube2.position.x = 3
+
+        scene.add(cube)
+        scene.add(cube2)
+
+
+        var axisHelper = new THREE.AxesHelper( 10 )
+        scene.add( axisHelper )
+
+        /**
+            * 光源设置
+            */
+        // 方向光1
+        var directionalLight = new THREE.DirectionalLight(0xffffff, 0.9);
+        directionalLight.position.set(400, 200, 300);
+        // directionalLight.castShadow = true
+        scene.add(directionalLight);
+        // 方向光2
+        var directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.9);
+        directionalLight2.position.set(-400, -200, -300);
+        scene.add(directionalLight2);
+        //环境光
+        var ambient = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambient);
+
+        controlller = new THREE.OrbitControls(camera,renderer.domElement)
+        document.body.appendChild(renderer.domElement)
+        window.onresize = onResize
+    }
+
+    function animate(){
+    
+        requestAnimationFrame(animate)
+        renderer.render(scene, camera)
+        controlller.update(clock.getDelta())
+    }
+
+    function onResize() {
+        camera.aspect = window.innerWidth / window.innerHeight
+        camera.updateProjectionMatrix()
+        renderer.setSize(window.innerWidth, window.innerHeight)
+    }
+</script>
+</html>

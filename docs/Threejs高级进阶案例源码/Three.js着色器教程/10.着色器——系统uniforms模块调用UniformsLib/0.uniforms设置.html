@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>作者博客：百度"three.js 郭隆邦"</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      /* 隐藏body窗口区域滚动条 */
+    }
+  </style>
+  <!--引入three.js三维引擎-->
+  <script src="http://www.yanhuangxueyuan.com/versions/threejsR92/build/three.js"></script>
+  <!-- 引入threejs扩展控件OrbitControls.js -->
+  <script src="http://www.yanhuangxueyuan.com/versions/threejsR92/examples/js/controls/OrbitControls.js"></script>
+</head>
+
+<body>
+  <!-- 顶点着色器 -->
+  <script id="vertexShader" type="x-shader/x-vertex">
+    // varying关键字声明一个变量表示顶点纹理坐标插值后的结果
+    varying vec2 vUv;
+    void main(){
+      // 顶点纹理坐标uv数据进行插值计算
+      vUv = uv;
+      // 投影矩阵projectionMatrix、视图矩阵viewMatrix、模型矩阵modelMatrix
+      gl_Position = projectionMatrix*viewMatrix*modelMatrix*vec4( position, 1.0 );
+    }
+  </script>
+  <!-- 片元着色器 -->
+  <script id="fragmentShader" type="x-shader/x-fragment">
+    // 颜色贴图变量map
+    uniform sampler2D map;
+    // 颜色变量
+    uniform vec3 diffuse;
+    // 透明度变量
+    uniform float opacity;
+    // 顶点片元化后有多少个片元就有多少个纹理坐标数据vUv
+    varying vec2 vUv;
+    void main() {
+      //从颜色贴图获得像素值
+       gl_FragColor = texture2D( map, vUv );
+       // 片元RGB分量和颜色向量相乘
+       gl_FragColor.rgb*=diffuse;
+       // 片元A分量乘透明度opacity
+       gl_FragColor.a*=opacity;
+    }
+  </script>
+  <script>
+    /**
+     * 创建场景对象Scene
+     */
+    var scene = new THREE.Scene();
+    /**
+     * 创建网格模型
+     */
+    var geometry = new THREE.PlaneBufferGeometry(120, 60);
+    // 自定义顶点着色器对象
+    var material = new THREE.ShaderMaterial({
+      uniforms: {
+        // 对应片元着色器中map变量
+        map: {
+          value: new THREE.TextureLoader().load('./Earth.png')
+        },
+        // 对应片元着色器中diffuse变量
+        diffuse: {
+          value: new THREE.Color(0xff0000)
+        },
+        // 对应片元着色器中opacity变量
+        opacity: {
+          value: 0.3
+        },
+      },
+      // 顶点着色器
+      vertexShader: document.getElementById('vertexShader').textContent,
+      // 片元着色器
+      fragmentShader: document.getElementById('fragmentShader').textContent,
+      transparent:true,//允许透明计算
+    });
+    var mesh = new THREE.Mesh(geometry, material);
+    scene.add(mesh);
+    /**
+     * 相机设置
+     */
+    var width = window.innerWidth; //窗口宽度
+    var height = window.innerHeight; //窗口高度
+    var k = width / height; //窗口宽高比
+    var s = 150; //三维场景显示范围控制系数，系数越大，显示的范围越大
+    //创建相机对象
+    var camera = new THREE.OrthographicCamera(-s * k, s * k, s, -s, 1, 1000);
+    camera.position.set(200, 300, 200); //设置相机位置
+    camera.lookAt(scene.position); //设置相机方向(指向的场景对象)
+    /**
+     * 创建渲染器对象
+     */
+    var renderer = new THREE.WebGLRenderer({antialias: true});
+    renderer.setSize(width, height); //设置渲染区域尺寸
+    document.body.appendChild(renderer.domElement); //body元素中插入canvas对象
+
+    // 渲染函数
+    function render() {
+      renderer.render(scene, camera); //执行渲染操作
+      requestAnimationFrame(render); //请求再次执行渲染函数render，渲染下一帧
+    }
+    render();
+    //创建控件对象  相机对象camera作为参数   控件可以监听鼠标的变化，改变相机对象的属性
+    var controls = new THREE.OrbitControls(camera,renderer.domElement);
+  </script>
+</body>
+
+</html>

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <script src="../src/webgl_lib/webgl-utils.js"></script>
+    <script src="../src/webgl_lib/webgl-debug.js"></script>
+    <script src="../src/webgl_lib/cuon-utils.js"></script>
+    <script src="../src/webgl_lib/cuon-matrix.js"></script>
+    <style>
+        #canvas{
+            display: block;
+            margin: 0 auto;
+            border: 1px solid;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas" width="800px" height="600px"></canvas>
+</body>
+<script>
+    var canvas = document.getElementById('canvas')
+    canvas.width = 800
+    canvas.height = 600
+    
+    // 获取 webgl 绘图上下文
+    var gl = getWebGLContext(canvas)
+    console.log(gl)
+    if(!gl) { 
+        console.log('not support')
+    }
+    
+    gl.clearColor(0.0, 1.0, 1.0, 1.0)// 指定清空 canvas 的颜色 (背景色)
+    gl.clear(gl.COLOR_BUFFER_BIT) // 清空 canvas 
+
+   
+</script>
+</html>

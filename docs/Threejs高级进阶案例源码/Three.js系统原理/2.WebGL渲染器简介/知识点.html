@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+<meta charset="utf-8">
+<title></title>
+  <link href="http://www.yanhuangxueyuan.com/markdown.css" rel="stylesheet" type="text/css">
+  </head>
+  <body>
+
+<h1 id="webgl-webglrenderer-">WebGL渲染器<code>WebGLRenderer</code></h1>
+<p>想要了解Three.js系统的原理，简单点说就是了解WebGL渲染器渲染解析场景和相机的原理，如果想深入了解渲染器的渲染原理，不是短时间内能够做到的，本节课主要目的是假设你有一定的原生WebGL基础，然后对Three.js的渲染器进行简单介绍，后面的课程会进行深入的介绍。</p>
+<h3 id="-domelement-"><code>.domElement</code>属性</h3>
+<p>如果想通过WebGL渲染一个三维场景，需要HTML的Canvas画布元素实现，通过渲染器构造函数<code>WebGLRenderer</code>创建一个渲染器对象 ，如果构造函数参数没有设置canvas对象，系统会自动创建一个Cnavas元素。</p>
+<p>通过canvas元素返回WebGL上下文gl对象才能调用相关的WebGL API</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">//通过getElementById()方法获取canvas画布</span>
+<span class="hljs-keyword">var</span> canvas=<span class="hljs-built_in">document</span>.getElementById(<span class="hljs-string">'webgl'</span>);
+<span class="hljs-comment">//通过方法getContext()获取WebGL上下文</span>
+<span class="hljs-keyword">var</span> gl=canvas.getContext(<span class="hljs-string">'webgl'</span>);
+...
+gl.enableVertexAttribArray(aposLocation);
+...
+gl.drawArrays(gl.LINE_LOOP,<span class="hljs-number">0</span>,<span class="hljs-number">4</span>);
+...
+</code></pre>
+<p>WebGLRenderer.js源码对<code>.domElement</code>属性的相关封装</p>
+<pre><code class="lang-JavaScript">  <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">WebGLRenderer</span>(<span class="hljs-params">parameters</span>) </span>{
+...
+parameters = parameters || {};
+<span class="hljs-comment">//如果canvas画布没有通过参数对象parameters的canvas属性设置，通过API创建一个</span>
+<span class="hljs-keyword">var</span> _canvas = parameters.canvas !== <span class="hljs-literal">undefined</span> ? parameters.canvas : <span class="hljs-built_in">document</span>.createElementNS(<span class="hljs-string">'http://www.w3.org/1999/xhtml'</span>, <span class="hljs-string">'canvas'</span>),
+...
+把_canvas赋值给WebGL渲染器对象的domElement属性
+<span class="hljs-keyword">this</span>.domElement = _canvas;
+  }
+</code></pre>
+<p>通过渲染器<code>.domElement</code>属性，可以把Three.js的canvas画布插入到html任何一个元素中，可以在整个body页面上全局显示，也可以插入一个div元素中局部显示，注意canvas画布尺寸设置。</p>
+<pre><code class="lang-JavaScript">  <span class="hljs-comment">// 创建渲染器对象</span>
+  <span class="hljs-keyword">var</span> renderer = <span class="hljs-keyword">new</span> THREE.WebGLRenderer();
+  renderer.setSize(width, height);
+  <span class="hljs-comment">//body元素中插入Threejs创建的包含canvas对象</span>
+  <span class="hljs-built_in">document</span>.body.appendChild(renderer.domElement);
+</code></pre>
+<h3 id="-setsize-width-height-"><code>.setSize(width, height)</code>方法</h3>
+<p>WebGLRenderer.js源码对<code>.setSize()</code>方法的相关封装</p>
+<pre><code class="lang-JavaScript">...
+<span class="hljs-comment">// pixelRatio：像素比率</span>
+_pixelRatio = <span class="hljs-number">1</span>,
+...
+<span class="hljs-keyword">this</span>.setSize = <span class="hljs-function"><span class="hljs-keyword">function</span>(<span class="hljs-params">width, height, updateStyle</span>) </span>{
+...
+  _canvas.width = width * _pixelRatio;
+  _canvas.height = height * _pixelRatio;
+
+  <span class="hljs-keyword">if</span> (updateStyle !== <span class="hljs-literal">false</span>) {
+_canvas.style.width = width + <span class="hljs-string">'px'</span>;
+_canvas.style.height = height + <span class="hljs-string">'px'</span>;
+  }
+...
+};
+</code></pre>
+<p>全屏设置，也就是canvas画布宽高度和窗口尺寸一样</p>
+<pre><code class="lang-JavaScript">  <span class="hljs-keyword">var</span> width = <span class="hljs-built_in">window</span>.innerWidth; <span class="hljs-comment">//窗口宽度</span>
+  <span class="hljs-keyword">var</span> height = <span class="hljs-built_in">window</span>.innerHeight; <span class="hljs-comment">//窗口高度</span>
+
+  <span class="hljs-keyword">var</span> renderer = <span class="hljs-keyword">new</span> THREE.WebGLRenderer();
+  <span class="hljs-comment">// 设置渲染尺寸，本质就是设置canvas元素宽高度</span>
+  renderer.setSize(width, height);
+</code></pre>
+<p>局部渲染，通过<code>.setSize()</code>方法设置canvas画布的宽高度像素</p>
+<pre><code class="lang-JavaScript">  <span class="hljs-keyword">var</span> width = <span class="hljs-built_in">window</span>.innerWidth; <span class="hljs-comment">//窗口宽度</span>
+  <span class="hljs-keyword">var</span> height = <span class="hljs-built_in">window</span>.innerHeight; <span class="hljs-comment">//窗口高度</span>
+
+  <span class="hljs-keyword">var</span> renderer = <span class="hljs-keyword">new</span> THREE.WebGLRenderer();
+  <span class="hljs-comment">// 设置渲染尺寸，本质就是设置canvas元素宽高度</span>
+  renderer.setSize(<span class="hljs-number">300</span>, <span class="hljs-number">300</span>);
+</code></pre>
+<h3 id="-">帧缓冲区的相关封装</h3>
+<p>学习Three.js与帧缓冲区相关的封装，首先要了解WebGL中帧缓冲区的概念，帧缓冲区包含颜色缓冲区、深度缓冲区、模板缓冲区，颜色缓冲区存储片元的颜色数据，也就是像素数据，深度缓冲存储片元的深度数据，用于WebGL渲染流程中的深度测试环节，被遮挡的片元会被剔除，不会显示在canvas画布上。</p>
+<h3 id="-clear-color-depth-stencil-">渲染器方法<code>.clear(color,depth,stencil)</code></h3>
+<p>原生WebGL方法<code>gl.clear()</code>用来清除帧缓冲区数据</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// 清除颜色缓冲区数据</span>
+gl.clear(gl.COLOR_BUFFER_BIT)
+<span class="hljs-comment">// 清除深度缓冲区数据</span>
+gl.clear(gl.DEPTH_BUFFER_BIT)
+<span class="hljs-comment">// 清除模板缓冲区数据</span>
+gl.clear(gl.STENCIL_BUFFER_BIT)
+</code></pre>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// 清除帧缓冲区的颜色、深度和模板缓冲中数据</span>
+gl.clear(gl.DEPTH_BUFFER_BIT | gl.COLOR_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
+</code></pre>
+<p>WebGLRenderer.js源码对渲染器方法<code>.clear()</code>的封装</p>
+<pre><code class="lang-JavaScript"><span class="hljs-keyword">this</span>.clear = <span class="hljs-function"><span class="hljs-keyword">function</span>(<span class="hljs-params">color, depth, stencil</span>) </span>{
+  <span class="hljs-comment">// “&amp;” 和 “|” 是位运算操作符</span>
+  <span class="hljs-keyword">var</span> bits = <span class="hljs-number">0</span>;
+
+  <span class="hljs-keyword">if</span> (color === <span class="hljs-literal">undefined</span> || color) bits |= _gl.COLOR_BUFFER_BIT;
+  <span class="hljs-keyword">if</span> (depth === <span class="hljs-literal">undefined</span> || depth) bits |= _gl.DEPTH_BUFFER_BIT;
+  <span class="hljs-keyword">if</span> (stencil === <span class="hljs-literal">undefined</span> || stencil) bits |= _gl.STENCIL_BUFFER_BIT;
+
+  _gl.clear(bits);
+
+};
+</code></pre>
+<h3 id="-cleardepth-">渲染器方法<code>.clearDepth()</code></h3>
+<p>清除帧缓冲区中深度缓冲区中的片元深度数据</p>
+<pre><code class="lang-JavaScript"><span class="hljs-selector-tag">renderer</span><span class="hljs-selector-class">.clearDepth</span>()
+</code></pre>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// WebGLRenderer.js源码</span>
+<span class="hljs-keyword">this</span>.clearDepth = <span class="hljs-function"><span class="hljs-keyword">function</span>(<span class="hljs-params"></span>) </span>{
+  <span class="hljs-keyword">this</span>.clear(<span class="hljs-literal">false</span>, <span class="hljs-literal">true</span>, <span class="hljs-literal">false</span>);
+};
+</code></pre>
+<h3 id="-autoclear-">渲染器属性<code>.autoClear</code></h3>
+<p>Three.js渲染器默认情况下，本次执行render方法之前，会把上次执行render方法后帧缓冲区中的数据清除</p>
+<p>autoClear默认值true，设置为false，执行render方法的时候不会自动清除上次渲染帧缓冲区中的数据</p>
+<pre><code class="lang-JavaScript">renderer.autoClear = <span class="hljs-literal">false</span>;
+</code></pre>
+<div class="">
+  <a href="http://www.yanhuangxueyuan.com/">作者技术博客</a>
+</div>
+  </body>
+</html>

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+<meta charset="utf-8">
+<title></title>
+  <link href="http://www.yanhuangxueyuan.com/markdown.css" rel="stylesheet" type="text/css">
+  </head>
+  <body>
+<h1 id="webglrendertarget-">WebGLRenderTarget(离屏渲染)</h1>
+<p>WebGL渲染目标对象<code>WebGLRenderTarget</code>实现了WebGL的离屏渲染功能，如果你有一定的WebGL或OpenGL基础，对帧缓冲区、离线渲染、后处理等概念应该是不陌生的。</p>
+<h3 id="-render-"><code>.render()</code>方法</h3>
+<p>WebGL渲染器WebGLRenderer渲染方法<code>.render()</code>的参数<code>( Scene, Camera, WebGLRenderTarget, forceClear )</code>.</p>
+<ul>
+<li>Scene:要渲染的场景对象</li>
+<li>Camera:场景对象对应的相机对象</li>
+<li>WebGLRenderTarget:如果参数指定了WebGL渲染目标WebGLRenderTarget，渲染的图像结果保存到该对象，或者说保存到GPU自定义帧缓冲区中，不会显示到canvas画布上； 如果没有指定渲染目标，也就是没有该参数，渲染结果会直接显示到canvas画布上，或者说渲染结果保存到canvas画布对应的默认帧缓冲区中.</li>
+</ul>
+<h3 id="-canvas-">无渲染目标(Canvas显示)</h3>
+<p>执行下面代码会把场景scene的渲染结果保存到canvas画布对应的默认帧缓冲区中，形象点说就是可以直接显示到Cnavas画布上，显示器会自动读取CPU默认帧缓冲区上面的图像数据显示。</p>
+<pre><code class="lang-JavaScript">  <span class="hljs-selector-tag">renderer</span><span class="hljs-selector-class">.render</span>(<span class="hljs-selector-tag">scene</span>, <span class="hljs-selector-tag">camera</span>);
+</code></pre>
+<pre><code class="lang-JavaScript"><span class="hljs-keyword">var</span> renderer = <span class="hljs-keyword">new</span> THREE.WebGLRenderer();
+renderer.setSize(width, height);
+<span class="hljs-comment">// 渲染结果canvas元素插入到body元素中</span>
+<span class="hljs-built_in">document</span>.body.appendChild(renderer.domElement);
+<span class="hljs-comment">// .domElement属性返回的一个canvas画布对象，保存了render方法的渲染结果</span>
+<span class="hljs-built_in">console</span>.log(renderer.domElement);
+</code></pre>
+<h3 id="-canvas-">有渲染目标(Canvas不显示)</h3>
+<p>执行下面代码WebGL渲染器的渲染结果，也就是一张图像，不会直接显示在Canvas画布上，从Three.js的角度阐述，渲染结果的RGBA像素数据存储到了WebGL渲染目标对象<code>WebGLRenderTarget</code>中，通过目标对象的纹理属性<code>.texture</code>可以获得渲染结果的RGBA像素数据，也就是一个Three.js的纹理对象<code>THREE.Texture</code>，可以作为材质对象颜色贴图属性<code>map</code>的属性值；从原生WebGL的角度阐述，就是渲染结果的RGBA像素值存储到了GPU一个自定义的帧缓冲区中，屏幕默认不会直接读取该缓冲区中的像素数据，通过WebGL的特定API可以获取，更多的信息可以百度WebGL或OpenGL离屏渲染。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// 创建一个WebGL渲染目标对象WebGLRenderTarget</span>
+<span class="hljs-comment">// 设置渲染结果(一帧图像)的像素为500x500</span>
+<span class="hljs-keyword">var</span> target = <span class="hljs-keyword">new</span> THREE.WebGLRenderTarget(<span class="hljs-number">500</span>, <span class="hljs-number">500</span>);
+<span class="hljs-comment">// 设置特定target的时候，render渲染结果不会显示在canvas画布上</span>
+renderer.render(scene, camera,target); <span class="hljs-comment">//执行渲染操作</span>
+</code></pre>
+<h3 id="-texture-"><code>.texture</code></h3>
+<p>通过WebGL渲染目标<code>WebGLRenderTarget</code>的纹理属性<code>.texture</code>可以获得WebGL渲染器的渲染结果，该属性返回的结果是一个纹理对象<code>THREE.Texture</code>，可以作为材质Material对象颜色贴图属性<code>map</code>的属性。</p>
+<pre><code class="lang-JavaScript">var material = <span class="hljs-keyword">new</span> THREE.MeshLambertMaterial({
+  <span class="hljs-comment">// WebGL渲染目标对象属性.texture返回一张纹理贴图，也就是scene在camera下的渲染结果</span>
+  <span class="hljs-built_in">map</span>: target.texture,
+});
+</code></pre>
+
+<div class="">
+  <a href="http://www.yanhuangxueyuan.com/">作者技术博客</a>
+</div>
+
+  </body>
+</html>

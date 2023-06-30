@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+<meta charset="utf-8">
+<title></title>
+  <link href="http://www.yanhuangxueyuan.com/markdown.css" rel="stylesheet" type="text/css">
+  </head>
+  <body>
+
+<h1 id="-">着色器——模仿系统的材质对象</h1>
+<p><code>MeshPhongMaterial</code>、<code>PointsMaterial</code>等three.js的材质材质对象本质上都是着色器代码，本节课就通过自定义着色器<code>ShaderMaterial</code>调用Threejs系统的着色器库和uniforms库来模仿这些材质对象。</p>
+<h3 id="uniformslib-js">UniformsLib.js</h3>
+<p>包含一些常见uniform变量对应的属性和属性值</p>
+<pre><code class="lang-JavaScript"><span class="hljs-selector-tag">THREE</span><span class="hljs-selector-class">.UniformsLib</span><span class="hljs-selector-class">.common</span>,
+<span class="hljs-selector-tag">THREE</span><span class="hljs-selector-class">.UniformsLib</span><span class="hljs-selector-class">.specularmap</span>,
+<span class="hljs-selector-tag">THREE</span><span class="hljs-selector-class">.UniformsLib</span><span class="hljs-selector-class">.envmap</span>,
+...
+</code></pre>
+<h3 id="uniformsutils-js">UniformsUtils.js</h3>
+<p>方法<code>.merge()</code>用来赋值组合UniformsLib.js中提供的一些uniforms块。</p>
+<pre><code class="lang-JavaScript">uniforms: THREE.UniformsUtils.<span class="hljs-keyword">merge</span>([
+  THREE.UniformsLib.points,
+  THREE.UniformsLib.fog,
+]),
+</code></pre>
+<h3 id="shaderchunk-js">ShaderChunk.js</h3>
+<p>通过<code>THREE.ShaderChunk</code>可以获得ShaderChunk和ShaderLib文件下面的所有着色器文件.glsl代码。
+比如<code>THREE.ShaderChunk.points_vert</code>返回ShaderLib文件下points_vert.glsl文件中着色器代码字符串，该着色器代码是点材质对象<code>PointsMaterial</code>的顶点着色器；比如<code>THREE.ShaderChunk.meshphong_frag</code>返回ShaderLib文件下meshphong_frag.glsl文件中着色器代码字符串，该着色器代码是高光网格材质对象<code>MeshPhongMaterial</code>的片元着色器；</p>
+<h3 id="shaderlib-js">ShaderLib.js</h3>
+<p>该代码模块设置了每一种Three.js材质对象的顶点着色器、片元着色器和uniform变量对应的属性和值。</p>
+<h3 id="-pointsmaterial-">模仿<code>PointsMaterial</code></h3>
+<pre><code class="lang-JavaScript"><span class="hljs-keyword">var</span> material = <span class="hljs-keyword">new</span> THREE.ShaderMaterial({
+  <span class="hljs-comment">// 调用UniformsLib.js文件中的uniform变量代码块</span>
+  uniforms: THREE.UniformsUtils.merge([
+THREE.UniformsLib.points,
+THREE.UniformsLib.fog,
+  ]),
+  <span class="hljs-comment">// 获得ShaderLib文件下着色器文件points_vert.glsl代码</span>
+  vertexShader: THREE.ShaderChunk.points_vert,
+  <span class="hljs-comment">// 获得ShaderLib文件下着色器文件points_frag.glsl代码</span>
+  fragmentShader: THREE.ShaderChunk.points_frag
+});
+
+<span class="hljs-comment">// 重置uniform变量对应属性的值</span>
+<span class="hljs-comment">// 点尺寸设置</span>
+material.uniforms.size.<span class="hljs-keyword">value</span>=<span class="hljs-number">20.0</span>;
+<span class="hljs-comment">// 点颜色数据设置</span>
+material.uniforms.diffuse.<span class="hljs-keyword">value</span>.setRGB(<span class="hljs-number">1</span>,<span class="hljs-number">0</span>,<span class="hljs-number">0</span>)
+</code></pre>
+<h3 id="-meshphongmaterial-">模仿<code>MeshPhongMaterial</code></h3>
+<pre><code class="lang-JavaScript"><span class="hljs-keyword">var</span> material = <span class="hljs-keyword">new</span> THREE.ShaderMaterial({
+  <span class="hljs-comment">// 调用UniformsLib.js文件中的uniform变量代码块</span>
+  uniforms: THREE.UniformsUtils.merge([
+  THREE.UniformsLib.common,
+  THREE.UniformsLib.specularmap,
+  THREE.UniformsLib.envmap,
+  THREE.UniformsLib.aomap,
+  THREE.UniformsLib.lightmap,
+  THREE.UniformsLib.emissivemap,
+  THREE.UniformsLib.bumpmap,
+  THREE.UniformsLib.normalmap,
+  THREE.UniformsLib.displacementmap,
+  THREE.UniformsLib.gradientmap,
+  THREE.UniformsLib.fog,
+  THREE.UniformsLib.lights,
+  {
+emissive: { <span class="hljs-keyword">value</span>: <span class="hljs-keyword">new</span> THREE.Color( <span class="hljs-number">0x000000</span> ) },
+specular: { <span class="hljs-keyword">value</span>: <span class="hljs-keyword">new</span> THREE.Color( <span class="hljs-number">0x111111</span> ) },
+shininess: { <span class="hljs-keyword">value</span>: <span class="hljs-number">30</span> }
+  }
+  ]),
+  <span class="hljs-comment">// 获得ShaderLib文件下着色器文件meshphong_vert.glsl代码</span>
+  vertexShader: THREE.ShaderChunk.meshphong_vert,
+  <span class="hljs-comment">// 获得ShaderLib文件下着色器文件meshphong_frag.glsl代码</span>
+  fragmentShader: THREE.ShaderChunk.meshphong_frag
+});
+
+<span class="hljs-comment">// phong受光照影响,ShaderMaterial的lights属性需要设置为true，默认是false</span>
+material.lights = <span class="hljs-keyword">true</span>;
+<span class="hljs-comment">// 设置材质颜色</span>
+material.uniforms.diffuse.<span class="hljs-keyword">value</span>.setRGB(<span class="hljs-number">1.0</span>, <span class="hljs-number">1.0</span>, <span class="hljs-number">0.0</span>)
+</code></pre>
+<div class="">
+  <a href="http://www.yanhuangxueyuan.com/">作者技术博客</a>
+</div>
+  </body>
+</html>

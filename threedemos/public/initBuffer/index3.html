@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <link rel="shortcut icon" href="../favicon.ico" />
+    <link rel="bookmark" href="../favicon.ico" />
+    <title>Document</title>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+      }
+    </style>
+    <script src="../src/three.js"></script>
+    <script src="./Earcut.js"></script>
+    <script src="./ShapeUtils.js"></script>
+    <script src="../src/controller/OrbitControls.js"></script>
+    <script src="./brasil.js"></script>
+  </head>
+  <body></body>
+  <script type="x-shader/x-vertex" id="vertexShader">
+    varying vec2 vUv;
+    void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  </script>
+  <script type="x-shader/x-vertex" id="fragmentShader">
+    varying vec2 vUv;
+    uniform vec3 color;
+    void main() {
+      gl_FragColor = vec4(color, vUv.x);
+    }
+  </script>
+  <script>
+    var scene, camera, renderer, clock, controlller;
+    var shader_material
+
+    init();
+    animate();
+
+    // - Functions -
+    function init() {
+      scene = new THREE.Scene();
+      clock = new THREE.Clock();
+      camera = new THREE.PerspectiveCamera(
+        45,
+        window.innerWidth / window.innerHeight,
+        0.1,
+        100000
+      );
+      camera.position.set(50, 50, 50);
+      renderer = new THREE.WebGLRenderer({
+        antialias: true, // 开启抗锯齿处理
+        alpha: true,
+      });
+      // renderer.setClearColor(new THREE.Color(0x000000))
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      // renderer.shadowMap.enabled = true
+
+      shader_material = new THREE.ShaderMaterial( {
+        uniforms: {
+          
+        },
+        vertexShader: document.getElementById( 'vertexShader' ).textContent,
+        fragmentShader: document.getElementById( 'fragmentShader' ).textContent,
+        side:THREE.DoubleSide,              // 双面可见
+      } );
+
+      var material = new THREE.MeshNormalMaterial({
+        side: THREE.DoubleSide
+      });
+      
+      let shapeVertices = [
+        new THREE.Vector3(0, 10, 3),
+        new THREE.Vector3(10, 10, 5),
+        new THREE.Vector3(10, 0, 5),
+        new THREE.Vector3(0, 0, 5),
+      ]
+      // let shapeVertices = []
+      // for(let i = 0;i < brasil.length;i+=3) {
+      //   shapeVertices.push(new THREE.Vector3(
+      //     brasil[i], brasil[i+1], brasil[i+2]
+      //   ))
+      // }
+      var geometry = initBufferPlaneGeometry(shapeVertices)
+      // var geometry = initBufferPlaneGeometry(brasil)
+     
+      // var plane = new THREE.Mesh(geometry, shader_material)
+      var plane = new THREE.Mesh(geometry, material)
+      
+      plane.rotation.x = -Math.PI/2
+      scene.add(plane)
+
+      var axisHelper = new THREE.AxesHelper(10);
+      scene.add(axisHelper);
+
+      controlller = new THREE.OrbitControls(camera, renderer.domElement);
+      document.body.appendChild(renderer.domElement);
+      window.onresize = onResize;
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      renderer.render(scene, camera);
+      controlller.update(clock.getDelta());
+    }
+
+    function onResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    function initBufferPlaneGeometry(shapeVertices) {
+      let geometry = new THREE.BufferGeometry()
+      
+      const indices = [];
+      const vertices = [];
+      const normals = [];
+      const uvs = [];
+      
+      for ( let i = 0, l = shapeVertices.length; i < l; i ++ ) {
+        const vertex = shapeVertices[ i ];
+        // console.log(vertex)
+        vertices.push( vertex.x, vertex.y, vertex.z );
+        let nv = vertex.clone().normalize()
+        // normals.push( 0, 0, 1 );
+        normals.push( nv.x, nv.y, nv.z );
+        uvs.push( vertex.x/10, vertex.y/10 ); // world uvs
+      }
+      const faces = ShapeUtils.triangulateShape( shapeVertices, [] );
+      for ( let i = 0, l = faces.length; i < l; i ++ ) {
+
+        const face = faces[ i ];
+        const a = face[ 0 ];
+        const b = face[ 1 ];
+        const c = face[ 2 ];
+        indices.push( a, b, c );
+      }
+      
+      geometry.setIndex( indices );
+      geometry.addAttribute( 'position', new THREE.Float32BufferAttribute( vertices, 3 ) );
+      geometry.addAttribute( 'normal', new THREE.Float32BufferAttribute( normals, 3 ) );
+      geometry.addAttribute( 'uv', new THREE.Float32BufferAttribute( uvs, 2 ) );
+      
+      return geometry
+    }
+
+   
+  </script>
+</html>

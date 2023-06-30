@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <script src="../src/webgl_lib/webgl-utils.js"></script>
+    <script src="../src/webgl_lib/webgl-debug.js"></script>
+    <script src="../src/webgl_lib/cuon-utils.js"></script>
+    <script src="../src/webgl_lib/cuon-matrix.js"></script>
+    <script src="../src/utils.js"></script>
+    <style>
+        #canvas{
+            display: block;
+            margin: 0 auto;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas" width="800px" height="800px"></canvas>
+</body>
+<script>
+    var OFFER_SCREEN_WIDTH = 512
+    var OFFER_SCREEN_HEIGHT = 512
+
+    var canvas = document.getElementById('canvas')
+    canvas.width = 800
+    canvas.height = 800
+    
+    // 获取 webgl 绘图上下文
+    var gl = getWebGLContext(canvas)
+    if(!gl) { 
+        console.log('not support')
+    }
+    gl.enable(gl.DEPTH_TEST)
+    gl.enable(gl.BLEND) // 开启混合
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA) // 指定混合函数
+
+    var cubeProgram = createProgram(gl, getCubeVSHADER(), getCubeFSHADER()); // 根据说着色器代码构建程序对象
+    
+    var cameraPos = [3, 3, 7]
+    var viewMatrix = new Matrix4();
+    // eyeX, eyeY, eyeZ, centerX, centerY, centerZ, upX, upY, upZ
+    viewMatrix.setLookAt(
+        3, 3, 7, 
+        0, 0, 0, 
+        0, 1, 0);
+    var projMatrix = new Matrix4();
+    projMatrix.setPerspective(30, canvas.width/canvas.height, 1, 100);
+    let modelMatrix = new Matrix4()
+    modelMatrix.rotate(-90, 0, 1, 0)
+
+    var normalMatrix = new Matrix4()
+    normalMatrix.setInverseOf(modelMatrix)
+    normalMatrix.transpose()
+   
+    gl.useProgram(cubeProgram); // 上下文对象绑定程序对象
+
+    // uniform mat4 u_projMatrix;
+    // uniform mat4 u_modelMatrix;
+    // uniform matt u_viewMatrix;
+    var u_projMatrix = bindUnifrom4fv('u_projMatrix', projMatrix.elements, cubeProgram)
+    var u_modelMatrix = bindUnifrom4fv('u_modelMatrix', modelMatrix.elements, cubeProgram)
+    var u_viewMatrix = bindUnifrom4fv('u_viewMatrix', viewMatrix.elements, cubeProgram)
+    var u_normalMatrix = bindUnifrom4fv('u_normalMatrix', normalMatrix.elements, cubeProgram)
+    
+    // var { buffer: buffer1, attr: attr1 } = bindAttriBuffer('a_Position', CubeVertices, 3, cubeProgram)
+    // var { buffer: buffer3, attr: attr3 } = bindAttriBuffer('a_Color', CubeColors, 3, cubeProgram)
+    // bindAttriBuffer('a_CameraPos', cameraPos, 3, cubeProgram)
+    bindUnifrom3fv('u_CameraPos', cameraPos, cubeProgram)
+
+    var { buffer: buffer1, attr: attr1 } = bindAttriBufferOfffset('a_Position', CubeVCN, 3, cubeProgram, 9, 0)
+    var { buffer: buffer2, attr: attr2 } = bindAttriBufferOfffset('a_Color', CubeVCN, 3, cubeProgram, 9, 3)
+    var { buffer: buffer3, attr: attr3 } = bindAttriBufferOfffset('a_Normal', CubeVCN, 3, cubeProgram, 9, 6)
+
+    var { indexBuffer, indices } = bindElementBuffer(cubeIndices)
+
+    gl.drawElements(gl.TRIANGLES, cubeIndices.length, gl.UNSIGNED_BYTE, 0);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null)
+
+    animate()
+    function animate() {
+
+        modelMatrix.rotate(-1, 0, 1, 0)
+        gl.uniformMatrix4fv(u_modelMatrix, false, modelMatrix.elements);
+
+        normalMatrix.setInverseOf(modelMatrix)
+        normalMatrix.transpose()
+        gl.uniformMatrix4fv(u_normalMatrix, false, normalMatrix.elements);
+
+        gl.drawElements(gl.TRIANGLES, cubeIndices.length, gl.UNSIGNED_BYTE, 0);
+   
+        requestAnimationFrame(animate)
+    }
+
+    // 为 attribute 变量绑定 buffer 缓冲区并赋值（从一份数据中获取一份缓冲数据）
+    function bindAttriBuffer(attrName, vertices, count, program) {
+        let buffer = gl.createBuffer()
+        if(!buffer) {
+            console.log("failed create vertex buffer")
+        }
+        gl.bindBuffer(gl.ARRAY_BUFFER, buffer) // 将缓冲区对象绑定到目标
+        gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW) // 向缓冲区对象中写入数据
+
+        let attr = gl.getAttribLocation(program, attrName);
+        gl.vertexAttribPointer(attr, count, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(attr);
+        return { buffer, attr }
+    }
+
+    // 为 attribute 变量绑定 buffer 缓冲区并赋值（从一份数据中获取多份缓冲数据）
+    function bindAttriBufferOfffset(attrName, vertices, count, program, all, offfset) {
+        let buffer = gl.createBuffer()
+        if(!buffer) {
+            console.log("failed create vertex buffer")
+        }
+        gl.bindBuffer(gl.ARRAY_BUFFER, buffer) // 将缓冲区对象绑定到目标
+        gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW) // 向缓冲区对象中写入数据
+
+        let attr = gl.getAttribLocation(program, attrName);
+        gl.vertexAttribPointer(attr, count, gl.FLOAT, false, all * FSIZE, offfset * FSIZE);
+        gl.enableVertexAttribArray(attr);
+        return { buffer, attr }
+    }
+
+    function bindUnifrom4fv(unifromName, data, program) {
+        let uniform4f = gl.getUniformLocation(program, unifromName);
+        if (uniform4f < 0) {
+            console.log("无法获取矩阵变量的存储位置");
+        }
+        gl.uniformMatrix4fv(uniform4f, false, data);
+        return uniform4f
+    }
+
+    function bindUnifrom3fv(unifromName, data, program) {
+        let uniform3f = gl.getUniformLocation(program, unifromName);
+        gl.uniform3f(uniform3f, ...cameraPos);
+        return uniform3f
+    }
+
+    function bindElementBuffer(indices) {
+        let indexBuffer = gl.createBuffer();
+        if (!indexBuffer) {
+            console.log("无法创建缓冲区对象");
+        }
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+        gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indices, gl.STATIC_DRAW);
+        return { indexBuffer, indices }
+    }
+
+    function getCubeVSHADER() {
+        return `
+
+            #define ambientRatio 0.5
+            #define diffuseRatio 0.3
+            #define specularRatio 0.4
+
+            attribute vec4 a_Position;
+            attribute vec3 a_Color;
+            attribute vec3 a_Normal;
+
+            uniform mat4 u_projMatrix;
+            uniform mat4 u_modelMatrix;
+            uniform mat4 u_viewMatrix;
+
+            uniform vec3 u_CameraPos;
+
+            uniform mat4 u_normalMatrix;
+
+            varying vec3 v_Color;
+            void main(){
+                vec3 lightDirection = normalize(vec3(10.0, 10.0, 10.0));
+                vec3 lightColor = vec3(1.0, 1.0, 1.0);
+                vec3 ambientLightColor = vec3(1.0, 1.0, 1.0);
+
+                vec3 normal = normalize(vec3(u_normalMatrix * vec4(a_Normal, 1.0))); // 计算后的顶点法线
+                
+                float normalDotLight = max(dot(lightDirection, normal), 0.0);
+                vec3 diffuse = lightColor * a_Color * normalDotLight;
+
+                vec3 ambient = ambientLightColor * a_Color;
+
+                vec4 worldPos = u_modelMatrix * a_Position;
+                vec3 viewDir = normalize(u_CameraPos - worldPos.xyz);
+                vec3 halfDir = normalize(viewDir + lightDirection);
+               
+                float specular = pow(max(0.0, dot(normal, halfDir)), 2.0);
+                
+
+                gl_Position = u_projMatrix * u_viewMatrix * worldPos;
+        
+                v_Color =  ambient * ambientRatio + diffuse * diffuseRatio + specular*specularRatio;
+            }
+        `
+    }
+
+    function getCubeFSHADER() {
+        return `
+            #ifdef GL_ES
+            precision mediump float;
+            #endif
+            // varying vec2 v_Uv;
+            // uniform sampler2D u_Sampler;
+            varying vec3 v_Color;
+            void main(){
+                // gl_FragColor = texture2D(u_Sampler, v_Uv);
+                // gl_FragColor = vec4(v_Color, 1.0);
+                gl_FragColor = vec4(v_Color, 1.0);
+            }
+        `
+    }
+
+    function getRectVSHADER(){
+        return `
+            attribute vec4 a_rectPosition;
+            attribute vec2 a_TextCoord;
+            varying vec2 v_TexCoord;
+
+            void main(){
+                gl_Position = a_rectPosition;
+                // gl_Position = vec4(0.0, 0.0, 0.0, 1.0);
+                // gl_PointSize = 10.0;
+                v_TexCoord = a_TextCoord;
+            }
+        `
+    }
+
+    function getRectFSHADER(){
+        return `
+            precision mediump float;
+
+            uniform sampler2D u_Sampler;
+            varying vec2 v_TexCoord;
+
+            void main(){
+                gl_FragColor = texture2D(u_Sampler, v_TexCoord);
+                if(length(gl_FragColor.xyz) == 0.0)  gl_FragColor.w = 0.0;
+                // gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+            }
+        `
+    }
+
+    function handleLoadedTexture(texture) {
+        gl.bindTexture(gl.TEXTURE_2D, texture) // 绑定当前的纹理单元（设置纹理单元的参数是针对每张不同纹理， 而不是同时作用与所有的纹理单元）
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1) // 对纹理图像进行 Y 轴反转 - 点精灵不需要翻转
+
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); 
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, texture.image);
+
+    }
+
+    function initTexture(imageFile, callback) {
+        let texture = gl.createTexture()
+        texture.image = new Image()
+        texture.image.src = imageFile
+        texture.image.onload = () => {
+            handleLoadedTexture(texture)
+            callback(texture)
+        }
+    }
+
+</script>
+</html>

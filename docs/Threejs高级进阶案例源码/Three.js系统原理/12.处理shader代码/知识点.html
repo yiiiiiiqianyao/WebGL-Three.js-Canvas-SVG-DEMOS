@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <title></title>
+      <link href="http://www.yanhuangxueyuan.com/markdown.css" rel="stylesheet" type="text/css">
+  </head>
+  <body>
+    <h1 id="-shader-">处理着色器shader代码</h1>
+    <p>通过<code>ShaderLib[parameters.shaderID]</code>返回的着色器代码还需要一定的自动化处理才能正式作为和原生WebGL中一样的顶点、片元着色器代码使用。</p>
+    <p>学习本节课的内容需要先简单阅读以下源码：</p>
+    <ul>
+    <li>WebGLShader.js源码</li>
+    <li>WebGLProgram.js源码</li>
+    <li>WebGLPrograms.js源码</li>
+    </ul>
+    <p>WebGLShader.js——&gt;WebGLProgram.js——&gt;WebGLPrograms.js——&gt;WebGLRenderer.js</p>
+    <h3 id="webglrenderer-js">WebGLRenderer.js</h3>
+    <p>通过<code>WebGLPrograms</code>对象的方法<code>.getParameters()</code>返回一个parameters对象，返回的parameters对象的<code>shaderID</code>属性保留了材质对象类型type的信息，通过材质对象信息可以在ShaderLib对象中获得材质对象对应的着色器代码。</p>
+    <pre><code class="lang-JavaScript"><span class="hljs-keyword">import</span> {ShaderLib} <span class="hljs-keyword">from</span> <span class="hljs-string">'./shaders/ShaderLib.js'</span>;
+    <span class="hljs-keyword">import</span> {WebGLPrograms} <span class="hljs-keyword">from</span> <span class="hljs-string">'./webgl/WebGLPrograms.js'</span>;
+    programCache = <span class="hljs-keyword">new</span> WebGLPrograms(_this, extensions, capabilities);
+
+    <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">initMaterial</span>(<span class="hljs-params">material, fog, object</span>) </span>{
+
+      <span class="hljs-comment">// 返回一个parameters对象，具有shaderID属性，通过shaderID的属性值可以获得材质对象对应的着色器代码。</span>
+      <span class="hljs-keyword">var</span> parameters = programCache.getParameters(material, lights.state, shadowsArray, ...object);
+
+      <span class="hljs-comment">// 通过shaderID键对应的值，作为ShaderLib对象的键名获得相应的值，uniforms对象、定点着色器代码、片元着色器代码</span>
+      <span class="hljs-keyword">var</span> shader = ShaderLib[parameters.shaderID];
+
+      materialProperties.shader = {
+      name: material.type,
+      uniforms: UniformsUtils.clone(shader.uniforms),
+      vertexShader: shader.vertexShader,
+      fragmentShader: shader.fragmentShader
+      };
+      <span class="hljs-comment">// 处理着色器代码、编译着色器代码、返回程序对象program</span>
+      program = programCache.acquireProgram(material, materialProperties.shader, parameters, code);
+    }
+    </code></pre>
+    <h3 id="webglprograms-js">WebGLPrograms.js</h3>
+    <p>构造函数<code>WebGLPrograms</code>封装了<code>.getParameters()</code>、<code>.getProgramCode()</code>、<code>.acquireProgram()</code>等方法和<code>.programs</code>属性。</p>
+    <ul>
+    <li><code>.getParameters()</code>方法：和ShaderLib.js封装的<code>ShaderLib</code>对象组合使用获得一个材质对象对应的着色器代码和uniforms对象。</li>
+    <li><code>.acquireProgram()</code>方法：调用WebGLProgram构造函数，编译顶点和片元着色器代码，并创建返回对应的程序对象Program。</li>
+    </ul>
+    <pre><code class="lang-JavaScript"><span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">WebGLPrograms</span>(<span class="hljs-params"> renderer, extensions, capabilities </span>) </span>{
+    ...
+      <span class="hljs-keyword">this</span>.acquireProgram = <span class="hljs-function"><span class="hljs-keyword">function</span> (<span class="hljs-params"> material, shader, parameters, code </span>) </span>{
+        program = <span class="hljs-keyword">new</span> WebGLProgram( renderer, extensions, code, material, shader, parameters );
+        programs.push( program );
+        <span class="hljs-keyword">return</span> program;
+      };
+    }
+    ...
+    </code></pre>
+    <h3 id="webglprogram-js">WebGLProgram.js</h3>
+    <p><code>WebGLProgram.js</code>封装了<code>gl.attachShader()</code>、<code>gl.deleteShader()</code>、<code>gl.createProgram()</code>、<code>gl.linkProgram()</code>等原生WebGL API。</p>
+    <p>阅读WebGLProgram.js的源码需要对JavaScript语言的正则表达式和字符串的处理方法有一定的理解。</p>
+    <p>批量处理着色器代码：把着色器代码块中预先编写的表示光源数量的符号替换为具体的数字</p>
+    <pre><code class="lang-JavaScript"><span class="hljs-comment">// 替换灯的数量</span>
+    <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">replaceLightNums</span>(<span class="hljs-params"> string, parameters </span>) </span>{
+    <span class="hljs-comment">// NUM_DIR_LIGHTS等字符出现在了.glsl文件着色器代码中，需要替换为具体的数字才能作为着色器代码使用。</span>
+        <span class="hljs-keyword">return</span> string
+            .replace( <span class="hljs-regexp">/NUM_DIR_LIGHTS/g</span>, parameters.numDirLights )
+            .replace( <span class="hljs-regexp">/NUM_SPOT_LIGHTS/g</span>, parameters.numSpotLights )
+            .replace( <span class="hljs-regexp">/NUM_RECT_AREA_LIGHTS/g</span>, parameters.numRectAreaLights )
+            .replace( <span class="hljs-regexp">/NUM_POINT_LIGHTS/g</span>, parameters.numPointLights )
+            .replace( <span class="hljs-regexp">/NUM_HEMI_LIGHTS/g</span>, parameters.numHemiLights );
+    }
+    </code></pre>
+    <p>把.glsl文件中<code>#include &lt;common&gt;</code>等字符串替换为相应.glsl文件中的代码字符串</p>
+    <pre><code class="lang-JavaScript"><span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">parseIncludes</span><span class="hljs-params">( string )</span> </span>{
+    <span class="hljs-comment">// “#include &lt;着色模块名字&gt;”对应的正则表达式</span>
+        <span class="hljs-keyword">var</span> pattern = /^[ \t]*<span class="hljs-comment">#include +&lt;([\w\d.]+)&gt;/gm;</span>
+
+        <span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">replace</span><span class="hljs-params">( match, include )</span> </span>{
+            <span class="hljs-keyword">var</span> replace = ShaderChunk[ <span class="hljs-keyword">include</span> ];
+            <span class="hljs-keyword">return</span> parseIncludes( replace );
+        }
+    <span class="hljs-comment">// 参数string，也就是着色器代码字符串，执行replace方法</span>
+        <span class="hljs-keyword">return</span> string.replace( pattern, replace );
+
+    }
+    </code></pre>
+    <p>顶点着色器前缀字符串prefixVertex，会和.glsl文件提供的顶点着色器代码拼接在一起。
+    通过<code>WebGLPrograms.js</code>封装的<code>.getParameters()</code>方法可以从材质对象提取相关的信息，返回一个包含材质信息的对象parameters，比如透明度、材质颜色等信息，着色器前缀会从parameters对象提取材质信息信息合成着色器代码。</p>
+    <pre><code class="lang-JavaScript"><span class="hljs-comment">// JavaScript数组对象的.join()方法会把数组中的字符串元素拼接成一个字符串返回</span>
+    prefixVertex = [
+      <span class="hljs-string">'precision '</span> + parameters.precision + <span class="hljs-string">' float;'</span>,<span class="hljs-comment">// precision highp float;</span>
+      <span class="hljs-string">'precision '</span> + parameters.precision + <span class="hljs-string">' int;'</span>,<span class="hljs-comment">// precision highp int;</span>
+
+      parameters.map ? <span class="hljs-string">'#define USE_MAP'</span> : <span class="hljs-string">''</span>,
+      parameters.envMap ? <span class="hljs-string">'#define USE_ENVMAP'</span> : <span class="hljs-string">''</span>,
+      <span class="hljs-comment">// 材质vertexColors属性，默认值THREE.NoColors，查看\src\Three.js 可以知道是0</span>
+      <span class="hljs-comment">// 如果材质属性设置了顶点渲染，属性值是THREE.VertexColors，着色器代码插入#define USE_COLOR   </span>
+      <span class="hljs-comment">// 如果材质属性没设置顶点渲染：着色器代码中不会出现带预定义</span>
+      parameters.vertexColors ? <span class="hljs-string">'#define USE_COLOR'</span> : <span class="hljs-string">''</span>,
+
+      parameters.flatShading ? <span class="hljs-string">'#define FLAT_SHADED'</span> : <span class="hljs-string">''</span>,<span class="hljs-comment">//#define FLAT_SHADED   是否平面着色</span>
+
+      <span class="hljs-comment">// 声明顶点着色器代码用到的uniform变量</span>
+      <span class="hljs-string">'uniform mat4 modelMatrix;'</span>,<span class="hljs-comment">//模型矩阵</span>
+      <span class="hljs-string">'uniform mat4 modelViewMatrix;'</span>,
+      <span class="hljs-string">'uniform mat4 projectionMatrix;'</span>,<span class="hljs-comment">//投影矩阵</span>
+      <span class="hljs-string">'uniform mat4 viewMatrix;'</span>,<span class="hljs-comment">//视图矩阵</span>
+      <span class="hljs-string">'uniform mat3 normalMatrix;'</span>,
+      <span class="hljs-string">'uniform vec3 cameraPosition;'</span>,
+      <span class="hljs-comment">// 声明顶点着色器代码用到的顶点变量attribute</span>
+      <span class="hljs-string">'attribute vec3 position;'</span>,<span class="hljs-comment">//顶点位置数据</span>
+      <span class="hljs-string">'attribute vec3 normal;'</span>,<span class="hljs-comment">//顶点法向量数据</span>
+      <span class="hljs-string">'attribute vec2 uv;'</span>,<span class="hljs-comment">//顶点UV坐标数据</span>
+
+      <span class="hljs-string">'\n'</span>
+
+    ].filter( filterEmptyLine ).<span class="hljs-keyword">join</span>( <span class="hljs-string">'\n'</span> );
+    </code></pre>
+    <p>片元着色器前缀字符串，会和.glsl文件提供的顶点着色器代码拼接在一起。</p>
+    <pre><code class="lang-JavaScript">prefixFragment = [
+    <span class="hljs-comment">// 片元精度定义</span>
+      <span class="hljs-string">'precision '</span> + parameters.precision + <span class="hljs-string">' float;'</span>,
+      <span class="hljs-string">'precision '</span> + parameters.precision + <span class="hljs-string">' int;'</span>,
+      parameters.map ? <span class="hljs-string">'#define USE_MAP'</span> : <span class="hljs-string">''</span>,
+      parameters.envMap ? <span class="hljs-string">'#define USE_ENVMAP'</span> : <span class="hljs-string">''</span>,
+    <span class="hljs-comment">// 视图矩阵   相机矩阵</span>
+      <span class="hljs-string">'uniform mat4 viewMatrix;'</span>,
+      <span class="hljs-string">'uniform vec3 cameraPosition;'</span>,
+    ].filter( filterEmptyLine ).<span class="hljs-keyword">join</span>( <span class="hljs-string">'\n'</span> );
+    </code></pre>
+    <p>顶点和片元着色器代码字符串的处理流程</p>
+    <pre><code class="lang-JavaScript"><span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">WebGLProgram</span>(<span class="hljs-params"> renderer,..., shader, parameters </span>) </span>{
+      <span class="hljs-comment">// 预定义</span>
+      <span class="hljs-keyword">var</span> defines = material.defines;
+      <span class="hljs-comment">// \shaders\ShaderLib目录下.glsl文件中顶点着色器、片元着色器代码字符串</span>
+        <span class="hljs-keyword">var</span> vertexShader = shader.vertexShader;
+      <span class="hljs-keyword">var</span> fragmentShader = shader.fragmentShader;
+
+      <span class="hljs-comment">// 把顶点着色器中“#include &lt;着色模块名字&gt;”字符串替换为相应的着色器代码</span>
+      vertexShader = parseIncludes( vertexShader );
+      <span class="hljs-comment">// 把着色器代码中表示各种光源数量的字符串替换为表示该类光源对象数量的数字</span>
+      vertexShader = replaceLightNums( vertexShader, parameters );
+      <span class="hljs-comment">// 把着色器代码中表示剪裁平面数量相关的字符串替换为具体的数字</span>
+      vertexShader = replaceClippingPlaneNums( vertexShader, parameters );
+
+      <span class="hljs-comment">// 片元着色器代码和顶点着色器代码一样要进行类似的处理</span>
+      fragmentShader = parseIncludes( fragmentShader );
+      fragmentShader = replaceLightNums( fragmentShader, parameters );
+      fragmentShader = replaceClippingPlaneNums( fragmentShader, parameters );
+
+      vertexShader = unrollLoops( vertexShader );
+      fragmentShader = unrollLoops( fragmentShader );
+
+      <span class="hljs-comment">// .glsl文件中着色器代码字符串经过处理后与对应的着色器前缀字符串拼接</span>
+      <span class="hljs-keyword">var</span> vertexGlsl = prefixVertex + vertexShader;
+      <span class="hljs-keyword">var</span> fragmentGlsl = prefixFragment + fragmentShader;
+
+      <span class="hljs-comment">// 处理完成的着色器代码进行编译处理，创建并返回对应的程序对象</span>
+      <span class="hljs-keyword">var</span> glVertexShader = WebGLShader( gl, gl.VERTEX_SHADER, vertexGlsl );
+        <span class="hljs-keyword">var</span> glFragmentShader = WebGLShader( gl, gl.FRAGMENT_SHADER, fragmentGlsl );
+      <span class="hljs-keyword">var</span> program = gl.createProgram();
+      gl.attachShader( program, glVertexShader );
+      gl.attachShader( program, glFragmentShader );
+      gl.linkProgram( program );
+    }
+    </code></pre>
+    <p>WebGLProgram对象的属性</p>
+    <pre><code class="lang-JavaScript"><span class="hljs-keyword">this</span>.name = shader.name;
+    <span class="hljs-keyword">this</span>.id = programIdCount ++;
+    <span class="hljs-keyword">this</span>.code = code;
+    <span class="hljs-keyword">this</span>.usedTimes = <span class="hljs-number">1</span>;
+    <span class="hljs-keyword">this</span>.program = program;
+    <span class="hljs-comment">// WebGLShader函数返回值，顶点着色器对象</span>
+    <span class="hljs-keyword">this</span>.vertexShader = glVertexShader;
+    <span class="hljs-comment">// WebGLShader函数返回值，片元着色器对象</span>
+    <span class="hljs-keyword">this</span>.fragmentShader = glFragmentShader;
+    </code></pre>
+    <h3 id="webglshader-js">WebGLShader.js</h3>
+    <p>WebGLShader.js封装了<code>gl.createShader()</code>、<code>gl.shaderSource()</code>、<code>gl.compileShader()</code>等原生WebGL API。</p>
+    <p>执行<code>WebGLShader</code>函数可以返回一个<code>gl.createShader()</code>创建的着色器对象。</p>
+    <pre><code class="lang-JavaScript"><span class="hljs-comment">// WebGLShader.js源码</span>
+    <span class="hljs-function">function <span class="hljs-title">WebGLShader</span>(<span class="hljs-params"> gl, type, <span class="hljs-keyword">string</span> </span>) </span>{
+      <span class="hljs-comment">// type是gl.VERTEX_SHADER：创建顶点着色器对象</span>
+      <span class="hljs-comment">// type是gl.FRAGMENT_SHADER：创建片元着色器对象</span>
+        <span class="hljs-keyword">var</span> shader = gl.createShader( type );
+      <span class="hljs-comment">// 引入顶点或片元着色器源代码string</span>
+        gl.shaderSource( shader, <span class="hljs-keyword">string</span> );
+      <span class="hljs-comment">// 编译顶点或片元着色器</span>
+        gl.compileShader( shader );
+      <span class="hljs-comment">// 返回着色器对象</span>
+        <span class="hljs-keyword">return</span> shader;
+    }
+    </code></pre>
+    <p>WebGLProgram.js源码中会调用<code>WebGLShader</code>函数创建一个着色器对象。</p>
+    <pre><code class="lang-JavaScript"><span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">WebGLProgram</span>(<span class="hljs-params"> renderer,... material, shader, parameters </span>) </span>{
+      <span class="hljs-comment">// 创建顶点着色器对象</span>
+      <span class="hljs-keyword">var</span> glVertexShader = WebGLShader( gl, gl.VERTEX_SHADER, vertexGlsl );
+      <span class="hljs-comment">// 创建一个片元着色器对象</span>
+      <span class="hljs-keyword">var</span> glFragmentShader = WebGLShader( gl, gl.FRAGMENT_SHADER, fragmentGlsl );
+    }
+    </code></pre>
+    <div class="">
+      <a href="http://www.yanhuangxueyuan.com/">作者技术博客</a>
+    </div>
+  </body>
+</html>

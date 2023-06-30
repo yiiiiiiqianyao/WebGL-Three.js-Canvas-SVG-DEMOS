@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+
+<head>
+  <meta charset="utf-8">
+  <title></title>
+  <!--引入three.js三维引擎-->
+  <script src="http://www.yanhuangxueyuan.com/versions/threejsR92/build/three.js"></script>
+</head>
+
+<body>
+  <script>
+    var PointLight = new THREE.PointLight()
+    // 点光源PointLight属性isPointLight默认值true
+    console.log(PointLight.isPointLight);
+    // 点光源PointLight继承基类Light的isLight属性
+    console.log(PointLight.isLight);
+  </script>
+
+</body>
+
+</html>

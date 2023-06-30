@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+<meta charset="utf-8">
+<title></title>
+  <link href="http://www.yanhuangxueyuan.com/markdown.css" rel="stylesheet" type="text/css">
+  </head>
+  <body>
+<h1 id="three-js-">Three.js包围盒</h1>
+<p><a href="https://baike.baidu.com/item/%E5%8C%85%E5%9B%B4%E7%9B%92/4562345?fr=aladdin">包围盒</a>是一种计算一系列顶点最优包围空间的算法，比如一个不规则几何体的所有顶点坐标都被包围在一个最小的长方体盒子中，需要一个算法来求解这个最小的长方体包围盒。Three.js封装与包围盒算法相关的三个API，分别是三维包围盒Box3、包围球Sphere、包围矩形Box2。</p>
+<h4 id="-box2">包围矩形Box2</h4>
+<p>包围矩形对象Box2表示一个矩形区域，使用min和max两个属性来描述该矩形区域，属性值都是二维向量对象Vector2，通过Box2的构造函数可以直接设置min和max属性值，也可以通过Box2的一些方法来设置。</p>
+<p>描述一个矩形区域需要通过xy坐标来表示，X范围[Xmin,Xmax],Y范围[Ymin,Ymax],<code>.min</code>属性值是<code>Vector2(Xmin, Ymin)</code>,<code>.max</code>属性值是<code>Vector2(Xmax, Ymax)</code>.</p>
+<p>通过参数设置min和max属性</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// 参数1对应min属性值，参数2对应max属性值</span>
+<span class="hljs-keyword">var</span> box2 = <span class="hljs-keyword">new</span> THREE.Box2(<span class="hljs-keyword">new</span> THREE.Vector2(<span class="hljs-number">0</span>, <span class="hljs-number">0</span>), <span class="hljs-keyword">new</span> THREE.Vector2(<span class="hljs-number">25</span>, <span class="hljs-number">25</span>))
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">'box2'</span>,box2);
+box2.min=<span class="hljs-keyword">new</span> THREE.Vector2(<span class="hljs-number">0</span>, <span class="hljs-number">0</span>);
+box2.max=<span class="hljs-keyword">new</span> THREE.Vector2(<span class="hljs-number">25</span>, <span class="hljs-number">25</span>);
+</code></pre>
+<p>设置min和max属性值</p>
+<pre><code class="lang-JavaScript">box2.min=<span class="hljs-keyword">new</span> THREE.Vector2(<span class="hljs-number">0</span>, <span class="hljs-number">0</span>);
+box2.max=<span class="hljs-keyword">new</span> THREE.Vector2(<span class="hljs-number">25</span>, <span class="hljs-number">25</span>);
+</code></pre>
+<h4 id="-box3">包围盒Box3</h4>
+<p>包围盒Box3表示三维长方体包围区域，使用min和max两个属性来描述该包围区域，Box3的min和max属性值都是三维向量对象Vector3。</p>
+<p>描述一个长方体包围盒需要通过xyz坐标来表示，X范围[Xmin,Xmax],Y范围[Ymin,Ymax],Z范围[Zmin,Zmax],<code>.min</code>属性值是<code>Vector3(Xmin, Ymin, Zmin)</code>,<code>.max</code>属性值是<code>Vector3(Xmax, Ymax, Zmin)</code>.</p>
+<pre><code class="lang-JavaScript"><span class="hljs-keyword">var</span> box3 = <span class="hljs-keyword">new</span> THREE.Box3()
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">'box3'</span>,box3);
+box3.min = <span class="hljs-keyword">new</span> THREE.Vector3(<span class="hljs-number">-10</span>, <span class="hljs-number">-10</span>,<span class="hljs-number">0</span>);
+box3.max = <span class="hljs-keyword">new</span> THREE.Vector3(<span class="hljs-number">100</span>, <span class="hljs-number">20</span>,<span class="hljs-number">50</span>);
+</code></pre>
+<h4 id="-sphere">包围球Sphere</h4>
+<p>包围球Sphere是一个球形的包围区域，通过球心坐标<code>.center</code>和半径<code>.radius</code>两个属性来描述.</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// 创建一个包围球对象，球心默认坐标原点，半径默认0.</span>
+<span class="hljs-keyword">var</span> sphere = <span class="hljs-keyword">new</span> THREE.Sphere()
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">'sphere'</span>, sphere);
+<span class="hljs-comment">// 设置球心坐标</span>
+sphere.center=<span class="hljs-keyword">new</span> THREE.Vector3(<span class="hljs-number">-10</span>, <span class="hljs-number">-10</span>,<span class="hljs-number">0</span>);
+<span class="hljs-comment">// 设置包围球半径</span>
+sphere.radius=<span class="hljs-number">20</span>;
+</code></pre>
+<h4 id="box3-setfrompoints-">Box3方法<code>.setFromPoints()</code></h4>
+<p>包围盒Box3方法<code>.setFromPoints()</code>用来计算一系列顶点集合的最小包围盒，参数是表示顶点坐标的三维向量<code>Vector3</code>作为元素构成的数组对象。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// 通过球体API创建一个几何体，本质上就是一系列沿着球面分布的顶点</span>
+<span class="hljs-keyword">var</span> geometry = <span class="hljs-keyword">new</span> THREE.SphereGeometry(<span class="hljs-number">50</span>, <span class="hljs-number">100</span>, <span class="hljs-number">100</span>);
+<span class="hljs-comment">// 创建一个包围盒对象Box3</span>
+<span class="hljs-keyword">var</span> box3 = <span class="hljs-keyword">new</span> THREE.Box3()
+<span class="hljs-comment">// 计算点集geometry.vertices的包围盒</span>
+box3.setFromPoints(geometry.vertices);
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">'box3'</span>, box3);
+</code></pre>
+<h4 id="-computeboundingbox-">几何体方法<code>.computeBoundingBox()</code></h4>
+<p>几何体<code>Geometry</code>调用<code>Box3</code>的方法<code>.setFromPoints()</code>封装了一个方法<code>.computeBoundingBox()</code>，用来计算几何体的包围盒属性<code>.boundingBox</code>。</p>
+<p>几何体包围盒属性<code>.boundingBox</code>默认值为空null，执行<code>.computeBoundingBox()</code>方法才会计算该几何体的包围盒Box3，然后赋值给<code>.boundingBox</code>属性。</p>
+<p>几何体包围球属性<code>.boundingSphere</code>使用方式和包围盒属性<code>.boundingBox</code>一样。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-keyword">var</span> geometry = <span class="hljs-keyword">new</span> THREE.SphereGeometry(<span class="hljs-number">50</span>, <span class="hljs-number">100</span>, <span class="hljs-number">100</span>); <span class="hljs-comment">//球体</span>
+<span class="hljs-comment">// .computeBoundingBox()方法计算.boundingBox的属性值</span>
+geometry.computeBoundingBox();
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">'包围盒属性'</span>, geometry.boundingBox);
+<span class="hljs-comment">// 包围球相关属性和计算方法和包围盒一样</span>
+geometry.computeBoundingSphere();
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">'包围球属性'</span>, geometry.boundingSphere);
+</code></pre>
+<h5 id="-center-">几何体居中方法center()</h5>
+<p>在空间坐标系中把几何体居中，也就是几何体对应的包围盒中心平移到坐标原点。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// 几何体的中心默认与坐标原点重合</span>
+<span class="hljs-keyword">var</span> geometry = <span class="hljs-keyword">new</span> THREE.BoxGeometry(<span class="hljs-number">50</span>, <span class="hljs-number">50</span>, <span class="hljs-number">50</span>);
+<span class="hljs-comment">// 几何体沿着x轴平移50，几何体的顶点坐标变化</span>
+geometry.translate(<span class="hljs-number">50</span>, <span class="hljs-number">0</span>, <span class="hljs-number">0</span>);
+<span class="hljs-comment">// 居中：偏移的几何体居中</span>
+geometry.center();
+</code></pre>
+<h4 id="box3-expandbyobject-">Box3方法<code>.expandByObject()</code></h4>
+<p>获得层级模型的包围盒，一个层级模型可能包含多个子孙后代，具体点说，比如一个Group对象有多个网格模型Mesh作为子对象。</p>
+<p>加载一个层级模型，并计算它的包围盒</p>
+<pre><code class="lang-JavaScript"><span class="hljs-keyword">var</span> loader = <span class="hljs-keyword">new</span> THREE.ObjectLoader();
+loader.load(<span class="hljs-string">'group.json'</span>, <span class="hljs-function"><span class="hljs-keyword">function</span>(<span class="hljs-params">group</span>) </span>{
+  scene.add(group);<span class="hljs-comment">//加载返回的模型对象插入场景</span>
+  <span class="hljs-keyword">var</span> box3 = <span class="hljs-keyword">new</span> THREE.Box3()
+  <span class="hljs-comment">// 计算层级模型group包围盒</span>
+  box3.expandByObject(group)
+  <span class="hljs-built_in">console</span>.log(<span class="hljs-string">'查看包围盒box3'</span>, box3);
+})
+</code></pre>
+<h4 id="box3-expandbyscalar-">Box3方法<code>.expandByScalar()</code></h4>
+<p>包围盒整体尺寸放大</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// 缩放包围盒，尺寸放大1.5倍</span>
+box3.expandByScalar(<span class="hljs-number">1.5</span>)
+</code></pre>
+<h4 id="box3-getsize-">Box3方法<code>.getSize()</code></h4>
+<p>返回包围盒具体的长宽高尺寸</p>
+<pre><code class="lang-JavaScript"><span class="hljs-keyword">var</span> v3 = <span class="hljs-keyword">new</span> THREE.Vector3()
+<span class="hljs-comment">// 获得包围盒长宽高尺寸，结果保存在参数三维向量对象v3中</span>
+box3.getSize(v3)
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">'查看返回的包围盒尺寸'</span>, v3);
+</code></pre>
+
+<h4 id="box3-getcenter-">Box3方法<code>.getCenter()</code></h4>
+<p>计算返回包围盒几何中心</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// 计算一个层级模型对应包围盒的几何体中心</span>
+<span class="hljs-keyword">var</span> center = <span class="hljs-keyword">new</span> THREE.Vector3()
+box3.getCenter(center)
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">'查看几何体中心坐标'</span>, center);
+</code></pre>
+<h4 id="sphere-getboundingsphere-">Sphere方法<code>.getBoundingSphere()</code></h4>
+<p>包围盒Box3和包围球Sphere可以相互等价转化，通过包围盒对象来计算包围球对象</p>
+<pre><code class="lang-JavaScript"><span class="hljs-keyword">var</span> sphere = <span class="hljs-keyword">new</span> THREE.Sphere()
+<span class="hljs-comment">// 计算包围盒box3对应的包围球</span>
+box3.getBoundingSphere(sphere)
+<span class="hljs-built_in">console</span>.log(<span class="hljs-string">'查看通过box3重置的sphere'</span>, sphere);
+</code></pre>
+
+<div class="">
+  <a href="http://www.yanhuangxueyuan.com/">作者技术博客</a>
+</div>
+  </body>
+</html>

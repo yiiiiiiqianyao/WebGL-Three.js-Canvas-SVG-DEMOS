@@ -1,0 +1,513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>demo5_1 距离场2</title>
+  <script src="../src/three.js"></script>
+    <script src="../src/controller/OrbitControls.js"></script>
+  <style>
+    body {
+      overflow: hidden;
+      padding: 0;
+      margin: 0;
+    }
+  </style>
+</head>
+<body>
+<div id="container"></div>
+
+<script id="vertexShader" type="x-shader/x-vertex">
+  varying vec2 vUv;
+  void main() {
+    vUv = uv;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+  }
+</script>
+<script id="fragmentShader" type="x-shader/x-fragment">
+//  #version 300 es
+  uniform vec2 u_resolution;
+  uniform float u_time;
+  varying vec2 vUv;
+  uniform vec2 u_mouse;
+  // Signed distance and circle
+
+  // List of some other 2D distances:
+  //
+  // Circle:               https://www.shadertoy.com/view/3ltSW2
+  // Segment:              https://www.shadertoy.com/view/3tdSDj
+  // Triangle:             https://www.shadertoy.com/view/XsXSz4
+  // Isosceles Triangle:   https://www.shadertoy.com/view/MldcD7
+  // Regular Triangle:     https://www.shadertoy.com/view/Xl2yDW
+  // Regular Pentagon:     https://www.shadertoy.com/view/llVyWW
+  // Regular Octogon:      https://www.shadertoy.com/view/llGfDG
+  // Rounded Rectangle:    https://www.shadertoy.com/view/4llXD7
+  // Rhombus:              https://www.shadertoy.com/view/XdXcRB
+  // Trapezoid:            https://www.shadertoy.com/view/MlycD3
+  // Polygon:              https://www.shadertoy.com/view/wdBXRW
+  // Hexagram:             https://www.shadertoy.com/view/tt23RR
+  // Regular Star:         https://www.shadertoy.com/view/3tSGDy
+  // Star5:                https://www.shadertoy.com/view/wlcGzB
+  // Ellipse 1:            https://www.shadertoy.com/view/4sS3zz
+  // Ellipse 2:            https://www.shadertoy.com/view/4lsXDN
+  // Quadratic Bezier:     https://www.shadertoy.com/view/MlKcDD
+  // Uneven Capsule:       https://www.shadertoy.com/view/4lcBWn
+  // Vesica:               https://www.shadertoy.com/view/XtVfRW
+  // Cross:                https://www.shadertoy.com/view/XtGfzw
+  // Pie:                  https://www.shadertoy.com/view/3l23RK
+  // Arc:                  https://www.shadertoy.com/view/wl23RK
+  // Horseshoe:            https://www.shadertoy.com/view/WlSGW1
+  // Parabola:             https://www.shadertoy.com/view/ws3GD7
+  // Parabola Segment:     https://www.shadertoy.com/view/3lSczz
+  // Rounded X:            https://www.shadertoy.com/view/3dKSDc
+  // Joint:                https://www.shadertoy.com/view/WldGWM
+  // Simple Egg:           https://www.shadertoy.com/view/Wdjfz3
+  //
+  // and many more here:   http://www.iquilezles.org/www/articles/distfunctions2d/distfunctions2d.htm
+
+  /**
+  * 正五边形  1. 原点在中心点, 中心点到某一个顶点的向量沿y轴负半轴
+  *          2. r表示中心点到边的距离（不是到顶点的距离）
+  */
+  float sdPentagon( in vec2 p, in float r )
+  {
+    // sin54°, cos54°, tan36°, !!!注意，k仅作为一个数据的集合！
+    const vec3 k = vec3(0.809016994,0.587785252,0.726542528);
+    p.x = abs(p.x); // 左右对称
+    // 1. 先映射：同样是分为三部分，上部+右上+右下，都要映射到上部
+    // 	 将op在(-k.x, k.y)上投影，得到一个系数，若系数是正数说明p点在上部不用处理，被min(0.0, )滤去
+    // 	 若为负数说明在目标范围内，p加上1倍的系数*单位垂直向量就可以到达对称轴处
+    // 	 再加一倍就到达对称点处，因此下面要乘2，-=其实和上面说到的垂直向量的方向有关
+    p -= 2.0*min(dot(vec2(-k.x,k.y),p),0.0)*vec2(-k.x,k.y);
+    // 原先在右下部的区域，还得再映射一次，这里的min再滤去上部的部分
+    p -= 2.0*min(dot(vec2( k.x,k.y),p),0.0)*vec2( k.x,k.y);
+
+    // 2. 计算方便计算距离的区域
+    // 	  这里就是简单的考虑上部就好，因为右上映射上去后取值范围是(-,+)，因此正负都要考虑，
+    // 	  r*k.z是得到半边长，得到的最后的p是处于上部的点做一条垂线到五边形的上部水平边
+    p -= vec2(clamp(p.x,-r*k.z,r*k.z),r);
+    return length(p)*sign(p.y);
+  }
+
+  /**
+  * 正六边形  1. 原点在中心点，有两条边与x轴平行
+  *          2. r表示中心点到边的距离（不是到顶点的距离）
+  */
+  float sdHexagon( in vec2 p, in float r )
+  {
+    // -cos30, sin30, tan30， !!! 注意，k仅作为一个数据的集合
+    const vec3 k = vec3(-0.866025404, 0.5, 0.577350269);
+    p = abs(p); // xy轴对称，因此全部只看第一象限即可
+    // 观察图像可以看出我们选择的对称轴应该是(cos60, sin60)==(sin30, cos30)
+    // (-cos30, sin30)也就是k.xy，是与选择的对称轴垂直的单位向量
+    p -= 2.0*min(dot(k.xy,p),0.0)*k.xy;
+    // 下面同理
+    p -= vec2(clamp(p.x, -k.z*r, k.z*r), r);
+    return length(p)*sign(p.y);
+  }
+
+  /**
+  * 六角星   1. 原点在中心点，中心点到某个角的连线于y轴平行
+  *          2. r表示中心点顶点的距离的1/2
+  */
+  float sdHexagram( in vec2 p, in float r )
+  {
+    // -cos60, sin60, tan30, tan60
+    const vec4 k = vec4(-0.5,0.8660254038,0.5773502692,1.7320508076);
+    p = abs(p);
+    // 大体如上，需要注意的是这次的两次对称实际上互不干扰，我们最终要映射到是一条水平边
+    // 在六角星中，每个象限内由三条边，而水平边刚好在中间，因此两次对称不干扰(min()都会过滤掉对方)
+    // k.xy表示下图红线的垂直单位向量， k.yx表示下图蓝线的垂直单位向量
+    p -= 2.0*min(dot(k.xy,p),0.0)*k.xy;
+    p -= 2.0*min(dot(k.yx,p),0.0)*k.yx;
+    p -= vec2(clamp(p.x,r*k.z,r*k.w),r); // 注意水平边的起止范围
+    return length(p)*sign(p.y);
+  }
+
+  /**
+ * N角星  1. 原点在中心点，中心点和凸角的连线在x轴上
+ *        2. r表示中心点到某个凸角的距离
+ *        3. n表示几个凸角，m表示角的尖锐程度，具体是pi/m = 凹角（向内）的一半，
+ * 			例如 m=2,凹角的一半是九十度也就是凹角是一百八，就是不凹，是正多边形
+ * 			1<m<2则突出，正常情况下m=[2,n]
+ *  例如正五角星，凸角是36°，凹角是252°，周角360 -252 = 108°，（108/2)/180 = PI / m; 则 m = 10/3 = 3.33333...
+*/
+  float sdStar(in vec2 p, in float r, in int n, in float m)
+  {
+    // 先计算所需的角度正余弦数据
+    float an = 3.141593/float(n);  // 某两个相邻角与原中心点连线形成的角度的一半
+    float en = 3.141593/m;         // 凹角的一半
+    // 分别计算正余弦
+    vec2  acs = vec2(cos(an),sin(an));
+    vec2  ecs = vec2(cos(en),sin(en));  // 特殊地，当ecs=(0, 1)时，表示的是正多边形
+
+    // 1. 映射：
+    // （这里对iq大神的原代码进行了小修改，只是最终方向有所改变而已）
+    // 原句： float bn = mod(atan(p.x,p.y), 2.0*an) - an;
+    float bn = mod(atan(p.y,p.x)+an, 2.0*an) - an;
+    // 原op的长度保持不变，方向调整到bn方向
+    p = length(p)*vec2(cos(bn),abs(sin(bn)));
+
+    // 2. 计算最短距离和符号
+    p -= r*acs;
+    p += ecs*clamp(dot(p, -ecs), 0.0, r*acs.y/ecs.y);
+    return length(p)*sign(p.x);
+  }
+
+  /**
+  * 十字  1. 原点在十字中心
+  *       2. 十字型由两个相同的长方形垂直组成
+  *          b.x表示长方形长的一半，b.y表示宽的一半，若b.x==b.y则最终是一个正方形图形
+  *       3. r是最终距离的偏移量，不影响整体计算（可以通过调节r得到更漂亮的图形）
+  */
+  float sdCross( in vec2 p, in vec2 b, float r )
+  {
+    // 四象限对称
+    p = abs(p);
+    // 关于直线y=x对称
+    p = (p.y>p.x) ? p.yx : p.xy;
+    // 假设十字横着的长方形右上角点a, 那么oa就是向量b
+    // q是从点a指向点p的向量
+    vec2  q = p - b;
+    // 三句话实现了五个区域的计算
+    float k = max(q.y,q.x);
+    vec2  w = (k>0.0) ? q : vec2(b.y-p.x,-k);
+    return sign(k)*length(max(w,0.0)) + r;  // r调节最终结果
+  }
+
+  /**
+  * y轴对称的梯形  1. 原点在中心点（x=底的一半，y=高的一半处）
+  *               2. r1：下底的一半，r2：上底的一半， h：高的一半
+  */
+  float sdTrapezoidY( in vec2 p, in float r1, float r2, float he )
+  {
+    // 原点指向右上角顶点的向量
+    vec2 k1 = vec2(r2,he);
+    // 右腰
+    vec2 k2 = vec2(r2-r1,2.0*he);
+    // 左右对称图形，只看右边
+    p.x = abs(p.x);
+
+    // 同样是三块区域，根据距离最短点的位置，划分为：上底部分+下底部分+腰部分
+    // 上底下底可以统一处理，即ca，比较容易判断，在y负半轴的点x减去下底长度
+    //  y上半轴的点x减上底，小于0说明x轴投影在内部，此时最小距离就是p.y-h
+    // 似乎这样可以直接返回了，其实不然，在梯形外部的点确实可以直接返回p.y-h但是在梯形内部的点
+    // 我们不清楚它是距离底近还是距腰近（梯形外部的点可以很快判断），所以不能就此返回，最后面要比较
+    // 1. 计算与（上/下）底的距离
+    vec2 ca = vec2(max(0.0,p.x-((p.y<0.0)?r1:r2)), abs(p.y)-he);
+
+    // 当然，确定的在梯形外部的上底部分和下底部分，可以直接返回
+    // if(ca.x<=0.0 && ca.y>0.0) return ca.y;
+
+    // 2. 计算和腰的距离
+    vec2 cb = p - k1 + k2*clamp( dot(k1-p,k2)/dot(k2, k2), 0.0, 1.0 );
+    // 内外判断
+    float s = (cb.x < 0.0 && ca.y < 0.0) ? -1.0 : 1.0;
+    // 取最小的
+    return s*sqrt( min(dot(ca, ca),dot(cb, cb)) );
+  }
+
+  /**
+  * 任意方向的梯形  1. 原点并不指定
+  *                2. a表示下底中心点，b上底中心点，ra是下底的一半长度
+  */
+  float sdTrapezoid( in vec2 p, in vec2 a, in vec2 b, in float ra, float rb )
+  {
+    // 首先还是先计算
+    float rba  = rb-ra;  		// 两半底长度的差
+    float baba = dot(b-a,b-a);  // 高的长度的平方，重要
+    // ap需要注意，对照Y轴版本，其实这个就是op
+    float papa = dot(p-a,p-a);
+    // 此处是理解的关键，paba表示的 pa在高ba上的投影的长度占ba长度的比例，范围[0,1]
+    // 这个量在下面会经常和0.5比较，因为我们上面的Y轴对称版本里面的h其实是高的一半
+    // paba在下面出现时，我们可以认为它就是上面Y对称版本的p.y
+    // 当然 paba*sqrt(baba)才是ap在ab上的投影的实际长度，最后一步的时候才会乘此baba
+    float paba = dot(p-a,b-a)/baba;
+
+    // 同样分为两段，先计算和底的距离再计算和腰的距离，仔细观察会发现和Y版本一模一样，只是原来的p.y, p.x被替换了
+    // 上面我们说 paba可以看作Y版本的p.y，那么这一步就是计算Y版本的p.x
+    // 就是勾股定理，斜边是pa,一条直角边是pa在ba（也就是高）上的投影，那么画图我们就能发现，得到的其实是p点距离ba的垂线的长度，
+    // 至此其实我们已经相当于构建了一个新的坐标系，新坐标系里面的y轴是梯形的高，也就是ba
+    //  x轴是垂直与y轴的，下面得到的x其实是p点在新x轴上投影的长度，我们视为新x，地位相当于Y版本的p.x
+    float x = sqrt( papa - paba*paba*baba );
+
+    // 与Y版本相似，当然我们说将paba视为前面的p.y其实不那么准确，paba-0.5才是视为前面的p.y
+    // 原因是两个坐标系选择的不同，新坐标系的原点在下底的中点，而Y版本中原点在梯形的中心点，
+    // 因此两个坐标系的y轴相对于梯形图像可以视为差了半个高的长度，所以paba-0.5才是视为前面的p.y
+    float cax = max(0.0,x-((paba<0.5)?ra:rb));
+    float cay = abs(paba-0.5)-0.5;
+
+    // k是腰长的平方
+    float k = rba*rba + baba;
+    // 也和Y版本一样，k就相当于dot2(k2)
+    // 原来的(k1-p)现在是：(x-ra, paba*sqrt(baba)), 原来的右腰k2现在是(rba, sqrt(baba))
+    // 点乘即右下底顶点指向P点的向量在腰上投影的长度所占腰长比例
+    float f = clamp( (rba*(x-ra)+paba*baba)/k, 0.0, 1.0 );
+    // 例如f==1时，cbx = x-ra-rba = x-rb, cby = paba - 1.0(这种情况paba肯定>1),这两个分量就表示p点到腰的垂线（反向）
+    float cbx = x-ra - f*rba;
+    // 这里的cby和上面的cay一样只是一个比例，需要乘baba才是真的距离
+    float cby = paba - f;
+
+    float s = (cbx < 0.0 && cay < 0.0) ? -1.0 : 1.0;
+    return s*sqrt( min(cax*cax + cay*cay*baba,      // 注意乘baba，即高的长度
+    cbx*cbx + cby*cby*baba) );
+  }
+
+  /**
+  * 扇形  1. 原点在圆心处,图形以y轴为对称轴
+  *       2. r半径， c是单位向量，扇形右半边界方向
+  */
+  float sdPie( in vec2 p, in vec2 c, in float r ) {
+    // 对称
+    p.x = abs(p.x);
+    // 1.计算与弧的部分的距离
+    float l = length(p) - r;
+    // 2.与直线段边界的距离
+    float m = sign(c.y*p.x-c.x*p.y) * length(p-c*clamp(dot(p,c),0.0,r));
+    // 3. 比较
+    return max(l,m);
+  }
+
+  /**
+  * 弧  1. 原点在圆心处
+  *     2. sca表示弧的中心点和原点连线的单位向量，主要用于旋转
+  *     3. scb表示原点和右端点的圆心的连线的单位向量
+  *     4. ra表示原点到一个端点圆心的距离，rb表示端点圆的半径，也就是弧的宽度的一半
+  */
+  float sdArc( in vec2 p, in vec2 sca, in vec2 scb, in float ra, float rb )
+  {
+    // 先旋转到可以左右对称的角度
+    // 注意，默认是sca表示pi/2，因此旋转矩阵的角度是：sca角度-pi/2（若sca传入pi/2，那实际上旋转0°）
+    // cos(x - pi/2) = sinx   sin(x - pi/2) = -cosx
+    // 右乘的旋转矩阵   [cosθ, sinθ ]     [sin, -cos]
+    //                 [-sinθ, cosθ]  =  [cos, sin]
+    p *= mat2(sca.y,-sca.x,sca.x,sca.y);
+    p.x = abs(p.x);
+    // k = p*cosθ
+    float k = (scb.y*p.x>scb.x*p.y) ? dot(p.xy,scb) : length(p.xy);
+    return sqrt( dot(p,p) + ra*ra - 2.0*ra*k ) - rb;
+  }
+
+  /**
+  * Vesica： 1. 实际上是一个圆心在x轴正半轴上的圆，求其关于y轴的镜像，两部分之和
+  *          2. r表示圆的半径，d表示圆心与y轴的距离
+  * 			  为使图形看起来正常（联通），d的取值范围应该是(-r, r)
+  */
+    float sdVesica(vec2 p, float r, float d)
+    {
+      p = abs(p); // 对称
+      // (0, b)是两圆的上交点
+      float b = sqrt(r*r-d*d);
+      // 分为两个部分，一个是最短距离点在圆弧上，一个是该最短距离点在(0, b)处，
+      // 判断方法是看op在向量(-d, b)的左边还是右边，左边（逆时针）则取(0,b)点，否则取弧
+      return ((p.y-b)*-d>p.x*b) ? length(p-vec2(0.0,b))*sign(-d)  // 与(0, b)点（两圆交点）距离
+      : length(p-vec2(d,0.0))-r;    // 与圆心距离
+    }
+
+  /**
+  * 叉  1. 原点在叉的中心，是两条与x轴角度分别为45°和-45°的椭圆/线条组合而成
+  *     2. w是叉的长度，r是宽度，r只需要最后调节即可
+  */
+  float sdRoundedX( in vec2 p, in float w, in float r )
+  {
+    // 四个象限对称
+    p = abs(p);
+    // 投影到(1, 1)
+    return length(p-min(p.x+p.y, w)*0.5) - r;
+  }
+
+  /**
+  * 多边形， N是确定的，GLSL里面不支持动态数组，v是各顶点的坐标的数组
+  */
+  const int N = 5;
+  float sdPoly( in vec2[N] v, in vec2 p )
+  {
+    const int num = v.length();
+    float d = dot(p-v[0],p-v[0]);
+    float s = 1.0;
+    for( int i=0, j=num-1; i<num; j=i, i++ )
+    {
+      // 计算p点和每条边的最短距离
+      vec2 e = v[j] - v[i];
+      vec2 w =    p - v[i];
+      vec2 b = w - e*clamp( dot(w,e)/dot(e,e), 0.0, 1.0 );
+      d = min( d, dot(b,b) );
+
+      // 通过缠绕数的奇偶规则来判断内外
+      bvec3 cond = bvec3( p.y>=v[i].y, p.y<v[j].y, e.x*w.y>e.y*w.x );
+      if( all(cond) || all(not(cond)) ) s*=-1.0;
+    }
+    return s*sqrt(d);
+  }
+
+// ab.x 表示长轴长度，ab.y表示短轴长度
+float sdEllipse( in vec2 p, in vec2 ab )
+{
+  p = abs(p); if( p.x > p.y ) {p=p.yx;ab=ab.yx;}
+  float l = ab.y*ab.y - ab.x*ab.x;
+  float m = ab.x*p.x/l;      float m2 = m*m;
+  float n = ab.y*p.y/l;      float n2 = n*n;
+  float c = (m2+n2-1.0)/3.0; float c3 = c*c*c;
+  float q = c3 + m2*n2*2.0;
+  float d = c3 + m2*n2;
+  float g = m + m*n2;
+  float co;
+  if( d<0.0 )
+  {
+    float h = acos(q/c3)/3.0;
+    float s = cos(h);
+    float t = sin(h)*sqrt(3.0);
+    float rx = sqrt( -c*(s + t + 2.0) + m2 );
+    float ry = sqrt( -c*(s - t + 2.0) + m2 );
+    co = (ry+sign(l)*rx+abs(g)/(rx*ry)- m)/2.0;
+  }
+  else
+  {
+    float h = 2.0*m*n*sqrt( d );
+    float s = sign(q+h)*pow(abs(q+h), 1.0/3.0);
+    float u = sign(q-h)*pow(abs(q-h), 1.0/3.0);
+    float rx = -s - u - c*4.0 + 2.0*m2;
+    float ry = (s - u)*sqrt(3.0);
+    float rm = sqrt( rx*rx + ry*ry );
+    co = (ry/sqrt(rm-rx)+2.0*g/rm-m)/2.0;
+  }
+  vec2 r = ab * vec2(co, sqrt(1.0-co*co));
+  return length(r-p) * sign(p.y-r.y);
+}
+
+float sdbEllipsoidV1( in vec2 p, in vec2 r )
+{
+  float k1 = length(p/r);
+  return (k1-1.0)*min(r.x,r.y);
+}
+
+// 改进型
+float sdbEllipsoidV2( in vec2 p, in vec2 r )
+{
+  float k1 = length(p/r);
+  float k2 = length(p/(r*r));
+  return (k1-1.0)*k1/k2;
+}
+
+
+  const float PI = 3.1415926;
+  const float dd = PI / 180.0;
+
+  void main( )
+  {
+    vec2 p = vUv * 2.0 - 1.0;
+
+  //  float d = sdPentagon(p, 0.4);
+//    float d = sdHexagon(p, 0.4);
+//    float d = sdHexagram(p, 0.4);
+//    float d = sdStar(p, 0.3, 5, 3.3333);
+ //   float d = sdCross(p, vec2(0.5, 0.15), 0.0); //u_time*0.01
+//    float d = sdTrapezoidY(p, 0.2, 0.1, 0.34);
+//    float d = sdTrapezoid(p, vec2(0.0), vec2(0.1, 0.3), 0.2, 0.1);
+    float d = sdPie(p, vec2(cos(-77.0 * dd), sin(-77.0 * dd) ), 0.33);  //cos(-33), sin(-33) cos(radians(-77.0))
+//    float d = sdArc(p, normalize(vec2(0.4, 0.4)), normalize(vec2(0.4, -0.2)), 0.5, 0.1); //vec2(0.0, 1.0)
+//    float d = sdVesica(p, 0.3, 0.12); //sdVesica(p, 0.3, -0.15)
+//    float d = sdRoundedX(p, 0.6, 0.1); //sdVesica(p, 0.3, -0.15)
+//    vec2[] polygon = vec2[](v0,v1,v2,v3,v4);
+//    float d = sdPoly(vec2[](vec2(-0.4, -0.4),vec2(0.4, 0.4),vec2(0.8, 0.2),vec2(-0.5, 0.3),vec2(0.5, -0.6)), p);
+//    float d = sdEllipse(p, vec2(0.4, 0.25));
+//    float d = sdbEllipsoidV1(p, vec2(0.4, 0.25));
+    //float d = sdbEllipsoidV2(p, vec2(0.4, 0.25));
+
+    // coloring
+    vec3 col = vec3(1.0) - sign(d)*vec3(0.1,0.4,0.7);
+    col *= 1.0 - exp(-3.0*abs(d));
+    col *= 0.8 + 0.2*cos(150.0*d);  // + u_time*6.0
+    col = mix( col, vec3(1.0), 1.0-smoothstep(0.0,0.01,abs(d)) );
+
+    gl_FragColor = vec4(col,1.0);
+  }
+
+</script>
+<script>
+  //https://blog.csdn.net/qq_41368247/article/details/106214710
+  var container;
+  var camera, scene, renderer;
+  var uniforms;
+  var mesh;
+
+  init();
+  animate();
+
+  function init() {
+    container = document.getElementById( 'container' );
+
+    camera = new THREE.PerspectiveCamera( 75, window.innerWidth / window.innerHeight, 0.1, 1000 );
+    camera.position.set(0, 0, 2);
+
+    scene = new THREE.Scene();
+    scene.add(new THREE.AxesHelper(20));
+
+    var geometry = new THREE.PlaneBufferGeometry( 2, 2 );
+
+    uniforms = {
+      u_time: { type: "f", value: 1.0 },
+      u_resolution: { type: "v2", value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
+      u_mouse: { type: "v2", value: new THREE.Vector2(-1, -1) },
+    };
+
+    var material = new THREE.ShaderMaterial( {
+      uniforms: uniforms,
+      side: THREE.DoubleSide,
+      vertexShader: document.getElementById( 'vertexShader' ).textContent,
+      fragmentShader: document.getElementById( 'fragmentShader' ).textContent
+    } );
+    material.extensions.derivatives = true;
+    var material2 = new THREE.MeshBasicMaterial({color: '#00bbbb', wireframe: true, side: THREE.DoubleSide})
+
+    mesh = new THREE.Mesh( geometry, material );
+    scene.add( mesh );
+    var canvas = document.createElement( 'canvas' );
+    var context = canvas.getContext( 'webgl2' );
+    renderer = new THREE.WebGLRenderer( { canvas: canvas, context: context } );
+    renderer.setClearColor( 0x0, 1 );
+    renderer.setPixelRatio( window.devicePixelRatio );
+
+    container.appendChild( renderer.domElement );
+    let orbit = new THREE.OrbitControls( camera, renderer.domElement );
+
+    onWindowResize();
+    window.addEventListener( 'resize', onWindowResize, false );
+  }
+
+  function onWindowResize( event ) {
+    renderer.setSize( window.innerWidth, window.innerHeight );
+    // uniforms.u_resolution.value.x = renderer.domElement.width;
+    // uniforms.u_resolution.value.y = renderer.domElement.height;
+  }
+
+  function animate() {
+    requestAnimationFrame( animate );
+    render();
+  }
+
+  function render() {
+    uniforms.u_time.value += 0.01;  //0.008
+    renderer.render( scene, camera );
+  }
+
+  document.addEventListener('mousemove', onDocumentMouseMove, false);
+  function onDocumentMouseMove(event) {
+    let vector = new THREE.Vector3(( event.clientX / window.innerWidth ) * 2 - 1, -( event.clientY / window.innerHeight ) * 2 + 1, 0.5);
+    vector = vector.unproject(camera);
+
+    let raycaster = new THREE.Raycaster(camera.position, vector.sub(camera.position).normalize());
+    let lst = raycaster.intersectObjects([mesh]);
+    if (lst.length == 0) {
+      return;
+    }
+    let curPos = lst[0].point;
+    // console.log(curPos);
+    let ux = (curPos.x+1)/2, uy = (curPos.y+1)/2;
+    uniforms.u_mouse.value.x = ux;
+    uniforms.u_mouse.value.y = uy;
+    // console.log("ux: " + ux + ", uy: " + uy);
+  }
+</script>
+</body>
+</html>
+

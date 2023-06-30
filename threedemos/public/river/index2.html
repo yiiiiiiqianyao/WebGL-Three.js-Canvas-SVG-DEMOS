@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <style>
+        body{
+            margin: 0;
+            overflow: hidden;
+        }
+    </style>
+    <script src="../src/three.js"></script>
+    <script src="../src/controller/OrbitControls.js"></script>
+</head>
+<body>
+    
+</body>
+<script type="x-shader/x-vertex" id="vertexShader">
+    varying vec2 vUv; 
+    void main(){
+        vUv = uv;
+        gl_Position = projectionMatrix*viewMatrix*modelMatrix*vec4( position, 1.0 );
+      }
+</script>
+<script type="x-shader/x-vertex" id="fragmentShader">
+    // 声明两个颜色贴图变量
+  uniform sampler2D texture1;
+  uniform float iTime;
+  varying vec2 vUv;
+
+
+  float rand(vec2 n) { return 0.5 + 0.5 * fract(sin(dot(n.xy, vec2(12.9898, 78.233)))* 43758.5453); }
+
+  float water(vec3 p) {
+    float t = iTime / 1.;
+
+
+
+    p.z += t * 2.; p.x += t * 2.;
+    vec3 c1 = texture2D(texture1, p.xz / 30.).xyz;
+    p.z += t * 3.; p.x += t * 0.52;
+    vec3 c2 = texture2D(texture1, p.xz / 30.).xyz;
+    p.z += t * 4.; p.x += t * 0.8;
+    vec3 c3 = texture2D(texture1, p.xz / 30.).xyz;
+    c1 += c2 - c3;
+    float z = (c1.x + c1.y + c1.z) / 3.;
+    return p.y + z / 4.;
+  }
+
+  float map(vec3 p) {
+    float d = 100.0;
+    d = water(p);
+    return d;
+  }
+
+  float intersect(vec3 ro, vec3 rd) {
+    float d = 0.0;
+    for (int i = 0; i <= 100; i++) {
+      float h = map(ro + rd * d);
+      if (h < 0.1) return  d;
+      d += h;
+    }
+    return 0.0;
+  }
+  
+  vec3 norm(vec3 p) {
+    float eps = .1;
+    return normalize(vec3(
+      map(p + vec3(eps, 0, 0)) - map(p + vec3(-eps, 0, 0)),
+      map(p + vec3(0, eps, 0)) - map(p + vec3(0, -eps, 0)),
+      map(p + vec3(0, 0, eps)) - map(p + vec3(0, 0, -eps))
+    ));
+  } 
+
+  float calSpc() {
+    vec3 l1 = normalize(vec3(1, 1, 1));
+    vec3 ro = vec3(-3, 20, -8);
+    vec3 rc = vec3(0, 0, 0);
+    vec3 ww = normalize(rc - ro);
+    vec3 uu = normalize(cross(vec3(0,1,0), ww));
+    vec3 vv = normalize(cross(rc - ro, uu));
+    vec3 rd = normalize(uu * vUv.x + vv * vUv.y + ww);
+    float d = intersect(ro, rd);
+    vec3 p = ro + rd * d;
+    vec3 n = norm(p);
+    float spc = pow(max(0.0, dot(reflect(l1, n), rd)), 30.0);
+    return spc;
+  }
+
+  void main() {
+ 
+      float spc = calSpc();
+      
+      vec3 baseColor = vec3(0.39215686274509803, 0.5843137254901961, 0.9294117647058824);
+   
+      vec3 c = baseColor + spc * 0.4;
+    
+
+    gl_FragColor = vec4(c, 1.0);
+  }
+</script>
+
+<script>
+    var scene, camera, renderer, clock, controlller
+    var shadermaterial, t1 = null, t2 = null
+    var time = 0
+
+    init()
+    animate()
+
+    // - Functions -
+    function init(){
+        scene = new THREE.Scene();
+        clock = new THREE.Clock();
+        camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 1000)
+        camera.position.z = 10
+        renderer = new THREE.WebGLRenderer({
+            antialias:true, // 开启抗锯齿处理
+            alpha:true
+        })
+        renderer.setSize(window.innerWidth,window.innerHeight)
+        
+        let texLod = new THREE.TextureLoader()
+        t1 = texLod.load('./bg.png')
+        t1.wrapS = THREE.RepeatWrapping;
+        t1.wrapT = THREE.RepeatWrapping;
+       
+        shadermaterial = new THREE.ShaderMaterial( {
+            uniforms: {
+                texture1: {
+                    value: t1
+                },
+                iTime: {
+                    value: 0
+                }
+            },
+             
+            vertexShader: document.getElementById( 'vertexShader' ).textContent,
+            fragmentShader: document.getElementById( 'fragmentShader' ).textContent,
+            // vertexColors: THREE.VertexColors,   // 以顶点颜色为准进行渲染
+            // side:THREE.DoubleSide,              // 双面可见
+            transparent: true
+        } )
+
+        var axisHelper = new THREE.AxesHelper( 10 )
+        scene.add( axisHelper )
+
+        var geometry = new THREE.PlaneBufferGeometry( 5, 5, 1 );
+        var plane = new THREE.Mesh( geometry, shadermaterial );
+        // plane.rotation.x = -Math.PI/2
+        scene.add( plane );
+       
+        /**
+            * 光源设置
+            */
+        // 方向光1
+        var directionalLight = new THREE.DirectionalLight(0xffffff, 0.9);
+        directionalLight.position.set(400, 200, 300);
+        // directionalLight.castShadow = true
+        scene.add(directionalLight);
+        // 方向光2
+        var directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.9);
+        directionalLight2.position.set(-400, -200, -300);
+        scene.add(directionalLight2);
+        //环境光
+        var ambient = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambient);
+
+        controlller = new THREE.OrbitControls(camera,renderer.domElement)
+        document.body.appendChild(renderer.domElement)
+        window.onresize = onResize
+    }
+
+    function animate(){
+        requestAnimationFrame(animate)
+        renderer.render(scene, camera)
+        controlller.update(clock.getDelta())
+      
+        shadermaterial.uniforms.iTime.value += 0.01
+    }
+
+    function onResize() {
+        camera.aspect = window.innerWidth / window.innerHeight
+        camera.updateProjectionMatrix()
+        renderer.setSize(window.innerWidth, window.innerHeight)
+    }
+</script>
+</html>

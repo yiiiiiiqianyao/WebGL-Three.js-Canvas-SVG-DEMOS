@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <style>
+        body{
+            margin: 0;
+            overflow: hidden;
+        }
+        .wrap {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            border: 1px solid;
+            border-radius: 10px;
+            padding: 10px;
+        }
+    </style>
+    <script src="../src/three.js"></script>
+    <script src="../src/controller/OrbitControls.js"></script>
+    <script src="./GLTFLoader.js"></script>
+    <script src="./popmotion.js"></script>
+</head>
+<body>
+    <!-- <div class="wrap">
+        <button onclick="move()">move</button>
+    </div> -->
+</body>
+<script>
+    let { tween, easing } = popmotion
+    var scene, camera, renderer, controller, model, curveLine
+    var head, carriage1, carriage2, carriage3
+    var loader = new THREE.GLTFLoader()
+    init()
+    animate()
+
+    // - Functions -
+    function init(){
+        scene = new THREE.Scene()
+
+        camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100000000)
+        camera.position.set(200, 200, 200)
+        renderer = new THREE.WebGLRenderer({    
+            antialias:true, // 开启抗锯齿处理
+            alpha:true
+        })
+        renderer.setSize(window.innerWidth,window.innerHeight)
+        var axesHelper = new THREE.AxesHelper( 100000 );
+        scene.add( axesHelper );
+
+        let points = [
+            new THREE.Vector3( 0, 0, 0 ),
+            new THREE.Vector3( 100, 0, 0 ),
+            new THREE.Vector3( 100, 0, 100 ),
+            new THREE.Vector3( -200, 0, 100 )
+        ]
+        curveLine = new THREE.CatmullRomCurve3(points)
+        let tubeGeometry = new THREE.TubeBufferGeometry(curveLine, points.length*10, 1, 8, false);
+        let mateiral = new THREE.MeshBasicMaterial({color: 'red'})
+        scene.add(new THREE.Mesh(tubeGeometry, mateiral))
+
+        loader.load('./train2.glb', function(gltf) {
+            model = new THREE.Group()
+            
+            model.add(gltf.scene)
+           
+            model.userData.head = model.children[0].children[3]
+            model.userData.carriage1 = model.children[0].children[0]
+            model.userData.carriage2 = model.children[0].children[1]
+            model.userData.carriage3 = model.children[0].children[2]
+            scene.add(model)
+            move()
+        })
+       
+        /**
+            * 光源设置
+            */
+        // 方向光1
+        var directionalLight = new THREE.DirectionalLight(0xffffff, 0.9);
+        directionalLight.position.set(400, 200, 300);
+        // directionalLight.castShadow = true
+        scene.add(directionalLight);
+        // 方向光2
+        var directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.9);
+        directionalLight2.position.set(-400, -200, -300);
+        scene.add(directionalLight2);
+        //环境光
+        var ambient = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambient);
+
+        controller = new THREE.OrbitControls(camera,renderer.domElement)
+        document.body.appendChild(renderer.domElement)
+        window.onresize = onResize
+    }
+
+    function move() {
+        
+        tween({
+          from: {
+            t: 0
+          },
+          to: {
+            t: 0.99
+          },
+          ease: easing.easeInOut,
+          duration: 4000,
+        }).start({
+          update: (o) => {
+            let { head, carriage1, carriage2, carriage3 } = model.userData
+            let np = curveLine.getPointAt(o.t, new THREE.Vector3())
+            
+            head.position.copy(curveLine.getPointAt(o.t, new THREE.Vector3()))
+            head.lookAt(curveLine.getPointAt(Math.min(1, o.t + 0.01), new THREE.Vector3()))
+
+            carriage1.position.copy(curveLine.getPointAt(Math.max(o.t - 0.04, 0), new THREE.Vector3()))
+            carriage1.lookAt(curveLine.getPointAt(Math.max(o.t - 0.03, 0), 0, new THREE.Vector3()))
+
+            carriage2.position.copy(curveLine.getPointAt(Math.max(o.t - 0.09, 0), new THREE.Vector3()))
+            carriage2.lookAt(curveLine.getPointAt(Math.max(o.t - 0.08, 0), 0, new THREE.Vector3()))
+
+            carriage3.position.copy(curveLine.getPointAt(Math.max(o.t - 0.14, 0), new THREE.Vector3()))
+            carriage3.lookAt(curveLine.getPointAt(Math.max(o.t - 0.13, 0), 0, new THREE.Vector3()))
+          },
+          complete: () => {
+            move()
+          }
+        })
+    }
+
+    function ang2rad(ang){
+        // 角度变弧度
+        return (ang * Math.PI) / 180;
+    };
+
+    function setModelCenter(model) {
+        model.updateMatrixWorld();
+        const box = new THREE.Box3().setFromObject(model);
+        const size = box.getSize(new THREE.Vector3()).length();
+        const boxSize = box.getSize(new THREE.Vector3());
+        const center = box.getCenter(new THREE.Vector3());
+  
+        model.position.x += model.position.x - center.x;
+        model.position.y += model.position.y - center.y;//修改center.y可以设置模型整体上下偏移
+        model.position.z += model.position.z - center.z;
+        camera.position.copy(center);
+        if (boxSize.x > boxSize.y) { // 判断模型的宽高哪个更大
+            camera.position.z = boxSize.x * -2.85;
+        } else {
+            camera.position.z = boxSize.y * -2.85;
+        }
+        camera.lookAt(0, 0, 0);
+    }
+
+    function animate(){
+        requestAnimationFrame(animate)
+        renderer.render(scene, camera)
+        controller.update()
+    }
+
+    function onResize() {
+        camera.aspect = window.innerWidth / window.innerHeight
+        camera.updateProjectionMatrix()
+        renderer.setSize(window.innerWidth, window.innerHeight)
+    }
+</script>
+</html>

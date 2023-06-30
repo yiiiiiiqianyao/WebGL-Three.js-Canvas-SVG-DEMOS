@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <script src="../src/webgl_lib/webgl-utils.js"></script>
+    <script src="../src/webgl_lib/webgl-debug.js"></script>
+    <script src="../src/webgl_lib/cuon-utils.js"></script>
+    <script src="../src/webgl_lib/cuon-matrix.js"></script>
+    <style>
+        #canvas{
+            display: block;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas" width="800px" height="600px"></canvas>
+</body>
+<script src="./utils.js"></script>
+<script src="./wind-gl.js"></script>
+<script>
+    var canvas = document.getElementById('canvas'); // eslint-disable-line
+
+    const pxRatio = window.devicePixelRatio
+    canvas.width = canvas.clientWidth;
+    canvas.height = canvas.clientHeight;
+
+    const gl = canvas.getContext('webgl', {antialiasing: false});
+    // gl.clearColor(0, 0, 0, 1);
+    const wind = window.wind = new WindGL(gl);
+
+    function frame() {
+        if (wind.windData) {
+            wind.draw();
+        }
+        // gl.clear(gl.COLOR_BUFFER_BIT)
+        requestAnimationFrame(frame);
+    }
+    frame();
+
+
+    getJSON('wind/2016112000.json', function (windData) {
+        const windImage = new Image();
+        windData.image = windImage;
+        windImage.src = 'wind/2016112000.png';
+        windImage.onload = function () {
+            wind.setWind(windData);
+
+            // wind.draw();
+            // wind.draw();
+            // wind.draw();
+            // wind.draw();
+            // wind.draw();
+            // wind.draw();
+            // wind.draw();
+            // wind.draw();
+            // wind.draw();
+            // setInterval(() => wind.draw(), 16)
+
+         
+        };
+    });
+
+</script>
+</html>

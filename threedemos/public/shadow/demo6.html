@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <link rel="shortcut icon" href="../favicon.ico" />
+    <link rel="bookmark" href="../favicon.ico" />
+    <title>Document</title>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+      }
+    </style>
+    <script src="../src/three.js"></script>
+    <script src="../src/controller/OrbitControls.js"></script>
+  </head>
+  <body></body>
+  <script id="post-vert" type="x-shader/x-vertex">
+    varying vec2 vUv;
+
+    void main() {
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  </script>
+  <script id="post-frag" type="x-shader/x-fragment">
+    #include <packing>
+    varying vec2 vUv;
+    uniform sampler2D tDepth;
+    uniform sampler2D tDepth2;
+    uniform float cameraNear;
+    uniform float cameraFar;
+
+    float readDepth( sampler2D depthSampler, vec2 coord ) {
+      float fragCoordZ = texture2D( depthSampler, coord ).x;
+      float viewZ = perspectiveDepthToViewZ( fragCoordZ, cameraNear, cameraFar );
+      return viewZToOrthographicDepth( viewZ, cameraNear, cameraFar );
+    }
+
+    void main() {
+      float depth = readDepth( tDepth, vUv );
+      float depth2 = readDepth( tDepth2, vUv );
+
+      //gl_FragColor.rgb = vec3( depth2 );
+      //gl_FragColor.a = 1.0;
+      //gl_FragColor.rgb = vec3( depth2 );
+      //gl_FragColor.rgb = vec3(1.0, 1.0, 0.0);
+      // gl_FragCoord
+      gl_FragColor = depth2 > depth? vec4(depth, depth, depth, 1.0) : vec4(depth2, depth2 ,depth2, 1.0);
+    }
+  </script>
+
+  <script>
+    var scene, camera, renderer, clock, controlller;
+    var shadowMaterial, textureShader, textureShader2
+
+    var target, target2;
+    var postScene, postCamera
+
+    init();
+    animate();
+
+    // - Functions -
+    function init() {
+      scene = new THREE.Scene();
+      clock = new THREE.Clock();
+      camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 0.01, 50 );
+      camera.position.z = 30;
+      
+      postCamera = new THREE.OrthographicCamera( - 5, 5, 5, - 5, 0, 5 );
+
+      renderer = new THREE.WebGLRenderer({
+        antialias: true, // 开启抗锯齿处理
+        alpha: true,
+      });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+
+      target = new THREE.WebGLRenderTarget( window.innerWidth, window.innerHeight );
+      target.texture.format = THREE.RGBFormat;
+      target.texture.minFilter = THREE.NearestFilter;
+      target.texture.magFilter = THREE.NearestFilter;
+      target.texture.generateMipmaps = false;
+      target.stencilBuffer = false;
+      target.depthBuffer = true;
+      target.depthTexture = new THREE.DepthTexture();
+      target.depthTexture.type = THREE.UnsignedShortType;
+
+      target2 = new THREE.WebGLRenderTarget( window.innerWidth, window.innerHeight );
+      target2.texture.format = THREE.RGBFormat;
+      target2.texture.minFilter = THREE.NearestFilter;
+      target2.texture.magFilter = THREE.NearestFilter;
+      target2.texture.generateMipmaps = false;
+      target2.stencilBuffer = false;
+      target2.depthBuffer = true;
+      target2.depthTexture = new THREE.DepthTexture();
+      target2.depthTexture.type = THREE.UnsignedShortType;
+
+      scene = new THREE.Scene();
+
+      var geometry1 = new THREE.PlaneBufferGeometry( 10, 10 );
+      var material1 = new THREE.MeshBasicMaterial( {color: 0xffff00} );
+      var plane1 = new THREE.Mesh( geometry1, material1 );
+      scene.add( plane1 );
+
+      var geometry2 = new THREE.PlaneBufferGeometry( 5, 5 );
+      var material2 = new THREE.MeshBasicMaterial( {color: 0x00ff00} );
+      var plane2 = new THREE.Mesh( geometry2, material2 );
+      plane2.position.z = 10
+      plane2.visible = false
+      scene.add( plane2 );
+
+      renderer.autoClear = false
+      renderer.setRenderTarget( target );
+      renderer.render(scene, camera) // plane1的深度图
+      renderer.autoClear = true
+      renderer.setRenderTarget( null );
+
+      plane1.visible = false
+      plane2.visible = true
+      renderer.autoClear = false
+      renderer.setRenderTarget( target2 );
+      renderer.render(scene, camera) // plane2的深度图
+      renderer.autoClear = true
+      renderer.setRenderTarget( null );
+
+      plane1.visible = true
+      
+      var postMaterial = new THREE.ShaderMaterial( {
+        vertexShader: document.querySelector( '#post-vert' ).textContent.trim(),
+        fragmentShader: document.querySelector( '#post-frag' ).textContent.trim(),
+        uniforms: {
+          cameraNear: { value: camera.near },
+          cameraFar: { value: camera.far },
+          tDepth: { value: target.depthTexture },
+          tDepth2: { value: target2.depthTexture },
+        }
+      } );
+      plane1.material = postMaterial
+        
+      
+      controlller = new THREE.OrbitControls(camera, renderer.domElement);
+      document.body.appendChild(renderer.domElement);
+      window.onresize = onResize;
+    }
+
+    function animate() {
+        requestAnimationFrame(animate);
+        renderer.render(scene, camera);
+        // renderer.render(scene, postCamera);
+      
+				// renderer.setRenderTarget( target );
+				// renderer.render( scene, camera );
+
+				// render post FX
+				// renderer.setRenderTarget( null );
+        // renderer.render( postScene, postCamera );
+        
+      controlller.update(clock.getDelta());
+    }
+
+    function onResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+  </script>
+</html>

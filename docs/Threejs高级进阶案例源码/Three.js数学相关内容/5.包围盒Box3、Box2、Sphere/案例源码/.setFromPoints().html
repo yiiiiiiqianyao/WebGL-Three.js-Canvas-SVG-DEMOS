@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+
+<head>
+  <meta charset="utf-8">
+  <title></title>
+  <!--引入three.js三维引擎-->
+  <script src="http://www.yanhuangxueyuan.com/versions/threejsR92/build/three.js"></script>
+</head>
+
+<body>
+  <script>
+    var geometry = new THREE.SphereGeometry(50, 100, 100); //球体
+
+    var box3 = new THREE.Box3()
+    // 计算点集geometry.vertices的包围盒
+    box3.setFromPoints(geometry.vertices);
+    console.log('box3', box3);
+
+
+
+
+    // .boundingBox属性默认为空null，执行.computeBoundingBox()方法才会计算该几何体的包围盒赋值给.boundingBox属性
+    // geometry.computeBoundingBox();
+    // console.log('包围盒属性', geometry.boundingBox);
+    // geometry.computeBoundingSphere();
+    // console.log('包围球属性', geometry.boundingSphere);
+  </script>
+</body>
+
+</html>

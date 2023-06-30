@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <script src="../src/webgl_lib/webgl-utils.js"></script>
+    <script src="../src/webgl_lib/webgl-debug.js"></script>
+    <script src="../src/webgl_lib/cuon-utils.js"></script>
+    <script src="../src/webgl_lib/cuon-matrix.js"></script>
+    <style>
+        #canvas{
+            display: block;
+            margin: 0 auto;
+            border: 1px solid;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas" width="800px" height="600px"></canvas>
+</body>
+<script>
+    var canvas = document.getElementById('canvas')
+    canvas.width = 800
+    canvas.height = 600
+    
+    // 获取 webgl 绘图上下文
+    var gl = getWebGLContext(canvas, {a: 1})
+    if(!gl) { 
+        console.log('not support')
+    }
+
+    // 获取着色器片段
+    var vertexShader = getPointVSHADER()
+    var fragmentShader = getPointFSHADER()
+
+    // 初始化着色器
+    if(!initShaders(gl, vertexShader, fragmentShader)){   // initShaders => true : 创建成功, false : 创建失败
+        console.log('failed initShader')
+    }
+    gl.clearColor(0.0, 1.0, 1.0, 1.0) // 指定清空 canvas 的颜色 (背景色)
+    gl.clear(gl.COLOR_BUFFER_BIT) // 清空 canvas 
+
+    gl.drawArrays(gl.POINTS, 0, 1)
+
+    canvas.onmousedown = function(e) {
+        let x = e.clientX, y = e.clientY
+        let r = e.target.getBoundingClientRect()
+        if(r.left <= x && x < r.right && r.top <= y && y < r.bottom) {
+            // let modelMatrix = new Matrix4()
+            //         modelMatrix.translate(i * 5, j * 5, k * 5)
+            //         modelMatrix.rotate(-angle, 0, 1, 0)
+            //         drawCubes(modelMatrix, i, j, k)
+
+            gl.clearColor(0.0, 1.0, 1.0, 1.0) // 指定清空 canvas 的颜色 (背景色)
+            gl.clear(gl.COLOR_BUFFER_BIT) // 清空 canvas 
+
+            gl.drawArrays(gl.POINTS, 0, 1)
+
+            let pixels = new Uint8Array(4)
+            gl.drawArrays(gl.POINTS, 0, 1)
+            gl.readPixels(x, y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixels)
+            console.log(pixels)
+        }
+    }
+
+    function getPointVSHADER(){
+        return `
+            void main(){
+                gl_Position = vec4(0.0, 0.0, 0.0, 1.0);
+                gl_PointSize = 10.0;
+            }
+        `
+    }
+
+    function getPointFSHADER(){
+        return `
+            void main(){
+                gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+            }
+        `
+    }
+  
+</script>
+</html>

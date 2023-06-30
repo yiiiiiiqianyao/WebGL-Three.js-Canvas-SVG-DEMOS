@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <script src="./src/webgl_lib/webgl-utils.js"></script>
+    <script src="./src/webgl_lib/webgl-debug.js"></script>
+    <script src="./src/webgl_lib/cuon-utils.js"></script>
+    <script src="./src/webgl_lib/cuon-matrix.js"></script>
+    <script src="./src/shaderLib.js"></script>
+    <style>
+        #canvas{
+            display: block;
+            margin: 0 auto;
+            border: 1px solid;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas" width="800px" height="600px"></canvas>
+</body>
+<script>
+    var canvas = document.getElementById('canvas')
+    canvas.width = 800
+    canvas.height = 600
+    
+    // 获取 webgl 绘图上下文
+    var gl = getWebGLContext(canvas)
+    if(!gl) { 
+        console.log('not support')
+    }
+
+    gl.clearColor(0.0, 1.0, 1.0, 1.0) // 指定清空 canvas 的颜色 (背景色)
+    gl.clear(gl.COLOR_BUFFER_BIT) // 清空 canvas 
+    
+    drawFrame() // 绘制一帧图像
+
+    function drawFrame() { // 在一帧中添加多个对象
+        // add simple points
+        simplePoint(0, 0, 0, 20, 1, 1, 0, 1)
+        simplePoint(0.3, 0, 0, 30, 1, 0, 1, 1)
+
+        // add simple triangle
+        let vertices = new Float32Array([
+            -0.2, 0.5, 0.0,
+            -0.2, -0.1, 0.0,
+            -0.1, -0.1, 0.0
+        ])
+        simpleTriangle(vertices, 1, 0, 0, 1)
+    }
+
+    function simplePoint(posX, posY, posZ, size, r, g, b, a) { // 绘制简单点
+        var vertexShader = getPointVSHADER()
+        var fragmentShader = getPointFSHADER()
+        // 初始化着色器
+        if(!initShaders(gl, vertexShader, fragmentShader)){   // initShaders => true : 创建成功, false : 创建失败
+            console.log('failed initShader')
+        }
+        let shaderAttriPos = gl.getAttribLocation(gl.program, "aPos")
+        if(shaderAttriPos < 0) {
+            console.log("failed get pos attribute location")
+            return
+        }
+        gl.vertexAttrib3f(shaderAttriPos, posX, posY, posZ)
+
+        let shaderAttriSize = gl.getAttribLocation(gl.program, "size")
+        if(shaderAttriSize < 0) {
+            console.log("failed get size attribute location")
+            return
+        }
+        gl.vertexAttrib1f(shaderAttriSize, size)
+
+        let shaderUniformColor = gl.getUniformLocation(gl.program, "color")
+        if(!shaderUniformColor) {
+            console.log("failed get color uniform location")
+            return
+        }
+        gl.uniform4f(shaderUniformColor, r, g, b, a)
+        
+        gl.drawArrays(gl.POINTS, 0, 1)
+    }
+
+    function simpleTriangle(vertices, r, g, b, a) { // 绘制简单三角形
+        var vertexShader = getTriangleVSHADER()
+        var fragmentShader = getTriangleFSHADER()
+      
+        // 初始化着色器
+        if(!initShaders(gl, vertexShader, fragmentShader)){
+            console.log('failed initShader')
+        }
+
+        let vertexBuffer = gl.createBuffer()
+        if(!vertexBuffer) {
+            console.log("failed create vertex buffer")
+            return
+        }
+
+        let shaderAttriPos = gl.getAttribLocation(gl.program, "aPos")
+        if(shaderAttriPos < 0) {
+            console.log("failed get pos attribute location")
+            gl.deleteBuffer(vertexBuffer)
+            return
+        }
+        
+        gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer) // 将缓冲区对象绑定到目标
+        gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW) // 向缓冲区对象中写入数据
+        gl.vertexAttribPointer(shaderAttriPos, 3, gl.FLOAT, false, 0, 0) // 将缓冲区对象分配给 shaderAttriPos 变量
+        gl.enableVertexAttribArray(shaderAttriPos) // 开启 shaderAttriPos 变量
+
+        let shaderUniformColor = gl.getUniformLocation(gl.program, "color")
+        if(!shaderUniformColor) {
+            console.log("failed get color uniform location")
+            return
+        }
+        gl.uniform4f(shaderUniformColor, r, g, b, a)
+
+        gl.drawArrays(gl.TRIANGLES, 0, vertices.length/3)
+
+        gl.deleteBuffer(vertexBuffer) // 删除缓冲区对象
+        gl.disableVertexAttribArray(shaderAttriPos) // 关闭分配缓冲区
+    }
+  
+</script>
+</html>

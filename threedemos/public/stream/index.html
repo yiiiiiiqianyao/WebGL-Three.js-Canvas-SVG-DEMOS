@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <link rel="shortcut icon" href="../favicon.ico" />
+    <link rel="bookmark" href="../favicon.ico" />
+    <title>Document</title>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+      }
+    </style>
+    <script src="../src/three.js"></script>
+    <script src="../src/controller/OrbitControls.js"></script>
+    <script src="../src/libs/stats.min.js"></script>
+    <script src="./LineSegmentsGeometry.js"></script>
+    <script src="./LineSegments2.js"></script>
+    <script src="./LineGeometry.js"></script>
+    <script src="./LineMaterial.js"></script>
+    <script src="./Line2.js"></script>
+  </head>
+  <body></body>
+  <script type="x-shader/x-vertex" id="vertexShader">
+    varying vec2 vUv;
+    void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }</script>
+  <script type="x-shader/x-vertex" id="fragmentShader">
+    varying vec2 vUv;
+    uniform vec3 color;
+    void main() {
+      gl_FragColor = vec4(color, vUv.x);
+    }
+  </script>
+ 
+  <script>
+    var scene, camera, renderer, clock, controller, stats
+    var shader_material
+
+    init();
+    animate();
+
+    // - Functions -
+    function init() {
+      scene = new THREE.Scene();
+      clock = new THREE.Clock();
+      camera = new THREE.PerspectiveCamera(
+        45,
+        window.innerWidth / window.innerHeight,
+        0.1,
+        1000
+      );
+      camera.position.set(20, 20, 20)
+      renderer = new THREE.WebGLRenderer({
+        antialias: true, // 开启抗锯齿处理
+        alpha: true,
+      });
+      renderer.setClearColor(0xbfd1e5) // set sky color
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(window.devicePixelRatio)
+      // renderer.shadowMap.enabled = true
+
+      // shader_material = new THREE.ShaderMaterial( {
+      // uniforms: {
+      //     texture: {
+      //      // 加载纹理贴图返回Texture对象作为texture的值
+      //      // Texture对象对应着色器中sampler2D数据类型变量
+      //      value: new THREE.TextureLoader().load('./Earth.png')
+      //  },
+      // },
+
+      // uniforms: THREE.UniformsUtils.merge([   // 系统提供用来合并 系统的 uniform 属性值和自己提供的属性值
+      //     THREE.UniformsLib["common"],    // 调用系统提供的 uniform 的属性值
+      //     THREE.UniformsLib["fog"],
+      //     { // 自定义uniform变量写在一个对象中
+      //         time: {
+      //             value: 0.3
+      //         },
+      //         opacity: {
+      //             value: 0.6
+      //         },
+      //     }
+      // ]),
+
+      // vertexShader: document.getElementById( 'vertexShader' ).textContent,
+      // fragmentShader: document.getElementById( 'fragmentShader' ).textContent,
+      // vertexColors: THREE.VertexColors,   // 以顶点颜色为准进行渲染
+      // side:THREE.DoubleSide,              // 双面可见
+      // } );
+
+      var axisHelper = new THREE.AxesHelper(10);
+      scene.add(axisHelper);
+     
+      var directionalLight = new THREE.DirectionalLight(0xffffff, 0.9);
+      directionalLight.position.set(400, 200, 300);
+      // directionalLight.castShadow = true
+      scene.add(directionalLight);
+      // 方向光2
+      var directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.9);
+      directionalLight2.position.set(-400, -200, -300);
+      scene.add(directionalLight2);
+      //环境光
+      var ambient = new THREE.AmbientLight(0x404040, 0.6);
+      scene.add(ambient);
+
+      stats = new Stats()
+      document.body.appendChild( stats.dom );
+
+      // --------
+      var material = new THREE.LineBasicMaterial({
+        color: 0x0000ff
+      });
+      let sp = new THREE.Mesh(new THREE.SphereBufferGeometry(0.1, 5, 5), new THREE.MeshBasicMaterial({color: "#ff0"}))
+      let p1 = new THREE.Vector3( 0, 0, 1 )
+      let p2 = new THREE.Vector3( 10, 0, 10 )
+      let p3 = new THREE.Vector3( 10, 0, 1 )
+      let p4 = new THREE.Vector3( 15, 0, -5 )
+      var geometry = new THREE.Geometry();
+      geometry.vertices.push(
+        p1,
+        p2,
+        p3,
+        p4
+      );
+
+      var line = new THREE.Line( geometry, material );
+      scene.add( line );
+
+      drawStream([p1, p2, p3, p4])
+ 
+      
+
+      // --------
+
+      controller = new THREE.OrbitControls(camera, renderer.domElement);
+      document.body.appendChild(renderer.domElement);
+      window.onresize = onResize;
+    }
+
+    function drawStream(points) {
+      let sp = new THREE.Mesh(new THREE.SphereBufferGeometry(0.1, 5, 5), new THREE.MeshBasicMaterial({color: "#ff0"}))
+
+      console.log(points)
+      for(let i = 0;i < points.length-1;i++) {
+        let v1 = points[i]
+        let v2 = points[i+1]
+        console.log([v1, v2])
+        let { startRight } = getLinePoints(v1, v2)
+        let sp0 = sp.clone()
+        sp0.position.copy(startRight)
+        scene.add(sp0)
+      }
+    }
+
+    function getLinePoints(p1, p2) {
+      let yAxes = new THREE.Vector3(0, 1, 0)
+      let d1 = new THREE.Vector3().cross(p1.clone().sub(p2), yAxes).normalize().add(p1) // start - right
+      let d2 = new THREE.Vector3().cross(p2.clone().sub(p1), yAxes).normalize().add(p1) // start - left
+      let d3 = new THREE.Vector3().cross(p1.clone().sub(p2), yAxes).normalize().add(p2) // end - right
+      let d4 = new THREE.Vector3().cross(p2.clone().sub(p1), yAxes).normalize().add(p2) // end - left
+   
+      return {
+        startRight: d1,
+        startLeft: d2,
+        endRight: d3,
+        endLeft: d4
+      }
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      renderer.render(scene, camera);
+      stats.update();
+      controller.update(clock.getDelta());
+    }
+
+    function onResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+  </script>
+</html>

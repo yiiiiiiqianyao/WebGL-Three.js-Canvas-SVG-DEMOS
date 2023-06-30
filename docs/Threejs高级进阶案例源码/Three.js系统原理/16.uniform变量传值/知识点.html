@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+    <meta charset="utf-8">
+    <title></title>
+      <link href="http://www.yanhuangxueyuan.com/markdown.css" rel="stylesheet" type="text/css">
+  </head>
+  <body>
+    <h1 id="uniform-">uniform传值-获得变量索引地址</h1>
+  <p>如果你想知道Three.js着色器中的uniform变量是如何传值的，首先要了解Three.js顶点和片元着色器中的uniform变量有哪些。</p>
+  <h3 id="webglprogram-js-uniform-">WebGLProgram.js中uniform变量</h3>
+  <p>顶点着色器前缀字符串prefixVertex，会和.glsl文件提供的顶点着色器代码拼接在一起。</p>
+  <pre><code class="lang-JavaScript">prefixVertex = [
+    ...
+    <span class="hljs-string">'uniform mat4 modelMatrix;'</span>,<span class="hljs-comment">//模型矩阵</span>
+    <span class="hljs-string">'uniform mat4 modelViewMatrix;'</span>,<span class="hljs-comment">// 模型视图矩阵</span>
+    <span class="hljs-string">'uniform mat4 projectionMatrix;'</span>,<span class="hljs-comment">// 投影矩阵</span>
+    <span class="hljs-string">'uniform mat4 viewMatrix;'</span>,<span class="hljs-comment">// 视图矩阵</span>
+    <span class="hljs-string">'uniform mat3 normalMatrix;'</span>,<span class="hljs-comment">// 法线矩阵</span>
+    <span class="hljs-string">'uniform vec3 cameraPosition;'</span>,
+    ...
+  ]
+  </code></pre>
+  <p>片元着色器前缀字符串，会和.glsl文件提供的顶点着色器代码拼接在一起。</p>
+  <pre><code class="lang-JavaScript">prefixFragment = [
+    ...
+    <span class="hljs-string">'uniform mat4 viewMatrix;'</span>,<span class="hljs-comment">// 视图矩阵</span>
+    <span class="hljs-string">'uniform vec3 cameraPosition;'</span>,
+    ...
+  ]
+  </code></pre>
+  <h3 id="-glsl-uniform-">.glsl中uniform变量</h3>
+  <p>材质对象的一些属性对应的uniform变量，threejs渲染的时候会自动解析材质对象属性，获得属性值传值给相应的uniform变量</p>
+  <pre><code class="lang-JavaScript"><span class="hljs-comment">// map_pars_fragment.glsl文件</span>
+  <span class="hljs-comment">// 该变量对应材质对象的颜色贴图map属性，threejs系统会自动解析材质对象提取map的属性值，传值给该变量</span>
+  uniform sampler2D <span class="hljs-built_in">map</span>;
+  </code></pre>
+  <pre><code class="lang-JavaScript"><span class="hljs-comment">// 声明一个法线贴图变量</span>
+      uniform sampler2D normalMap;
+      <span class="hljs-comment">// normalScale变量对应材质的normalScale属性，表达深浅程度</span>
+      uniform vec2 normalScale;
+  </code></pre>
+  <p>lights_pars_begin.glsl文件主要是与光源相关的uniform变量，THree.js一个光源对象有多个新信息构成，所以着色器中通过<code>struct</code>关键字声明一个结构体，更多的着色器知识可以参考着色器GLSL语言语法。</p>
+  <pre><code class="lang-JavaScript"><span class="hljs-comment">// NUM_DIR_LIGHTS表示：方向光光源数量，</span>
+  <span class="hljs-comment">// threejs生成着色器代码的时候会进行替换，threejs系统会统计方向光光源的数量，然后使用这个数量替换NUM_DIR_LIGHTS</span>
+  <span class="hljs-meta">#<span class="hljs-meta-keyword">if</span> NUM_DIR_LIGHTS &gt; 0</span>
+  <span class="hljs-comment">// 方向光结构体定义</span>
+      <span class="hljs-keyword">struct</span> DirectionalLight {
+          vec3 direction;<span class="hljs-comment">// 光源方向</span>
+          vec3 color;<span class="hljs-comment">// 光源颜色</span>
+          <span class="hljs-keyword">int</span> shadow;
+          <span class="hljs-keyword">float</span> shadowBias;
+          <span class="hljs-keyword">float</span> shadowRadius;
+          vec2 shadowMapSize;
+      };
+    <span class="hljs-comment">// uniform关键字声明一个数组变量directionalLights，元素个数NUM_DIR_LIGHTS</span>
+    <span class="hljs-comment">// 数组元素的是struct关键字定义的结构体DirectionalLight</span>
+    <span class="hljs-comment">// 数组每个元素对应Threejs场景中一个方向光源对象</span>
+      uniform DirectionalLight directionalLights[ NUM_DIR_LIGHTS ];
+
+    <span class="hljs-comment">// 声明一个函数从方向光提取光源数据，比如颜色、方向等</span>
+    <span class="hljs-comment">// 输入：方向光结构体DirectionalLight声明的变量   几何体上下文结构体GeometricContext声明的变量geometry</span>
+    <span class="hljs-comment">// 输出：入射光结构体IncidentLight声明的变量directLight    该结构体在common.glsl模块中声明</span>
+      <span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">getDirectionalDirectLightIrradiance</span>(<span class="hljs-params"> <span class="hljs-keyword">const</span> <span class="hljs-keyword">in</span> DirectionalLight directionalLight, <span class="hljs-keyword">const</span> <span class="hljs-keyword">in</span> GeometricContext geometry, <span class="hljs-keyword">out</span> IncidentLight directLight </span>) </span>{
+          directLight.color = directionalLight.color;
+          directLight.direction = directionalLight.direction;
+          directLight.visible = <span class="hljs-keyword">true</span>;
+      }
+  <span class="hljs-meta">#<span class="hljs-meta-keyword">endif</span></span>
+  </code></pre>
+  <h3 id="webgluniforms-js">WebGLUniforms.js</h3>
+  <p>封装了一系列与uniform变量传值相关的方法，比如<code>.setValue()</code>方法可以用于直接传递某个uniform变量的值。</p>
+  <pre><code class="lang-JavaScript"><span class="hljs-function"><span class="hljs-keyword">function</span> <span class="hljs-title">WebGLUniforms</span>(<span class="hljs-params"> gl, program, renderer </span>) </span>{
+  <span class="hljs-comment">// 继承map、seq属性</span>
+      UniformContainer.call( <span class="hljs-keyword">this</span> );
+
+      <span class="hljs-keyword">this</span>.renderer = renderer;
+  <span class="hljs-comment">// 获得uniform变量的数量</span>
+      <span class="hljs-keyword">var</span> n = gl.getProgramParameter( program, gl.ACTIVE_UNIFORMS );
+
+      <span class="hljs-keyword">for</span> ( <span class="hljs-keyword">var</span> i = <span class="hljs-number">0</span>; i &lt; n; ++ i ) {
+      <span class="hljs-comment">// 返回第i+1个uniform变量的相关信息的集合info，info对象包含name、type、size属性</span>
+          <span class="hljs-keyword">var</span> info = gl.getActiveUniform( program, i ),
+          <span class="hljs-comment">// 通过变量在着色器中的名字返回uniform变量的引用地址</span>
+          <span class="hljs-comment">// 获得名为info.name的uniform变量的索引地址</span>
+          addr = gl.getUniformLocation( program, info.name );
+
+      <span class="hljs-comment">// 对uniform变量的索引地址等信息进行处理</span>
+          parseUniform( info, addr, <span class="hljs-keyword">this</span> );
+
+      }
+
+  }
+
+  WebGLUniforms.prototype.setValue = <span class="hljs-function"><span class="hljs-keyword">function</span> (<span class="hljs-params"> gl, name, value </span>) </span>{
+
+      <span class="hljs-keyword">var</span> u = <span class="hljs-keyword">this</span>.map[ name ];
+
+      <span class="hljs-keyword">if</span> ( u !== <span class="hljs-literal">undefined</span> ) u.setValue( gl, value, <span class="hljs-keyword">this</span>.renderer );
+
+  };
+  </code></pre>
+  <h3 id="webglrenderer-js">WebGLRenderer.js</h3>
+  <pre><code class="lang-JavaScript"><span class="hljs-function">function <span class="hljs-title">setProgram</span>(<span class="hljs-params">camera, fog, material, <span class="hljs-keyword">object</span></span>) </span>{
+    <span class="hljs-comment">// 编译着色器得到程序对象，从程序对象提取获得uniforms对象p_uniforms</span>
+    <span class="hljs-comment">// WebGLProgram.js封装的.getUniforms()方法</span>
+    p_uniforms = program.getUniforms();
+
+
+    <span class="hljs-comment">// uniform传值——从相机对象获得相关的矩阵属性</span>
+    <span class="hljs-comment">// 投影矩阵传值</span>
+    p_uniforms.setValue(_gl, <span class="hljs-string">'projectionMatrix'</span>, camera.projectionMatrix);
+    <span class="hljs-comment">// 视图矩阵传值</span>
+    p_uniforms.setValue(_gl, <span class="hljs-string">'viewMatrix'</span>, camera.matrixWorldInverse);
+
+    <span class="hljs-comment">// uniform传值——从对象获得相关矩阵属性，查看Object3D文档</span>
+    <span class="hljs-comment">// 模型视图矩阵传值</span>
+    p_uniforms.setValue(_gl, <span class="hljs-string">'modelViewMatrix'</span>, <span class="hljs-keyword">object</span>.modelViewMatrix);
+    <span class="hljs-comment">// 法线矩阵传值</span>
+    p_uniforms.setValue(_gl, <span class="hljs-string">'normalMatrix'</span>, <span class="hljs-keyword">object</span>.normalMatrix);
+    <span class="hljs-comment">// 模型矩阵传值，对象的世界矩阵属性就是传递给着色器的模型矩阵</span>
+    p_uniforms.setValue(_gl, <span class="hljs-string">'modelMatrix'</span>, <span class="hljs-keyword">object</span>.matrixWorld);
+  }
+  </code></pre>
+  <p>Threejs渲染的时候会通过WebGLUniforms.js方法自动批量传值材质对象的属性对应的uniform变量和光源对象对应的uniform变量。</p>
+
+  <div class="">
+    <a href="http://www.yanhuangxueyuan.com/">作者技术博客</a>
+  </div>
+  </body>
+</html>

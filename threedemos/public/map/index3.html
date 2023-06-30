@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>three.js webgl - postprocessing - unreal bloom</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<style>
+			body {
+				color: #fff;
+				font-family:Monospace;
+				font-size:13px;
+				text-align:center;
+				background-color: #fff;
+				margin: 0px;
+				overflow: hidden;
+			}
+        </style>
+        <script src="../src/three.js"></script>
+        <script src="../src/controller/OrbitControls.js"></script>
+        <script src="./LineSegmentsGeometry.js"></script>
+        <script src="./LineGeometry.js"></script>
+        <script src="./LineMaterial.js"></script>
+        <script src="./LineSegments2.js"></script>
+        <script src="./Line2.js"></script>
+    </head>
+    <script type="x-shader/x-vertex" id="vertexShader">
+    
+        varying vec3 vNormal;
+        varying vec3 vPositionNormal;
+        void main() 
+        {
+          vNormal = normalize( normalMatrix * normal ); // 转换到视图空间
+          vPositionNormal = normalize(( modelViewMatrix * vec4(position, 1.0) ).xyz);
+          gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+        }
+      </script>
+      <script type="x-shader/x-vertex" id="fragmentShader">
+        uniform vec3 glowColor;
+        uniform float b;
+        uniform float p;
+        uniform float s;
+        varying vec3 vNormal;
+        varying vec3 vPositionNormal;
+        void main() 
+        {
+          // 菲涅尔反射等式
+          // bias  (b) 值决定了颜色最亮值的位置
+          // power (p) 决定了透明度变化速度及方向
+          // scale (s) 决定变化方向
+          float a = pow( b + s * abs(dot(vNormal, vPositionNormal)), p );
+          gl_FragColor = vec4( glowColor, a );
+        }
+      </script>
+	<body>
+		<div id="container"></div>
+        
+		<script>
+			var scene, camera, controls, pointLight, stats;
+			var composer, renderer, mixer, mesh, mesh2, shader_material;
+			var params = {
+				exposure: 1,
+				bloomStrength: 3,
+				bloomThreshold: 0.1,
+				bloomRadius: 1
+			};
+			var clock = new THREE.Clock()
+            var container = document.getElementById( 'container' )
+            // 数据池，为防止轮播时请求数据出现延迟，以及点击时快速进入下一级地图
+            var mapDataPool = {}
+            var height = 30
+            var MAP_SIZE = 1000, MAP_WIDTH = MAP_SIZE, MAP_HEIGHT = MAP_SIZE
+
+			renderer = new THREE.WebGLRenderer( { antialias: true, alpha: true } )
+			renderer.setPixelRatio( window.devicePixelRatio )
+            renderer.setClearColor('#00f')
+            renderer.setClearAlpha(0)
+			renderer.setSize( window.innerWidth, window.innerHeight )
+			renderer.toneMapping = THREE.ReinhardToneMapping
+			container.appendChild( renderer.domElement )
+
+			scene = new THREE.Scene()
+
+			camera = new THREE.PerspectiveCamera( 40, window.innerWidth / window.innerHeight, 1, 100000 )
+			camera.position.set( 1000, 1000, 1000 )
+			scene.add( camera )
+
+			controls = new THREE.OrbitControls( camera, renderer.domElement )
+			controls.maxPolarAngle = Math.PI * 0.5
+			// controls.minDistance = 1;
+			// controls.maxDistance = 10;
+
+             /**
+             * 光源设置
+             */
+            // 方向光1
+            var directionalLight = new THREE.DirectionalLight(0xffffff, 0.9)
+            directionalLight.position.set(400, 200, 300)
+            directionalLight.layers.enable(1)
+            scene.add(directionalLight)
+
+			scene.add( new THREE.AmbientLight( 0x404040 ) )
+			pointLight = new THREE.PointLight( 0xffffff, 1 )
+            camera.add( pointLight )
+            
+
+            var mapCode = '330000' // 将要加载的地图的编码
+            var minLng = null, minLat = null, maxLng = null, maxLat = null
+
+            var mainMapGroup = new THREE.Group()
+            scene.add(mainMapGroup)
+
+            mesh = new THREE.Mesh(new THREE.BoxBufferGeometry( 1, 10, 1 ), mat)
+            mesh.position.x = 20
+            scene.add(mesh)
+
+			var lineMat = new THREE.LineMaterial({
+                // color: new THREE.Color().setStyle('#00567c'),
+                color: '#f00',
+                linewidth: 1
+            })
+            lineMat.resolution.set(window.innerWidth,window.innerHeight);
+            var mat = new THREE.MeshPhongMaterial({
+                transparent: true, 
+                opacity: 1,
+                color: new THREE.Color(1,1,0)
+            })
+            var mat2 = new THREE.MeshPhongMaterial({
+                transparent: true, 
+                opacity: 1,
+                color: new THREE.Color(1,0,0)
+            })
+
+            var shadermaterial = new THREE.ShaderMaterial( {
+                uniforms: {
+                
+                "s":   { type: "f", value: -1.0},
+                "b":   { type: "f", value: 1.0},
+                "p":   { type: "f", value: 2.0 },
+                glowColor: { type: "c", value: new THREE.Color(0xff0000) }
+                },
+                vertexShader:   document.getElementById( 'vertexShader'   ).textContent,
+                fragmentShader: document.getElementById( 'fragmentShader' ).textContent,
+                // side: THREE.FrontSide,
+                // blending: THREE.AdditiveBlending,
+                transparent: true
+            })
+
+            // getData('mapData/', mapCode, true)
+
+            // var geometry = new THREE.LineGeometry();
+            // // 顶点坐标构成的数组pointArr
+            // var pointArr = [-100,0,0,
+            //                 -100,100,0,
+            //                 0,0,0,
+            //                 100,100,0,
+            //                 100,0,0,]
+            // // 几何体传入顶点坐标
+            // geometry.setPositions( pointArr);
+            // // 自定义的材质
+            // var material  = new THREE.LineMaterial( {
+            // color: 0xdd2222,
+            // // 线宽度
+            // linewidth: 5,
+            // } );
+            // // 把渲染窗口尺寸分辨率传值给材质LineMaterial的resolution属性
+            // // resolution属性值会在着色器代码中参与计算
+            // material.resolution.set(window.innerWidth,window.innerHeight);
+            // var line = new THREE.Line2(geometry, material);
+            // scene.add(line)
+
+            fetch('mapData/330000.json')
+            .then((response) => {
+                return response.json();
+            })
+            .then((mapJson) => {
+                var coor = getGeoExtent(mapJson.features)
+                minLng = coor.minLng, 
+                minLat = coor.minLat, 
+                maxLng = coor.maxLng, 
+                maxLat = coor.maxLat
+
+                mapJson.features.forEach((feature, index) => {
+                    if (!feature.geometry) return;
+                    const coordinates = feature.geometry.coordinates;
+                    switch (feature.geometry.type) {
+                        case 'Polygon':
+                            for (let points of coordinates) {
+                                const _points = points.map((point) => {
+                                    return lnglat2Map(point)
+                                })
+                                var geometry = new THREE.ExtrudeBufferGeometry(new THREE.Shape(_points), {
+                                    bevelEnabled: false,
+                                    depth: height
+                                });
+                                var mesh = new THREE.Mesh(geometry, [
+                                    // mat, 
+                                    shadermaterial,
+                                    // mat2
+                                    shadermaterial
+                                ]);
+                                mesh.rotateX(-Math.PI / 2)
+                                mainMapGroup.add(mesh)
+                                // var material = new THREE.LineBasicMaterial({
+                                //     color: 0x0000ff
+                                // });
+
+                                // var geometry = new THREE.Geometry();
+                                // let topLinePositions = []
+                                // for (let point of points) {
+                                //     let position = lnglat2Map(point)
+                                //     topLinePositions.push(new THREE.Vector3(position.x, 0, -position.y))
+                                // }
+                                // geometry.vertices.push(...topLinePositions)
+                                // var line = new THREE.Line( geometry, material )
+                                // line.position.y = height + 0.1
+                                // scene.add( line );
+
+                                let topLinePositions = []
+                                for (let point of points) {
+                                    let position = lnglat2Map(point);
+                                    topLinePositions.push(position.x);
+                                    topLinePositions.push(0);
+                                    topLinePositions.push(-position.y);
+                                }
+                                const topLine = new THREE.Line2(
+                                    new THREE.LineGeometry().setPositions(topLinePositions),
+                                    lineMat
+                                );
+                                topLine.position.y = height + 0.1
+                                mainMapGroup.add(topLine)
+
+                                let bottomLinePositions = []
+                                for (let point of points) {
+                                    let position = lnglat2Map(point)
+                                    bottomLinePositions.push(position.x)
+                                    bottomLinePositions.push(-0.1)
+                                    bottomLinePositions.push(-position.y)
+                                }
+                                const bottomLine = new THREE.Line2(
+                                    new THREE.LineGeometry().setPositions(bottomLinePositions),
+                                    mat2
+                                )
+                                mainMapGroup.add(bottomLine)
+                            }
+                            break;
+                        default:
+                        break;
+                    }
+                })
+                // dataAction(mapJson, mapCode, mainMap);
+            })
+
+            animate()
+
+			window.onresize = function () {
+				var width = window.innerWidth;
+				var height = window.innerHeight;
+				camera.aspect = width / height;
+				camera.updateProjectionMatrix();
+				renderer.setSize( width, height );
+			};
+			function animate() {
+				requestAnimationFrame( animate )
+                renderer.render(scene, camera)
+            }
+            // 获取地图数据，并进行缓存
+            function getData(url, mapCode, mainMap) {
+                if (mapDataPool[mapCode]) {
+                    dataAction(this.mapDataPool[mapCode].data, mapCode, mainMap);
+                } else {
+                    url &&
+                    fetch(url + mapCode + '.json')
+                    .then((response) => {
+                        return response.json();
+                    })
+                    .then((mapJson) => {
+                        mapDataPool[mapCode] = {
+                            name: mapJson.features[0].properties.parent.name,
+                            data: mapJson,
+                            geometricCenter: geoCentroid(mapJson),
+                        }
+
+                        dataAction(mapJson, mapCode, mainMap);
+                    })
+                    .catch((error) => {
+                        console.warn('adcode:', mapCode, '区域数据异常，使用主地图该区域轮廓数据!');
+                        const mainMapCode = mapCode;
+                        if (!mainMap && mainMapCode && this.mapDataPool[mainMapCode]) {
+                            const _subMapData = this.mapDataPool[mainMapCode].data.features.filter(
+                                (item) => item.properties.adcode === mapCode
+                            )
+                            if (_subMapData[0]) {
+                                _subMapData[0].properties.parent = {
+                                    adcode: _subMapData[0].properties.adcode,
+                                    center: _subMapData[0].properties.center,
+                                    name: _subMapData[0].properties.name,
+                                    level: _subMapData[0].properties.level,
+                                };
+                                mapDataPool[mapCode] = {
+                                    name: _subMapData[0].properties.name,
+                                    data: {
+                                        type: 'FeatureCollection',
+                                        features: _subMapData,
+                                    },
+                                    geometricCenter: geoCentroid(_subMapData[0]),
+                                };
+                                dataAction(this.mapDataPool[mapCode].data, mapCode, mainMap);
+                            }
+                        }
+                    })
+                }
+            }
+            function dataAction(mapJson, mapCode, mainMap) {// 数据行为，
+                if (mainMap) {
+                    drawMainMap(mapJson, mapCode)
+                }
+            }
+            function  drawMainMap(mapJson, adcode) {
+                const { mainMapConfig } = this.config.chart
+                this.mainMapData = mapJson
+                const currentShowData = this.getGeoExtent(mapJson.features)
+                this.mainConfig = {
+                    minLng: currentShowData.minLng,
+                    minLat: currentShowData.minLat,
+                    maxLng: currentShowData.maxLng,
+                    maxLat: currentShowData.maxLat,
+                }
+                this.minLng = currentShowData.minLng;
+                this.minLat = currentShowData.minLat;
+                this.maxLng = currentShowData.maxLng;
+                this.maxLat = currentShowData.maxLat;
+                // this.MAP_HEIGHT = (this.maxLat - this.minLat) / (this.maxLng - this.minLng) * this.MAP_WIDTH;
+                this.MAP_WIDTH = this.MAP_SIZE;
+                this.MAP_HEIGHT = this.MAP_SIZE;
+                if (this.maxLng - this.minLng >= this.maxLat - this.minLat) {
+                this.MAP_HEIGHT = ((this.maxLat - this.minLat) / (this.maxLng - this.minLng)) * this.MAP_SIZE;
+                } else {
+                this.MAP_WIDTH = ((this.maxLng - this.minLng) / (this.maxLat - this.minLat)) * this.MAP_SIZE;
+                }
+
+                mapJson.features.forEach((feature, index) => {
+                    if (!feature.geometry) return;
+                    const coordinates = feature.geometry.coordinates;
+                    switch (feature.geometry.type) {
+                        case 'Polygon':
+                        for (let points of coordinates) {
+                            const _points = points.map((point) => {
+                                return lnglat2Map(point);
+                            });
+                            var geometry = new THREE.ExtrudeBufferGeometry(new THREE.Shape(_points), {
+                                bevelEnabled: false,
+                                depth: mainMapConfig.height,
+                            });
+                            var mesh = new THREE.Mesh(geometry, [
+                                // this.materialPool.mainMapTopSurfaceMaterial,
+                                // this.materialPool.mainMapSideSurfaceMaterial,
+                                mat, mat
+                            ]);
+                            mesh.rotateX(-Math.PI / 2)
+                            mesh.userData = {
+                                index,
+                                mapType: 'main',
+                                type: 'surface',
+                                ...feature.properties,
+                            }
+                            mainMapGroup.add(mesh);
+                            let topLinePositions = [];
+                            for (let point of points) {
+                                let position = lnglat2Map(point);
+                                topLinePositions.push(position.x);
+                                topLinePositions.push(0);
+                                topLinePositions.push(-position.y);
+                            }
+                            const topLine = new THREE.Line2(
+                                new THREE.LineGeometry().setPositions(topLinePositions),
+                                // this.materialPool.mainMapTopLineMaterial
+                                mat
+                            );
+                            topLine.position.y = mainMapConfig.height + 0.1
+                            topLine.userData = {
+                            index,
+                            mapType: 'main',
+                            type: 'topLine',
+                            ...feature.properties,
+                            };
+                            mainMapGroup.add(topLine);
+
+                            let bottomLinePositions = [];
+                            for (let point of points) {
+                                let position = lnglat2Map(point);
+                                bottomLinePositions.push(position.x);
+                                bottomLinePositions.push(-0.1);
+                                bottomLinePositions.push(-position.y);
+                            }
+                            const bottomLine = new THREE.Line2(
+                                new THREE.LineGeometry().setPositions(bottomLinePositions),
+                                // this.materialPool.mainMapBottomLineMaterial
+                                mat
+                            );
+                            bottomLine.userData = {
+                                index,
+                                mapType: 'main',
+                                type: 'bottomLine',
+                                ...feature.properties,
+                            };
+                            mainMapGroup.add(bottomLine);
+                        }
+                        break;
+                        default:
+                        break;
+                    }
+                });
+            }
+
+            function getGeoExtent(features) { // 计算数据的最大最小经纬度、最大最小墨卡托坐标以及墨卡托坐标的的多变形数组
+                let minLng = 180, maxLng = -180, minLat = 90, maxLat = -90
+                for (let feature of features) {
+                    if (feature.geometry) {
+                        if (feature.geometry.type === 'Polygon') {
+                            for (let points of feature.geometry.coordinates) {
+                                for (let point of points) {
+                                    minLng = minLng < point[0] ? minLng : point[0];
+                                    maxLng = maxLng > point[0] ? maxLng : point[0];
+                                    minLat = minLat < point[1] ? minLat : point[1];
+                                    maxLat = maxLat > point[1] ? maxLat : point[1];
+                                }
+                            }
+                        } else if (feature.geometry.type === 'MultiPolygon') {
+                            for (let polygonPoints of feature.geometry.coordinates) {
+                                for (let points of polygonPoints) {
+                                    for (let point of points) {
+                                        minLng = minLng < point[0] ? minLng : point[0];
+                                        maxLng = maxLng > point[0] ? maxLng : point[0];
+                                        minLat = minLat < point[1] ? minLat : point[1];
+                                        maxLat = maxLat > point[1] ? maxLat : point[1];
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                return { minLng, minLat, maxLng, maxLat }
+            }
+
+            function lnglat2Map(lnglat) {
+                
+                let v = new THREE.Vector2(
+                    ((lnglat[0] - minLng) / (maxLng - minLng)) * MAP_WIDTH - MAP_WIDTH * 0.5,
+                    ((lnglat[1] - minLat) / (maxLat - minLat)) * MAP_HEIGHT - MAP_HEIGHT * 0.5
+                    )
+                return v
+            }
+
+		</script>
+
+	</body>
+
+</html>

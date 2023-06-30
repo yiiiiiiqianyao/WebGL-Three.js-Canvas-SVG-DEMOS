@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <link rel="shortcut icon" href="../favicon.ico" />
+    <link rel="bookmark" href="../favicon.ico" />
+    <title>Document</title>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+      }
+    </style>
+    <script src="../src/three.js"></script>
+    <script src="../src/controller/OrbitControls.js"></script>
+    <script src="../src/libs/stats.min.js"></script>
+  </head>
+  <body></body>
+
+  <script type="module">
+    import TinySDF from './tiny-sdf-main/index.js'
+    var scene, camera, renderer, clock, controller, stats
+    var shader_material
+
+    initFontTexture()
+
+    function makeRGBAImageData(ctx, alphaChannel, width, height) {
+      const imageData = ctx.createImageData(width, height);
+      for (let i = 0; i < alphaChannel.length; i++) {
+          imageData.data[4 * i + 0] = alphaChannel[i];
+          imageData.data[4 * i + 1] = alphaChannel[i];
+          imageData.data[4 * i + 2] = alphaChannel[i];
+          imageData.data[4 * i + 3] = 255;
+      }
+      return imageData;
+    }
+
+    function initFontTexture() {
+      var canvas = document.createElement('canvas')
+      canvas.style.position = "absolute"
+      canvas.style.right = 0
+      canvas.width = 64
+      canvas.height = 64
+      canvas.style.width = 64 + 'px'
+      canvas.style.height = 64 + 'px'
+      var ctx = canvas.getContext('2d')
+      // ctx.clearRect(0, 0, canvas.width, canvas.height);
+      // ctx.fillStyle = "#fff"
+      ctx.fillRect(0, 0, canvas.width, canvas.height)
+      const fontSize = 24
+      const buffer = 3
+      const tinySdf = new TinySDF({
+        fontSize,             // Font size in pixels
+        fontFamily: 'sans-serif', // CSS font-family
+        fontWeight: 'normal',     // CSS font-weight
+        buffer,                // Whitespace buffer around a glyph in pixels
+        radius: 8,                // How many pixels around the glyph shape to use for encoding distance
+        cutoff: 0.25              // How much of the radius (relative) is used for the inside part of the glyph
+      });
+
+  
+      const { data, width, height } = tinySdf.draw('泽');
+    
+      ctx.putImageData(makeRGBAImageData(ctx, data, width, height), 0, 0);
+      document.body.appendChild(canvas)
+    }
+
+  </script>
+</html>

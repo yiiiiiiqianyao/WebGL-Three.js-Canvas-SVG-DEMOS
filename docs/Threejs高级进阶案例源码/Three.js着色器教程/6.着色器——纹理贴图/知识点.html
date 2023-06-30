@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+  <head>
+<meta charset="utf-8">
+<title></title>
+  <link href="http://www.yanhuangxueyuan.com/markdown.css" rel="stylesheet" type="text/css">
+  </head>
+  <body>
+
+<h1 id="-">着色器——纹理贴图</h1>
+<p>Three.js网格材质都有一个<code>map</code>属性，该属性用来设置网格模型的颜色贴图,渲染器系统会调用网格材质对应的着色器代码解析map属性的值进行渲染。本节课通过自定义着色器的纹理贴图代码来展示网格材质<code>map</code>属性对应的着色器原理。</p>
+<h3 id="-uv">顶点纹理坐标数据uv</h3>
+<p>通过Three.js的球体、矩形平面、立方体等特定几何体构造函数创建一个几何体对象，构造函数会按照特定的算法生成顶点位置position、顶点法向量normal、顶点纹理坐标uv数据。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">//球体</span>
+<span class="hljs-keyword">var</span> geometry = <span class="hljs-keyword">new</span> THREE.SphereBufferGeometry(<span class="hljs-number">60</span>, <span class="hljs-number">25</span>, <span class="hljs-number">25</span>);
+<span class="hljs-comment">// 查看几何体的顶点数据</span>
+<span class="hljs-built_in">console</span>.log(geometry.attributes);
+<span class="hljs-comment">// 顶点纹理坐标attributes.uv的itemSize属性值是2，意味着顶点纹理坐标是二维向量</span>
+<span class="hljs-comment">// 查看几何体顶点纹理坐标数据uv</span>
+<span class="hljs-built_in">console</span>.log(geometry.attributes.uv);
+</code></pre>
+<h3 id="-">纹理贴图</h3>
+<p>在<code>ShaderMaterial</code>中设置一个属性来表示纹理贴图，对应着色器中texture变量。</p>
+<pre><code class="lang-JavaScript">uniforms: {
+  <span class="hljs-comment">// texture对应顶点着色器中uniform声明的texture变量</span>
+  texture: {
+<span class="hljs-comment">// 加载纹理贴图返回Texture对象作为texture的值</span>
+<span class="hljs-comment">// Texture对象对应着色器中sampler2D数据类型变量</span>
+<span class="hljs-keyword">value</span>: <span class="hljs-keyword">new</span> THREE.TextureLoader().load(<span class="hljs-string">'./Earth.png'</span>)
+  },
+},
+</code></pre>
+<h3 id="-">着色器</h3>
+<p>编写着色器代码从纹理贴图上采集像素值然后赋值给片元。</p>
+<h4 id="-">顶点着色器</h4>
+<p>使用ShaderMaterial API的时候顶点纹理坐标变量uv和顶点位置变量position一样不需要手动声明,系统会自动声明<code>attribute vec2 uv;</code></p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// varying关键字声明一个变量表示顶点纹理坐标插值后的结果</span>
+varying vec2 vUv;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">main</span><span class="hljs-params">()</span></span>{
+  <span class="hljs-comment">// 顶点纹理坐标uv数据进行插值计算</span>
+  vUv = uv;
+  <span class="hljs-comment">// 投影矩阵projectionMatrix、视图矩阵viewMatrix、模型矩阵modelMatrix</span>
+  gl_Position = <span class="hljs-function">projectionMatrix*viewMatrix*modelMatrix*<span class="hljs-title">vec4</span><span class="hljs-params">( position, <span class="hljs-number">1.0</span> )</span></span>;
+}
+</code></pre>
+<h4 id="-">片元着色器</h4>
+<p>uniform关键字声明一个数据类型为sampler2D的变量texture，对应uniforms中texture的值。</p>
+<pre><code class="lang-JavaScript"><span class="hljs-comment">// 声明一个纹理对象变量</span>
+uniform sampler2D texture;
+<span class="hljs-comment">// 顶点片元化后有多少个片元就有多少个纹理坐标数据vUv</span>
+varying vec2 vUv;
+<span class="hljs-function"><span class="hljs-keyword">void</span> <span class="hljs-title">main</span><span class="hljs-params">()</span> </span>{
+  <span class="hljs-comment">//内置函数texture2D通过纹理坐标vUv获得贴图texture的像素值</span>
+   gl_FragColor = texture2D( texture, vUv );
+}
+</code></pre>
+<div class="">
+  <a href="http://www.yanhuangxueyuan.com/">作者技术博客</a>
+</div>
+  </body>
+</html>

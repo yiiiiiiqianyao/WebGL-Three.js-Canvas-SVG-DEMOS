@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <title>作者博客：百度"three.js 郭隆邦"</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+    }
+  </style>
+  <!--引入three.js三维引擎-->
+  <script src="http://www.yanhuangxueyuan.com/versions/threejsR92/build/three.js"></script>
+</head>
+
+<body>
+  <!-- 顶点着色器代码 -->
+  <script id="vertexShader" type="x-shader/x-vertex">
+    void main(){
+      // 逐顶点处理：顶点位置数据赋值给内置变量gl_Position
+      gl_Position = vec4( position, 1.0 );
+    }
+  </script>
+  <!-- 片元着色器代码 -->
+  <script id="fragmentShader" type="x-shader/x-fragment">
+    void main() {
+       // 逐片元处理：每个片元或者说像素设置为红色
+       gl_FragColor = vec4(1.0,0.0,0.0,1.0);
+    }
+  </script>
+  <script>
+    /**
+     * 创建场景对象Scene
+     */
+    var scene = new THREE.Scene();
+
+    // 创建一个立方体几何体
+    var geometry = new THREE.BoxGeometry(0.5, 0.5, 0.5);
+    // 原生着色器材质RawShaderMaterial
+    var material = new THREE.ShaderMaterial({
+      //顶点着色器对象vertexShader
+      vertexShader: document.getElementById('vertexShader').textContent,
+      // 片元着色器对象fragmentShader
+      fragmentShader: document.getElementById('fragmentShader').textContent,
+    });
+    // 创建一个网格模型——三角形渲染模式
+    var mesh = new THREE.Mesh(geometry, material);
+    scene.add(mesh);
+    /**
+     * 相机设置
+     */
+    var width = window.innerWidth; //窗口宽度
+    var height = window.innerHeight; //窗口高度
+    var k = width / height; //窗口宽高比
+    var s = 150; //三维场景显示范围控制系数，系数越大，显示的范围越大
+    //创建相机对象
+    var camera = new THREE.OrthographicCamera(-s * k, s * k, s, -s, 1, 1000);
+    camera.position.set(200, 300, 200); //设置相机位置
+    camera.lookAt(scene.position); //设置相机方向(指向的场景对象)
+    /**
+     * 创建渲染器对象
+     */
+    var renderer = new THREE.WebGLRenderer({
+      antialias: true
+    });
+    renderer.setSize(width, height); //设置渲染区域尺寸
+    document.body.appendChild(renderer.domElement); //body元素中插入canvas对象
+
+    // 渲染函数
+    function render() {
+      renderer.render(scene, camera); //执行渲染操作
+      requestAnimationFrame(render); //请求再次执行渲染函数render，渲染下一帧
+    }
+    render();
+  </script>
+</body>
+
+</html>

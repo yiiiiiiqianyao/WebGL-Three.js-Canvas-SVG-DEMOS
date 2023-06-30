@@ -1,0 +1,1149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <style>
+        body{
+            margin: 0;
+            overflow: hidden;
+        }
+    </style>
+    <script src="./d3.min.js"></script>
+
+    <script src="../src/three.js"></script>
+    <script src="../src/controller/OrbitControls.js"></script>
+
+    <!-- 控制绘制发光 -->
+    <script src="../src/libs/EffectComposer.js"></script>
+    <script src="../src/libs/RenderPass.js"></script>
+    <script src="../src/libs/ShaderPass.js"></script>
+    <script src="../src/libs/CopyShader.js"></script>
+    <script src="../src/libs/LuminosityHighPassShader.js"></script>
+    <script src="../src/libs/UnrealBloomPass.js"></script>
+
+    <!-- 控制绘制有宽度的线段 -->
+    <script src="../map/LineSegmentsGeometry.js"></script>
+    <script src="../map/LineGeometry.js"></script>
+    <script src="../map/LineMaterial.js"></script>
+    <script src="../map/LineSegments2.js"></script>
+    <script src="../map/Line2.js"></script>
+
+    <!-- <script src="../src/libs/Reflector.js"></script> -->
+    <script src="./Reflector.js"></script>
+</head>
+<body>
+    
+</body>
+<script type="x-shader/x-vertex" id="vertexShader">
+    // 公有
+    #define PHONG
+    varying vec3 vViewPosition;
+    #ifndef FLAT_SHADED
+      varying vec3 vNormal;
+    #endif
+    #include <common>
+    #include <uv_pars_vertex>
+    #include <uv2_pars_vertex>
+    #include <displacementmap_pars_vertex>
+    #include <envmap_pars_vertex>
+    #include <color_pars_vertex>
+    #include <fog_pars_vertex>
+    #include <morphtarget_pars_vertex>
+    #include <skinning_pars_vertex>
+    #include <shadowmap_pars_vertex>
+    #include <logdepthbuf_pars_vertex>
+    #include <clipping_planes_pars_vertex>
+
+    varying vec2 vUv;
+    void main() {
+        vUv = uv;
+        //gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        #include <uv_vertex>
+        #include <uv2_vertex>
+        #include <color_vertex>
+        
+        #include <beginnormal_vertex>
+        #include <morphnormal_vertex>
+        #include <skinbase_vertex>
+        #include <skinnormal_vertex>
+        #include <defaultnormal_vertex>
+        
+        #ifndef FLAT_SHADED // Normal computed with derivatives when FLAT_SHADED
+        
+        vNormal = normalize( transformedNormal );
+        
+        #endif
+        
+        #include <begin_vertex>
+        #include <morphtarget_vertex>
+        #include <skinning_vertex>
+        #include <displacementmap_vertex>
+        #include <project_vertex>
+        #include <logdepthbuf_vertex>
+        #include <clipping_planes_vertex>
+        
+        vViewPosition = - mvPosition.xyz;
+        
+        #include <worldpos_vertex>
+        #include <envmap_vertex>
+        #include <shadowmap_vertex>
+        #include <fog_vertex>
+    }
+</script>
+<script type="x-shader/x-vertex" id="fragmentShader">
+    // 面积图正面的渐变
+    #define PHONG
+    uniform vec3 diffuse;
+    uniform vec3 emissive;
+    uniform vec3 specular;
+    uniform float shininess;
+    uniform float opacity;
+    #include <common>
+    #include <packing>
+    #include <dithering_pars_fragment>
+    #include <color_pars_fragment>
+    #include <uv_pars_fragment>
+    #include <uv2_pars_fragment>
+    #include <map_pars_fragment>
+    #include <alphamap_pars_fragment>
+    #include <aomap_pars_fragment>
+    #include <lightmap_pars_fragment>
+    #include <emissivemap_pars_fragment>
+    #include <envmap_pars_fragment>
+    #include <gradientmap_pars_fragment>
+    #include <fog_pars_fragment>
+    #include <bsdfs>
+    #include <lights_pars_begin>
+    //#include <lights_pars_maps>
+    #include <lights_phong_pars_fragment>
+    #include <shadowmap_pars_fragment>
+    #include <bumpmap_pars_fragment>
+    #include <normalmap_pars_fragment>
+    #include <specularmap_pars_fragment>
+    #include <logdepthbuf_pars_fragment>
+    #include <clipping_planes_pars_fragment>
+
+    uniform vec3 bottomColor;
+    uniform vec3 topColor;
+    uniform float bottomOpacity;
+    uniform float topOpacity;
+    varying vec2 vUv;
+
+    void main() {
+        //gl_FragColor = vec4(mix(bottomColor, topColor, vUv.y/height), mix(bottomOpacity, topOpacity, vUv.y/height));
+        #include <clipping_planes_fragment>
+
+        vec4 diffuseColor = vec4( diffuse, opacity );
+        ReflectedLight reflectedLight = ReflectedLight( vec3( 0.0 ), vec3( 0.0 ), vec3( 0.0 ), vec3( 0.0 ) );
+        vec3 totalEmissiveRadiance = emissive;
+        
+        #include <logdepthbuf_fragment>
+        #include <map_fragment>
+        #include <color_fragment>
+        #include <alphamap_fragment>
+        #include <alphatest_fragment>
+        #include <specularmap_fragment>
+        #include <normal_fragment_begin>
+        #include <normal_fragment_maps>
+        #include <emissivemap_fragment>
+        
+        // accumulation
+        #include <lights_phong_fragment>
+        #include <lights_fragment_begin>
+        #include <lights_fragment_maps>
+        #include <lights_fragment_end>
+        
+        // modulation
+        #include <aomap_fragment>
+        
+        vec3 outgoingLight = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse + reflectedLight.directSpecular + reflectedLight.indirectSpecular + totalEmissiveRadiance;
+        
+        #include <envmap_fragment>
+        
+        //gl_FragColor = vec4( outgoingLight, diffuseColor.a );
+        gl_FragColor = vec4(mix(bottomColor, topColor, vUv.y), mix(bottomOpacity, topOpacity, vUv.y))*vec4( outgoingLight, diffuseColor.a );
+        //gl_FragColor = vec4(vUv.y/2.0, 0.0, 0.0, 1.0);
+        //gl_FragColor = color*vec4( outgoingLight, diffuseColor.a );
+
+        #include <tonemapping_fragment>
+        #include <encodings_fragment>
+        #include <fog_fragment>
+        #include <premultiplied_alpha_fragment>
+        #include <dithering_fragment>
+    }
+</script>
+<script type="x-shader/x-vertex" id="fragmentShader2">
+    // 面积图左右两侧的渐变
+    uniform vec3 bottomColor;
+    uniform vec3 topColor;
+    uniform float bottomOpacity;
+    uniform float topOpacity;
+    varying vec2 vUv;
+    void main() {
+        gl_FragColor = vec4(mix(bottomColor, topColor, vUv.y), mix(bottomOpacity, topOpacity, vUv.y));
+    }
+</script>
+<script type="x-shader/x-vertex" id="vertexBrustShader">
+    // 扫光着色器（uv）
+    #define PHONG
+    varying vec3 vViewPosition;
+    #ifndef FLAT_SHADED
+      varying vec3 vNormal;
+    #endif
+    #include <common>
+    #include <uv_pars_vertex>
+    #include <uv2_pars_vertex>
+    #include <displacementmap_pars_vertex>
+    #include <envmap_pars_vertex>
+    #include <color_pars_vertex>
+    #include <fog_pars_vertex>
+    #include <morphtarget_pars_vertex>
+    #include <skinning_pars_vertex>
+    #include <shadowmap_pars_vertex>
+    #include <logdepthbuf_pars_vertex>
+    #include <clipping_planes_pars_vertex>
+
+    varying vec2 vUv;
+    void main(void)
+    {
+        vUv = uv;
+        //gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+        #include <uv_vertex>
+        #include <uv2_vertex>
+        #include <color_vertex>
+        
+        #include <beginnormal_vertex>
+        #include <morphnormal_vertex>
+        #include <skinbase_vertex>
+        #include <skinnormal_vertex>
+        #include <defaultnormal_vertex>
+        
+        #ifndef FLAT_SHADED // Normal computed with derivatives when FLAT_SHADED
+        
+        vNormal = normalize( transformedNormal );
+        
+        #endif
+        
+        #include <begin_vertex>
+        #include <morphtarget_vertex>
+        #include <skinning_vertex>
+        #include <displacementmap_vertex>
+        #include <project_vertex>
+        #include <logdepthbuf_vertex>
+        #include <clipping_planes_vertex>
+        
+        vViewPosition = - mvPosition.xyz;
+        
+        #include <worldpos_vertex>
+        #include <envmap_vertex>
+        #include <shadowmap_vertex>
+        #include <fog_vertex>
+    }
+</script>
+<script type="x-shader/x-vertex" id="fragmentBrustShader">
+    #define PHONG
+        uniform vec3 diffuse;
+        uniform vec3 emissive;
+        uniform vec3 specular;
+        uniform float shininess;
+        uniform float opacity;
+        #include <common>
+        #include <packing>
+        #include <dithering_pars_fragment>
+        #include <color_pars_fragment>
+        #include <uv_pars_fragment>
+        #include <uv2_pars_fragment>
+        #include <map_pars_fragment>
+        #include <alphamap_pars_fragment>
+        #include <aomap_pars_fragment>
+        #include <lightmap_pars_fragment>
+        #include <emissivemap_pars_fragment>
+        #include <envmap_pars_fragment>
+        #include <gradientmap_pars_fragment>
+        #include <fog_pars_fragment>
+        #include <bsdfs>
+        #include <lights_pars_begin>
+        //#include <lights_pars_maps>
+        #include <lights_phong_pars_fragment>
+        #include <shadowmap_pars_fragment>
+        #include <bumpmap_pars_fragment>
+        #include <normalmap_pars_fragment>
+        #include <specularmap_pars_fragment>
+        #include <logdepthbuf_pars_fragment>
+        #include <clipping_planes_pars_fragment>
+
+    uniform float ratio;
+    uniform float length;
+    uniform vec4 color;
+    uniform vec4 start;
+    uniform vec4 end;
+
+    varying vec2 vUv;
+
+    float blendColor(float src, float dist, float alpha) {
+        return src * alpha + dist * (1.0 - alpha);
+    }
+    void main(void)
+    {
+        #include <clipping_planes_fragment>
+        vec4 diffuseColor = vec4( diffuse, opacity );
+        ReflectedLight reflectedLight = ReflectedLight( vec3( 0.0 ), vec3( 0.0 ), vec3( 0.0 ), vec3( 0.0 ) );
+        vec3 totalEmissiveRadiance = emissive;
+        #include <logdepthbuf_fragment>
+        #include <map_fragment>
+        #include <color_fragment>
+        #include <alphamap_fragment>
+        #include <alphatest_fragment>
+        #include <specularmap_fragment>
+        #include <normal_fragment_begin>
+        #include <normal_fragment_maps>
+        #include <emissivemap_fragment>
+        
+        // accumulation
+        #include <lights_phong_fragment>
+        #include <lights_fragment_begin>
+        #include <lights_fragment_maps>
+        #include <lights_fragment_end>
+        
+        // modulation
+        #include <aomap_fragment>
+        
+        vec3 outgoingLight = reflectedLight.directDiffuse + reflectedLight.indirectDiffuse + reflectedLight.directSpecular + reflectedLight.indirectSpecular + totalEmissiveRadiance;
+        
+        #include <envmap_fragment>
+        
+        //gl_FragColor = vec4( outgoingLight, diffuseColor.a );
+        
+        vec4 rColor = vec4(color); // 因为不能改变传入的值 
+        float startX = fract(ratio) * ( 1.0 + length ) - length; // 用于扫光定位的标点需要大于uv的x值（1.0），以容纳扫光的那一段长度
+        float endX = startX + length;
+        float uvX = vUv.x;
+
+        if (startX <  uvX && uvX < endX) {
+            float pi = PI;
+            //--- 扫光部分的处理
+           if(uvX < startX + length/2.0){
+                float opacity = (startX + length/2.0 -uvX)/(length/2.0);
+                //opacity = sin(opacity*2.0/PI);
+                vec4 diff = end - start;
+                vec4 tempColor = start + diff * opacity;
+                rColor.x = blendColor(rColor.x, tempColor.x, rColor.w);
+                rColor.y = blendColor(rColor.y, tempColor.y, rColor.w);
+                rColor.z = blendColor(rColor.z, tempColor.z, rColor.w);
+                rColor.w=tempColor.w;
+            }else{
+                float opacity = (uvX - (startX+length/2.0))/(length/2.0);
+                //opacity = sin(opacity*PI/2.0);
+                vec4 diff = end - start;
+                vec4 tempColor = start + diff * opacity;
+                rColor.x = blendColor(rColor.x, tempColor.x, rColor.w);
+                rColor.y = blendColor(rColor.y, tempColor.y, rColor.w);
+                rColor.z = blendColor(rColor.z, tempColor.z, rColor.w);
+                rColor.w=tempColor.w;
+            }
+            rColor += color;
+            gl_FragColor = rColor*vec4( outgoingLight, diffuseColor.a );// + color;
+            //---
+            
+        }else{
+            gl_FragColor = color*vec4( outgoingLight, diffuseColor.a );
+        }
+
+        #include <tonemapping_fragment>
+        #include <encodings_fragment>
+        #include <fog_fragment>
+        #include <premultiplied_alpha_fragment>
+        #include <dithering_fragment>
+
+
+    }
+</script>
+<!-- 
+    if(uvX < startX + length/2.0){
+                float opacity = (startX + length/2.0 -uvX)/(length/2.0);
+                vec4 diff = end - start;
+                vec4 tempColor = start + diff * opacity;
+                rColor.x = blendColor(rColor.x, tempColor.x, rColor.w);
+                rColor.y = blendColor(rColor.y, tempColor.y, rColor.w);
+                rColor.z = blendColor(rColor.z, tempColor.z, rColor.w);
+                rColor.w=tempColor.w;
+            }else{
+                float opacity = (uvX - (startX+length/2.0))/(length/2.0);
+                vec4 diff = end - start;
+                vec4 tempColor = start + diff * opacity;
+                rColor.x = blendColor(rColor.x, tempColor.x, rColor.w);
+                rColor.y = blendColor(rColor.y, tempColor.y, rColor.w);
+                rColor.z = blendColor(rColor.z, tempColor.z, rColor.w);
+                rColor.w=tempColor.w;
+            }
+            rColor += color;
+            gl_FragColor = rColor*vec4( outgoingLight, diffuseColor.a ) + color;
+     
+ -->
+
+<!-- 
+     float opacity = (uvX - startX)/length;
+            vec4 diff = start - end;
+            vec4 tempColor = end + diff * opacity;
+            rColor.x = blendColor(rColor.x, tempColor.x, rColor.w);
+            rColor.y = blendColor(rColor.y, tempColor.y, rColor.w);
+            rColor.z = blendColor(rColor.z, tempColor.z, rColor.w);
+            //rColor.w = rColor.w + tempColor.w * (1.0 - rColor.w);
+            rColor.w=tempColor.w;
+            //gl_FragColor = rColor;
+            rColor += color;
+            gl_FragColor = rColor*vec4( outgoingLight, diffuseColor.a );
+  -->
+
+<script>
+ 
+    var scene, camera, renderer, clock, controller // 场景的基本元素
+    var shaderSideMaterial, shapeShaderMaterial, shaderBurseLightMaterial // 面积图的材质
+    var blusterUniforms = [] // 管理所有发光材质的 uniform 参数
+    var time = 0 // 全局的动画计时器
+    var composer, mixer, // 发光配置
+		params = {
+            exposure: 1,
+            bloomStrength: 2,
+            bloomThreshold: 0.2,
+            bloomRadius: 1
+        }
+    let originData = [
+        { x: '05-01', y: 2, s: '系列一' },
+        { x: '05-02', y: 30, s: '系列一' },
+        { x: '05-03', y: 6, s: '系列一' },
+        { x: '05-04', y: 8, s: '系列一' },
+        { x: '05-05', y: 10, s: '系列一' },
+        { x: '05-06', y: 12, s: '系列一' },
+        { x: '05-07', y: 14, s: '系列一' },
+        { x: '05-08', y: 16, s: '系列一' },
+        { x: '05-09', y: 18, s: '系列一' },
+        { x: '05-10', y: 30, s: '系列一' }
+    ]
+    let data = [ // 根据 x 距离的远近进行排列的数据(已经经处理)
+        {x: 0, y: 2,    label: '05-01'},
+        {x: 2, y: 5,   label: '05-04'},
+        {x: 4, y: 6,    label: '05-07'},
+        {x: 6, y: 7,    label: '05-10'},
+        {x: 8, y: 7,    label: '05-13'},
+        {x: 10, y: 8,   label: '05-16'},
+        {x: 12, y: 9,   label: '05-19'},
+        {x: 14, y: 10,   label: '05-22'},
+        {x: 16, y: 2,   label: '05-25'},
+        {x: 18, y: 4,   label: '05-28'},
+        {x: 20, y: 3,   label: '05-31'}
+
+        // {x: 0, y: 1,   label: '05-31'},
+        // {x: 4, y: 1,   label: '05-31'},
+        // {x: 10, y: 1,   label: '05-31'}
+    ]
+    let data2 = [ // 根据 x 距离的远近进行排列的数据(已经经处理)
+        {x: 0, y: 2-1,    label: '05-01'},
+        {x: 1, y: 5-1,   label: '05-04'},
+        {x: 3, y: 6-2,    label: '05-07'},
+        {x: 5, y: 7-2,    label: '05-10'},
+        {x: 8, y: 7-2,    label: '05-13'},
+        {x: 10, y: 8-3,   label: '05-16'},
+        {x: 13, y: 9-4,   label: '05-19'},
+        {x: 15, y: 10-2,   label: '05-22'},
+        {x: 16, y: 0,   label: '05-25'},
+        {x: 18, y: 1-1,   label: '05-28'},
+        {x: 20, y: 0,   label: '05-31'}
+    ]
+    let data3 = [ // 根据 x 距离的远近进行排列的数据(已经经处理)
+        {x: 0, y: 2+1,    label: '05-01'},
+        {x: 1, y: 5+1,   label: '05-04'},
+        {x: 3, y: 6+2,    label: '05-07'},
+        {x: 5, y: 7+2,    label: '05-10'},
+        {x: 8, y: 7+2,    label: '05-13'},
+        {x: 10, y: 8+3,   label: '05-16'},
+        {x: 13, y: 7+5,   label: '05-19'},
+        {x: 15, y: 9+5,   label: '05-22'},
+        {x: 16, y: 10+6,   label: '05-25'},
+        {x: 18, y: 1+7,   label: '05-28'},
+        {x: 20, y: 0+8,   label: '05-31'}
+    ]
+        init()
+        animate()
+
+    // - Functions -
+    function init(){
+        scene = new THREE.Scene();
+        clock = new THREE.Clock();
+        camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100000)
+       
+        renderer = new THREE.WebGLRenderer({
+            antialias: true, // 开启抗锯齿处理
+            alpha: true
+        })
+        // renderer.setClearColor('#000')
+        renderer.setClearColor('#000')
+        renderer.localClippingEnabled = true;
+        renderer.setSize(window.innerWidth,window.innerHeight)
+        // scene.background = new THREE.Color('#000fff')
+
+        var renderScene = new THREE.RenderPass( scene, camera )
+        var bloomPass = new THREE.UnrealBloomPass( new THREE.Vector2( window.innerWidth, window.innerHeight ), 1.5, 0.4, 0.85 );
+        bloomPass.threshold = params.bloomThreshold
+        bloomPass.strength = params.bloomStrength
+        bloomPass.radius = params.bloomRadius
+        composer = new THREE.EffectComposer( renderer )
+        composer.setSize( window.innerWidth, window.innerHeight )
+        composer.addPass( renderScene )
+        composer.addPass( bloomPass )
+
+        let xValueRange = [0, 100], yValueRange = [0, 30] // 接收数值的范围 (y 的最大值可以自定义也可以从从数据中获取)
+        let xSceneRange = [0, 20], ySceneRange = [0, 15] // 场景中实际大小的范围
+
+        let xScale = d3.scaleLinear().domain(xValueRange).range(xSceneRange)
+        let yScale = d3.scaleLinear().domain(yValueRange).range(ySceneRange)
+
+        let xSegment = data.length, // x 轴上的分段数量与数据的数量有关 均分 x 轴排列
+            ySegment = 5 // x 轴被切分为 15 段 y 轴被切分为 5 段 (实际场景的值绘制中使用)
+        let xRange = d3.range(0, xSceneRange[1], xSceneRange[1]/xSegment) // 获取在 x 轴方向上的分段集合
+                    .reduce((pre, cur)=>{pre.push(Number(cur.toFixed(2)));return pre}, [])
+                    
+        let yRange = d3.range(0, ySceneRange[1], ySceneRange[1]/ySegment) // 获取在 y 轴方向上的分段集合
+                    .reduce((pre, cur)=>{pre.push(Number(cur.toFixed(2)));return pre}, [])
+        // console.log(xRange.length, yRange)
+
+        // params
+        let depth = 5 // 当前表格的深度
+        let isBrokenLineShaoe = false // 绘制的面积图是折线还是弧线
+        let xTickLen = 0.2 // x 轴上标记的长度
+        let backgroundPlaneOpacity = 0.2
+        let lineOpacity = 0.2
+        let xTickStepCount = 1 // 定义 x 轴上每间隔几个数据显示一个刻度
+        let yTickCount = 7 // 定义 y 轴上的刻度的数量 （包括最下面和最上面的刻度）
+
+        let xTickData = getXTicksData(xTickStepCount, originData, xSceneRange[1]) // 得到 x 轴上的刻度分布的数据
+        let yTickData = getYTicksData(yTickCount, yValueRange[1], ySceneRange[1])
+
+        initLight(xSceneRange, ySceneRange, depth) // 放置光源
+        initBackgroundPlane('#666', backgroundPlaneOpacity, xSceneRange, ySceneRange, depth) // 构建背景板
+
+        initXAxisTicks(xTickData, xTickLen, depth) // 绘制 x 轴上的标记
+        initYAxisTicks(yTickData, depth, xSceneRange, lineOpacity) // 绘制 y 轴上的标记，包括水平环
+        initYAxisUnit('单位：元', ySceneRange[1], depth, { x: 0, y: 1, z: 0 })
+
+        initWrapBox(xSceneRange, ySceneRange, depth, lineOpacity) // 构建基础的外框
+
+        let processedData1 = processData(data, yScale)
+        let processedData2 = processData(data2, yScale)
+        let processedData3 = processData(data3, yScale)
+
+        let blusterOption1 = {
+            length: 0.3,
+            color: new THREE.Vector4(1.0, 1.0, 0.0, 0.3),
+            start: new THREE.Vector4(1.0, 1.0, 0.0, 0.4),
+            end: new THREE.Vector4(1.0, 1.0, 0.0, 0.0)
+        }
+        let sideMaterialOption1 = {
+            topColor: new THREE.Color().setStyle(('#ff0').toLocaleLowerCase()),
+            topOpacity: 0.2,
+            bottomColor: new THREE.Color().setStyle(('#ff0').toLocaleLowerCase()),
+            bottomOpacity: 0
+        }
+        let shapeMaterialOption1 = {
+            topColor: new THREE.Color().setStyle(('#ff0').toLocaleLowerCase()),
+            topOpacity: 0.3,
+            bottomColor: new THREE.Color().setStyle(('#ff0').toLocaleLowerCase()),
+            bottomOpacity: 0
+        }
+        // ff0
+        initArea(processedData1, depth, isBrokenLineShaoe, blusterOption1, sideMaterialOption1, shapeMaterialOption1) // 构建面积图
+
+        let blusterOption2 = {
+            length: 0.3,
+            color: new THREE.Vector4(0.0, 1.0, 0.0, 0.3),
+            start: new THREE.Vector4(0.0, 1.0, 0.0, 0.5),
+            end: new THREE.Vector4(0.0, 1.0, 0.0, 0.0)
+        }
+        let sideMaterialOption2 = {
+            topColor: new THREE.Color().setStyle(('#0f0').toLocaleLowerCase()),
+            topOpacity: 0.2,
+            bottomColor: new THREE.Color().setStyle(('#0f0').toLocaleLowerCase()),
+            bottomOpacity: 0
+        }
+        let shapeMaterialOption2 = {
+            topColor: new THREE.Color().setStyle(('#0f0').toLocaleLowerCase()),
+            topOpacity: 0.3,
+            bottomColor: new THREE.Color().setStyle(('#0f0').toLocaleLowerCase()),
+            bottomOpacity: 0
+        }
+        // 0f0
+        // initArea(processedData2, depth, isBrokenLineShaoe, blusterOption2, sideMaterialOption2, shapeMaterialOption2)
+
+        let blusterOption3 = {
+            length: 0.3,
+            color: new THREE.Vector4(1.0, 0.0, 0.0, 0.3),
+            start: new THREE.Vector4(1.0, 0.0, 0.0, 0.5),
+            end: new THREE.Vector4(1.0, 0.0, 0.0, 0.0)
+        }
+        let sideMaterialOption3 = {
+            topColor: new THREE.Color().setStyle(('#f00').toLocaleLowerCase()),
+            topOpacity: 0.3,
+            bottomColor: new THREE.Color().setStyle(('#f00').toLocaleLowerCase()),
+            bottomOpacity: 0
+        }
+        let shapeMaterialOption3 = {
+            topColor: new THREE.Color().setStyle(('#f00').toLocaleLowerCase()),
+            topOpacity: 0.3,
+            bottomColor: new THREE.Color().setStyle(('#f00').toLocaleLowerCase()),
+            bottomOpacity: 0
+        }
+        // f00
+        // initArea(processedData3, depth, isBrokenLineShaoe, blusterOption3, sideMaterialOption3, shapeMaterialOption3)
+        
+        controller = new THREE.OrbitControls(camera,renderer.domElement)
+        setCamera(xSceneRange, ySceneRange) // 设置当前相机的位置
+        document.body.appendChild(renderer.domElement)
+        window.onresize = onResize
+    }
+
+    function setCamera(xSceneRange, ySceneRange) { // 设置当前相机的位置
+        camera.position.x = xSceneRange[1]/2
+        camera.position.y = ySceneRange[1]
+        camera.position.z = xSceneRange[1]*1.5
+        camera.lookAt(xSceneRange[1]/2, ySceneRange[1]*2/3, xSceneRange[1]/2)
+        controller.target = new THREE.Vector3(xSceneRange[1]/2, ySceneRange[1]/2, xSceneRange[1]/2)
+    }
+
+    function getYTicksData(count, maxValue, yAxisLen) { // 获取 y 轴上的刻度信息
+        let res = []
+        let step = maxValue / (count-1), lenStep = yAxisLen / (count-1)
+        for(let i = 0;i < count;i++) {
+            res.push({
+                label: i * step,
+                y: i * lenStep
+            })
+        }
+        return res
+    }
+
+    function getXTicksData(stepCount, data, xAxisLen) { // 获取 x 轴上的刻度的分布的数据
+        stepCount = Math.floor(stepCount)
+        stepCount = stepCount > (data.length / 2) ? Math.floor(data.length / 2) : stepCount
+        stepCount = stepCount < 1 ? 1 : stepCount
+        let stepLen = xAxisLen / data.length
+
+        let res = []
+        for(let i = 1;i*stepCount < data.length;i++) {
+            res.push({
+                label: data[i*stepCount].x,
+                x: i * stepCount * stepLen, // 这里的 x 是绘制时使用的实际距离
+                index: i * stepCount
+            })
+        }
+        return res
+    }
+
+    function processData(data, yScale) { // 对数据进行预处理（yScale）
+        let res = []
+        for(let i = 0;i < data.length;i++) {
+            res.push({
+                x: data[i].x,
+                y: yScale(data[i].y)
+            })
+        }
+        return res
+    }
+
+    function initYAxisUnit(label, axisHeight, depth, offset) { // 构建 y 轴上方的单位
+        let textNumber = 6 // 默认绘制 5 个字符的长度
+        let fontSize = 64 // 默认绘制画布上的文字大小
+        let depthScale = 0.6
+        let height = fontSize, width = fontSize*textNumber // 默认文字为一行排列 计算画布上文字的大小
+        let sceneWidth = depth * depthScale, sceneHeight = sceneWidth*(height/width) // 以 depth 为基准计算场景中的文字区域的大小
+
+        let text = initText(label, fontSize, height, width, sceneWidth, sceneHeight)
+        text.position.y = axisHeight + sceneHeight/2 + offset.y
+        text.position.z = sceneWidth + offset.z
+        text.position.x = offset.x
+        scene.add(text)
+    }
+
+    function initYAxisTicks(tickData, depth, xSceneRange, lineOpacity) { // 构建 y 轴上的文字
+        let textNumber = 5 // 默认绘制 5 个字符的长度
+        let fontSize = 64 // 默认绘制画布上的文字大小
+        let depthScale = 0.6
+        let height = fontSize, width = fontSize*textNumber // 默认文字为一行排列 计算画布上文字的大小
+        let sceneWidth = depth * depthScale, sceneHeight = sceneWidth*(height/width) // 以 depth 为基准计算场景中的文字区域的大小
+        let lineMat = initLineMaterial('#fff', 1, lineOpacity)
+        for(let i = 0;i < tickData.length;i++) {
+            let text = initText(tickData[i].label.toFixed(2), fontSize, height, width, sceneWidth, sceneHeight)
+            text.position.x = -sceneWidth/2
+            text.position.y = tickData[i].y + sceneHeight/2
+            text.position.z = sceneWidth
+            scene.add(text)
+            if(i !== 0 && i !== tickData.length-1) {
+                initCircle(tickData[i].y, xSceneRange[1], depth)
+            }
+        }
+
+        function initCircle(y, x, z) {
+            let lineGeo1 = new THREE.LineGeometry().setPositions([0, y, 0, 0, y, z])
+            scene.add(new THREE.Line2(lineGeo1, lineMat))
+            let lineGeo2 = new THREE.LineGeometry().setPositions([x, y, 0, x, y, z])
+            scene.add(new THREE.Line2(lineGeo2, lineMat))
+            let lineGeo3 = new THREE.LineGeometry().setPositions([0, y, 0, x, y, 0])
+            scene.add(new THREE.Line2(lineGeo3, lineMat))
+            let lineGeo4 = new THREE.LineGeometry().setPositions([0, y, z, x, y, z])
+            scene.add(new THREE.Line2(lineGeo4, lineMat))
+        }
+    }
+
+    function initText(text, fontSize, height, width, sceneWidth, sceneHeight) { // 构建文字 number 默认需要绘制的文字的数量 depth 场景中大小的限制（面积图的深度）
+        
+        let canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        canvas.style.width = width
+        canvas.style.height = height
+        let ctx = canvas.getContext('2d')
+
+        // ctx.fillRect(0, 0, width, height)
+        ctx.fillStyle = '#fff'
+
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'middle'
+
+        ctx.font = `${fontSize}px Georgia`
+        ctx.fillText(text, width/2, height/2 + height/20) // + height/10 是因为文字有一些默认的偏移
+
+        let texture = new THREE.Texture(canvas);
+        texture.needsUpdate = true;
+        // var geometry = new THREE.PlaneGeometry( sceneWidth, sceneHeight )
+        // var material = new THREE.MeshBasicMaterial({map: texture, depthTest: false})
+        // var mesh = new THREE.Mesh( geometry, material )
+        let material = new THREE.SpriteMaterial({ map: texture, depthTest: false });
+        let mesh = new THREE.Sprite(material)
+        mesh.scale.set(sceneWidth, sceneHeight, 1)
+        mesh.renderOrder = 10
+        return mesh
+    }
+
+    function initLight(xSceneRange, ySceneRange, depth) { // 放置光源
+
+        let directionalLight = new THREE.DirectionalLight(0xffffff, 0.9)
+        directionalLight.position.set(xSceneRange[1], ySceneRange[1], depth)
+        // scene.add(directionalLight)
+
+        // 上面的光
+        let directionalLight2 = directionalLight.clone()
+        directionalLight2.position.set(0, 1000, 0)
+        // scene.add(directionalLight2)
+
+        // 正面的光
+        let directionalLight3 = directionalLight.clone()
+        directionalLight3.position.set(0, 0, 1000)
+        // scene.add(directionalLight3)
+        // 背面的光
+        let directionalLight4 = directionalLight.clone()
+        directionalLight4.position.set(0, 0, -1000)
+        // scene.add(directionalLight4)
+
+        let pointLight = new THREE.PointLight(0xffffff, 1, 40)
+        pointLight.position.set( xSceneRange[1]/2, ySceneRange[1], depth)
+        // scene.add(pointLight)
+
+
+        // let pointLight2 = new THREE.PointLight(0xffffff, 5, 100)
+        // pointLight2.position.set( xSceneRange[1]/2, 10, depth/2)
+        // scene.add(pointLight2)
+
+        let ambient = new THREE.AmbientLight(0xffffff, 1)
+        scene.add(ambient)
+
+        let ambient2 = new THREE.AmbientLight(0xffffff, 1) // 加到发光层的光源
+        ambient2.layers.set(1)
+        scene.add(ambient2)
+    }
+
+    function initLineMaterial(color, width, opacity) { // 获取线段材质对象
+        let lineMat = new THREE.LineMaterial({
+            color,
+            transparent: true,
+            opacity: 1 - opacity,
+            linewidth: width,
+            dashed: false,
+            depthTest: false,
+            depthWrite: false,
+            blending: THREE.MultiplyBlending
+        });
+        // 把渲染窗口尺寸分辨率传值给材质LineMaterial的resolution属性
+        lineMat.resolution.set(window.innerWidth, window.innerHeight);
+        return lineMat
+    }
+
+    function initXAxisTicks(tickData, len, depth) { // 绘制 x 轴上的标记
+        let mat = initLineMaterial('#fff', 2, len)
+        let textNumber = 6 // 默认绘制 5 个字符的长度
+        let fontSize = 64 // 默认绘制画布上的文字大小
+        let depthScale = 0.6
+        let height = fontSize, width = fontSize*textNumber // 默认文字为一行排列 计算画布上文字的大小
+        let sceneWidth = depth * depthScale, sceneHeight = sceneWidth*(height/width) // 以 depth 为基准计算场景中的文字区域的大小
+
+        for(let i = 0;i < tickData.length;i++) {
+            initTick(tickData[i].x, len)
+            let text = initText(tickData[i].label, fontSize, height, width, sceneWidth, sceneHeight)
+            text.position.x = tickData[i].x + sceneHeight/2
+            text.position.z = sceneWidth/2
+            scene.add(text)
+        }
+        function initTick(x, len) {
+            let lineGeo = new THREE.LineGeometry().setPositions([x, 0, 0, x, len, 0])
+            scene.add(new THREE.Line2(lineGeo, mat))
+
+        }
+    }
+
+    function initCircleTicks(yRange, xSceneRange, depth, opacity = 0.2) { // 构建标记的水平环
+        let lineMat = initLineMaterial('#fff', 1, opacity)
+
+        for(let i = 0;i < yRange.length;i++) {
+            initCircle(yRange[i], xSceneRange[1], depth)
+        }
+        function initCircle(y, x, z) {
+            let lineGeo1 = new THREE.LineGeometry().setPositions([0, y, 0, 0, y, z])
+            scene.add(new THREE.Line2(lineGeo1, lineMat))
+            let lineGeo2 = new THREE.LineGeometry().setPositions([x, y, 0, x, y, z])
+            scene.add(new THREE.Line2(lineGeo2, lineMat))
+            let lineGeo3 = new THREE.LineGeometry().setPositions([0, y, 0, x, y, 0])
+            scene.add(new THREE.Line2(lineGeo3, lineMat))
+            let lineGeo4 = new THREE.LineGeometry().setPositions([0, y, z, x, y, z])
+            scene.add(new THREE.Line2(lineGeo4, lineMat))
+        }
+    }
+
+    function initBackgroundPlane(color, opacity, xSceneRange, ySceneRange, depth) { // 构建背景板
+        let mat = new THREE.MeshPhongMaterial({ color, transparent: true, opacity, emissiveIntensity: 100})
+        let bottomMat = new THREE.MeshPhongMaterial({ color, transparent: true, opacity, depthTest: false })
+
+        let planeGeo0 = new THREE.PlaneGeometry(xSceneRange[1], ySceneRange[1]) // background
+        // plane0 = new THREE.Mesh(planeGeo0, mat)
+      
+        plane0 = new THREE.Reflector( planeGeo0, {
+					clipBias: 0.003,
+					textureWidth: window.innerWidth * window.devicePixelRatio,
+					textureHeight: window.innerHeight * window.devicePixelRatio,
+					color,
+                    recursion: 0.1,
+				} )
+        plane0.position.x = xSceneRange[1]/2
+        plane0.position.y = ySceneRange[1]/2
+        plane0.position.z = -0.001 // 避免重叠
+        scene.add(plane0)
+
+        let planeGeo1 = new THREE.PlaneGeometry(depth, ySceneRange[1]) // left
+        // plane1 = new THREE.Mesh(planeGeo1, mat)
+        plane1 = new THREE.Reflector( planeGeo1, {
+					clipBias: 0.003,
+					textureWidth: window.innerWidth * window.devicePixelRatio,
+					textureHeight: window.innerHeight * window.devicePixelRatio,
+                    recursion: 0.1,
+                    color,
+				} )
+        plane1.position.y = ySceneRange[1]/2
+        plane1.rotation.y = Math.PI/2
+        plane1.position.z = depth/2
+        plane1.position.x = -0.001 // 避免重叠
+        scene.add(plane1)
+
+        let planeGeo2 = new THREE.PlaneGeometry(depth, xSceneRange[1]) // bottom
+        plane2 = new THREE.Mesh(planeGeo2, bottomMat)
+        plane2.rotation.x = -Math.PI/2
+        plane2.rotation.z = -Math.PI/2
+        plane2.position.x = xSceneRange[1]/2
+        plane2.position.z = depth/2
+        scene.add(plane2)
+    }
+
+    function initWrapBox(xSceneRange, ySceneRange, depth, opacity = 0.2) { // 构建整个图表的包围盒
+
+        let lineMat = initLineMaterial('#fff', 2, opacity)
+        // 绘制竖线
+        let lineGeo0 = new THREE.LineGeometry().setPositions([0, 0, 0, 0, ySceneRange[1], 0])
+        scene.add(new THREE.Line2(lineGeo0, lineMat))
+        let lineGeo1 = new THREE.LineGeometry().setPositions([0, 0, depth, 0, ySceneRange[1], depth])
+        scene.add(new THREE.Line2(lineGeo1, lineMat))
+        let lineGeo2 = new THREE.LineGeometry().setPositions([xSceneRange[1], 0, 0, xSceneRange[1], ySceneRange[1], 0])
+        scene.add(new THREE.Line2(lineGeo2, lineMat))
+        let lineGeo3 = new THREE.LineGeometry().setPositions([xSceneRange[1], 0, depth, xSceneRange[1], ySceneRange[1], depth])
+        scene.add(new THREE.Line2(lineGeo3, lineMat))
+        // 绘制水平线
+        let lineGeo4 = new THREE.LineGeometry().setPositions([0, 0, 0, 0, 0, depth])
+        scene.add(new THREE.Line2(lineGeo4, lineMat))
+        let lineGeo5 = new THREE.LineGeometry().setPositions([xSceneRange[1], 0, 0, xSceneRange[1], 0, depth])
+        scene.add(new THREE.Line2(lineGeo5, lineMat))
+        let lineGeo6 = new THREE.LineGeometry().setPositions([0, 0, 0, xSceneRange[1], 0, 0])
+        scene.add(new THREE.Line2(lineGeo6, lineMat))
+        let lineGeo7 = new THREE.LineGeometry().setPositions([0, 0, depth, xSceneRange[1], 0, depth])
+        scene.add(new THREE.Line2(lineGeo7, lineMat))
+
+        let lineGeo8 = new THREE.LineGeometry().setPositions([0, ySceneRange[1], 0, 0, ySceneRange[1], depth])
+        scene.add(new THREE.Line2(lineGeo8, lineMat))
+        let lineGeo9 = new THREE.LineGeometry().setPositions([xSceneRange[1], ySceneRange[1], 0, xSceneRange[1], ySceneRange[1], depth])
+        scene.add(new THREE.Line2(lineGeo9, lineMat))
+        let lineGeo10 = new THREE.LineGeometry().setPositions([0, ySceneRange[1], 0, xSceneRange[1], ySceneRange[1], 0])
+        scene.add(new THREE.Line2(lineGeo10, lineMat))
+        let lineGeo11 = new THREE.LineGeometry().setPositions([0, ySceneRange[1], depth, xSceneRange[1], ySceneRange[1], depth])
+        scene.add(new THREE.Line2(lineGeo11, lineMat))
+    }
+
+    function initAreaMaterials(blusterOption, sideMaterialOption, shapeMaterialOption) { // 构建面积图的材质
+        // length 扫光的长度
+
+        let uniforms = THREE.UniformsUtils.merge([
+            THREE.ShaderLib['phong'].uniforms,
+            {
+                ratio: { type: 'f', value: 0 },
+                length: { type: 'f', value: blusterOption.length },
+                color: { type: 'v4', value: blusterOption.color},
+                start: { type: 'v4', value: blusterOption.start},
+                end: { type: 'v4', value: blusterOption.end}
+            },
+        ])
+
+        blusterUniforms.push(uniforms)
+
+        shaderBurseLightMaterial = new THREE.ShaderMaterial({ // 扫光发光材质
+            uniforms,
+            vertexShader: document.getElementById( 'vertexBrustShader' ).textContent,
+            fragmentShader: document.getElementById( 'fragmentBrustShader' ).textContent,
+            transparent: true,
+            depthTest: false,
+            // blending: THREE.AdditiveBlending
+        })
+        shaderBurseLightMaterial.lights = true
+
+        shaderSideMaterial = new THREE.ShaderMaterial({ // 侧面渐变色材质
+            uniforms:{
+                topColor: { type: "c", value: sideMaterialOption.topColor },
+                topOpacity: { type: "f", value: sideMaterialOption.topOpacity },
+                bottomColor: { type: "c", value: sideMaterialOption.bottomColor},
+                bottomOpacity: { type: "f", value: sideMaterialOption.bottomOpacity }
+            },
+            transparent: true,
+            depthTest: false,
+            side: THREE.DoubleSide,
+            vertexShader: document.getElementById( 'vertexShader' ).textContent,
+            fragmentShader: document.getElementById( 'fragmentShader2' ).textContent
+        })
+
+        shapeShaderMaterial = new THREE.ShaderMaterial({ // 正面渐变色材质
+            uniforms: THREE.UniformsUtils.merge([
+                THREE.ShaderLib['phong'].uniforms,
+                {
+                    topColor: { type: "c", value: shapeMaterialOption.topColor },
+                    topOpacity: { type: "f", value: shapeMaterialOption.topOpacity },
+                    bottomColor: { type: "c", value: shapeMaterialOption.bottomColor },
+                    bottomOpacity: { type: "f", value: shapeMaterialOption.bottomOpacity },
+                },
+            ]),
+            transparent: true,
+            depthTest: false,
+            side: THREE.DoubleSide,
+            vertexShader: document.getElementById( 'vertexShader' ).textContent,
+            fragmentShader: document.getElementById( 'fragmentShader' ).textContent
+        })
+        shapeShaderMaterial.lights = true
+
+        return [
+            shapeShaderMaterial,
+            shaderBurseLightMaterial
+        ]
+    }
+
+    function getShapeData(data, maxDistance) { // 组合绘制shape所需要的数据
+        let newData = [{x: 0, y: 0}, ...data,{ x: maxDistance, y: 0}]
+        let res = []
+        for(let i = 0; i < newData.length;i++){ // 使用 for 循环保证顺序不会发生改变
+            res.push(new THREE.Vector2(newData[i].x, newData[i].y))
+        }
+        return res
+    }
+
+    function getArcShapeData(data, maxDistance) { // 组合绘制弧线shape所需的数据
+        let points = [], res = [], newData = [{x: 0, y: 0}, ...data,{ x: maxDistance, y: 0}]
+        for(let i = 0;i < newData.length;i++) {
+            points.push(new THREE.Vector3(newData[i].x, newData[i].y, 0))
+        }
+        return new THREE.CatmullRomCurve3(points).getPoints(400)
+    }
+
+    function initAreaShape(data, maxDistance, isBrokenLineShaoe) { // 构建shape几何体
+        return isBrokenLineShaoe?new THREE.Shape(getShapeData(data, maxDistance))
+        :new THREE.Shape(getArcShapeData(data, maxDistance))
+    }
+
+    function initArea(data, depth, isBrokenLineShaoe = false, blusterOption, sideMaterialOption, shapeMaterialOption) { // 构建面积图
+        // isBrokenLineShaoe 绘制面积图的格式
+        if(data.length <= 0) return // 空值判断
+
+        let maxHeight = [...data].sort((a, b) => b.y - a.y)[0].y // 当前面积图的数据中最大的高度值
+        let maxDistance = data[data.length-1].x // 获取数据中离轴最远的距离
+        let startHeight = data[0].y, endHeight = data[data.length-1].y // 获取起始点位和终止点位的数值高度
+       
+        let materials = initAreaMaterials(blusterOption, sideMaterialOption, shapeMaterialOption)
+        
+        let shape = initAreaShape(data, maxDistance, isBrokenLineShaoe)// ? initBrokenLineShape(data, maxDistance) : initArcShape(data, maxDistance)
+        var geometry = new THREE.ExtrudeGeometry( shape, { 
+            bevelEnabled: false, depth
+        })
+        assignUVs(geometry) // 重新排列 shape 几何体的 uv 坐标
+        
+        var mesh = new THREE.Mesh( geometry, materials )
+        mesh.renderOrder = 1
+        scene.add(mesh)
+
+        var startPlaneHeight = startHeight, endPlaneHeight = endHeight
+
+        if(startPlaneHeight !== 0) {
+            var startPlaneGeometry = new THREE.PlaneGeometry( depth, startPlaneHeight )
+            var startPlane = new THREE.Mesh( startPlaneGeometry, shaderSideMaterial )
+            startPlane.position.y = startPlaneHeight/2
+            startPlane.rotation.y = -Math.PI/2
+            startPlane.position.z = depth/2
+            startPlane.renderOrder = 2
+            scene.add( startPlane )
+        }
+        if(endPlaneHeight !== 0) {
+            var endPlaneGeometry = new THREE.PlaneGeometry( depth, endPlaneHeight )
+            var endPlane = new THREE.Mesh( endPlaneGeometry, shaderSideMaterial )
+            endPlane.position.y = endPlaneHeight/2
+            endPlane.rotation.y = Math.PI/2
+            endPlane.position.x = maxDistance
+            endPlane.position.z = depth/2
+            endPlane.renderOrder = 2
+            scene.add(endPlane)
+        }
+
+        // 增加面积图的折线部分
+        isBrokenLineShaoe?initAreaLine(data, depth, '#E1FFFF', 0.06):initAreaArcLine(data, depth, '#fff', 0.06)
+    }
+
+    function assignUVs(geometry) { // 重新计算 shape 几何体的uv坐标
+        geometry.computeBoundingBox(); 
+        var max = geometry.boundingBox.max, min = geometry.boundingBox.min;
+        var offset = new THREE.Vector2(0 - min.x, 0 - min.y);
+        var range = new THREE.Vector2(max.x - min.x, max.y - min.y);
+        var faces = geometry.faces; 
+        geometry.faceVertexUvs[0] = []; 
+        for (var i = 0; i < faces.length ; i++) { 
+            var v1 = geometry.vertices[faces[i].a],
+                    v2 = geometry.vertices[faces[i].b],
+                    v3 = geometry.vertices[faces[i].c]; 
+            geometry.faceVertexUvs[0].push([
+                new THREE.Vector2((v1.x + offset.x) / range.x, (v1.y + offset.y) / range.y),
+                new THREE.Vector2((v2.x + offset.x) / range.x, (v2.y + offset.y) / range.y),
+                new THREE.Vector2((v3.x + offset.x) / range.x, (v3.y + offset.y) / range.y)
+            ]);
+        }
+        geometry.uvsNeedUpdate = true;
+    }
+
+    function getAreaLineData(data, depth=0) { // 获取绘制面积图折线的数据
+        let res = []
+        for(let i = 0; i < data.length;i++){ // 使用 for 循环保证顺序不会发生改变
+            res.push(data[i].x)
+            res.push(data[i].y)
+            res.push(depth)
+        }
+        return res
+    }
+
+    function initAreaArcLineMaterail() { // 构建面积图弧线的扫光材质
+        
+        let uniforms = THREE.UniformsUtils.merge([
+            THREE.ShaderLib['phong'].uniforms,
+            {
+                ratio: { type: 'f', value: 0 },
+                length: { type: 'f', value: 0.4 },
+                color: { type: 'v4', value: new THREE.Vector4(1.0, 1.0, 1.0, 0.4),},
+                start: { type: 'v4', value: new THREE.Vector4(1.0, 1.0, 1.0, 1),},
+                end: { type: 'v4', value: new THREE.Vector4(1.0, 1.0, 1.0, 0.1),}
+            },
+        ])
+        blusterUniforms.push(uniforms)
+        let lineBurseLightMaterial = new THREE.ShaderMaterial({ // 扫光发光材质
+            uniforms,
+            vertexShader: document.getElementById( 'vertexBrustShader' ).textContent,
+            fragmentShader: document.getElementById( 'fragmentBrustShader' ).textContent,
+            transparent: true,
+            depthTest: false,
+            // blending: THREE.AdditiveBlending
+        })
+        lineBurseLightMaterial.lights = true
+        return lineBurseLightMaterial
+    }
+
+    function initAreaArcLine(data, depth = 0, color = '#fff', radius = 0.05) { // 构建面积图的弧线
+        let points = []
+        for(let i = 0;i < data.length;i++) { points.push(new THREE.Vector3(data[i].x, data[i].y, 0))}
+        let curve = new THREE.CatmullRomCurve3(points)
+        let tubeGeometry = new THREE.TubeGeometry(curve, 100, radius, 10, false)
+        // let material = new THREE.MeshPhongMaterial({
+        //     color, 
+        //     emissiveIntensity: 10,
+        //     transparent: true, 
+        //     opacity: 0.6
+        // })
+        let material = initAreaArcLineMaterail()
+
+        let line1 = new THREE.Mesh(tubeGeometry, material)
+        line1.layers.set(1)
+        scene.add(line1)
+        let line2 = line1.clone()
+        line2.position.z = depth
+        line2.layers.set(1)
+        scene.add(line2)
+    }
+
+    function initAreaLine(data, depth, color = '#E1FFFF', radius = 0.1) { // 根据数据构建面积图的折线
+        let lineMat = initLineMaterial(color, 10, 0.6) // 对 LineMaterial 源码进行一部分的修改，主要是加上对 opacity 的取值的入口
+        data = [{x: 0, y: 0}, ...data]
+        let lineGeo1 = new THREE.LineGeometry().setPositions(getAreaLineData(data, 0))
+        scene.add(new THREE.Line2(lineGeo1, lineMat))
+        let lineGeo2 = new THREE.LineGeometry().setPositions(getAreaLineData(data, depth))
+        scene.add(new THREE.Line2(lineGeo2, lineMat))
+
+
+        // let points = []
+        // for(let i = 0;i < data.length;i++) { points.push(new THREE.Vector3(data[i].x, data[i].y, 0))}
+        // let curve = new THREE.CatmullRomCurve3(points)
+        // let tubeGeometry = new THREE.TubeGeometry(curve, 100, radius, 10, false)
+        // let material = new THREE.MeshPhongMaterial({color: '#E1FFFF', transparent: true, opacity: 0.4 })
+        // let line1 = new THREE.Mesh(tubeGeometry, material)
+        // scene.add(line1)
+        // let line2 = line1.clone()
+        // line2.position.z = depth
+        // scene.add(line2)
+        
+    }
+
+    function animate(){
+        time += 0.015
+        // time = 0.5
+        blusterUniforms.forEach(u => u.ratio.value = time)
+        requestAnimationFrame(animate)
+        renderer.render(scene, camera)
+        controller.update(clock.getDelta())
+        
+        renderer.autoClear = false
+        camera.layers.set(1)
+        composer.render()
+        camera.layers.set(0)
+        renderer.autoClear = true
+    }
+
+    function onResize() {
+        camera.aspect = window.innerWidth / window.innerHeight
+        camera.updateProjectionMatrix()
+        renderer.setSize(window.innerWidth, window.innerHeight)
+    }
+</script>
+</html>

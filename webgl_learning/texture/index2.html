@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <script src="../src/webgl_lib/webgl-utils.js"></script>
+    <script src="../src/webgl_lib/webgl-debug.js"></script>
+    <script src="../src/webgl_lib/cuon-utils.js"></script>
+    <script src="../src/webgl_lib/cuon-matrix.js"></script>
+    <script src="../src/utils.js"></script>
+    <style>
+        #canvas{
+            display: block;
+            margin: 0 auto;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas" width="800px" height="600px"></canvas>
+</body>
+<script>
+    var textureHandle
+    var canvas = document.getElementById('canvas')
+    canvas.width = 800
+    canvas.height = 600
+    
+    // 获取 webgl 绘图上下文
+    var gl = getWebGLContext(canvas)
+    if(!gl) { 
+        console.log('not support')
+    }
+
+    // 获取着色器片段
+    var vertexShader = getTriangleVSHADER()
+    var fragmentShader = getTriangleFSHADER()
+
+    // 初始化着色器
+    if(!initShaders(gl, vertexShader, fragmentShader)){   // initShaders => true : 创建成功, false : 创建失败
+        console.log('failed initShader')
+    }
+
+    gl.clearColor(1.0, 1.0, 0.0, 1.0) // 指定清空 canvas 的颜色 (背景色)
+
+    bindAttriBuffer("a_Position", rectVertices, 2)
+    // bindTexture("./icon.jpg", 'u_Sampler', gl.program)
+
+    animate()
+    function animate() {
+        gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+        
+        gl.drawArrays(gl.POINTS, 0, 4);
+        requestAnimationFrame(animate)
+    }
+
+    function getTriangleVSHADER(){
+        return `
+            attribute vec4 a_Position;
+            void main(){
+                gl_Position = a_Position;
+                gl_PointSize = 30.0;
+            }
+        `
+    }
+
+    function getTriangleFSHADER(){
+        return `
+            precision mediump float;
+            uniform sampler2D u_Sampler;
+            void main(){
+                // gl_FragColor = texture2D(u_Sampler, gl_PointCoord);
+                gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+            }
+        `
+    }
+
+    function bindAttriBuffer(attrName, vertices, verTexCount) {
+        let vertexBuffer = gl.createBuffer()
+        if(!vertexBuffer) {
+            console.log("failed create vertex buffer")
+        }
+        gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer, verTexCount) // 将缓冲区对象绑定到目标
+        gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW) // 向缓冲区对象中写入数据
+        
+        var FSIZE = vertices.BYTES_PER_ELEMENT;
+
+        var attr = gl.getAttribLocation(gl.program, attrName);
+        gl.vertexAttribPointer(attr, verTexCount, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(attr);
+    }
+  
+    function handleLoadedTexture(texture) {
+        gl.bindTexture(gl.TEXTURE_2D, texture) // 绑定纹理单元
+        // gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1) // 对纹理图像进行 Y 轴反转 - 点精灵不需要翻转
+
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); 
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, texture.image);
+
+    }
+
+    function initTexture(imageFile, callback) {
+        let texture = gl.createTexture()
+        texture.image = new Image()
+        texture.image.src = imageFile
+        texture.image.onload = () => {
+            handleLoadedTexture(texture)
+            callback(texture)
+        }
+    }
+
+    function bindTexture(textureName, samplerName, program) {
+        initTexture(textureName, function(texture) {
+            gl.activeTexture(gl.TEXTURE0); // 激活0号纹理单元
+            gl.bindTexture(gl.TEXTURE_2D, texture); // 绑定纹理单元
+
+            var u_Sampler = gl.getUniformLocation(program, samplerName);
+            gl.uniform1i(u_Sampler, 0);
+        })
+      
+    }
+
+</script>
+</html>

@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <script src="./src/webgl_lib/webgl-utils.js"></script>
+    <script src="./src/webgl_lib/webgl-debug.js"></script>
+    <script src="./src/webgl_lib/cuon-utils.js"></script>
+    <script src="./src/webgl_lib/cuon-matrix.js"></script>
+    <style>
+        #canvas{
+            display: block;
+            margin: 0 auto;
+            border: 1px solid;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas" width="800px" height="600px"></canvas>
+</body>
+<script type="x-shader/x-vertex" id="vertexShader">
+    attribute vec4 a_Position;
+    //attribute vec2 a_TexCoord;
+    //varying vec2 v_TexCoord;
+    void main(){
+        gl_Position = a_Position; // 表示顶点位置
+        //gl_Position = vec4(0.0,0.0,0.0,1.0);
+        gl_PointSize = 10.0;      // 表示顶点大小
+        //v_TexCoord = a_TexCoord;
+    }
+</script>
+<script type="x-shader/x-vertex" id="fragmentShader">
+    //precision mediump float;
+    uniform vec4 u_FragColor;
+    //uniform sampler2D u_Sampler;
+    //varying vec2 v_TexCoord;
+    void main(){
+        gl_FragColor = vec4(1.0,0.0,0.0,1.0);
+        //gl_FragColor = texture2D(u_Sampler,v_TexCoord);
+    }
+</script>
+<script>
+    var canvas = document.getElementById('canvas')
+    canvas.width = 800
+    canvas.height = 600
+
+    // 获取 webgl 绘图上下文
+    var gl = getWebGLContext(canvas)
+    if(!gl) { 
+        console.log('not support')
+    }
+
+    // 获取着色器片段
+    // var vertexShader = document.getElementById( 'vertexShader' ).textContent
+    // var fragmentShader = document.getElementById( 'fragmentShader' ).textContent
+    var vertexShader = getVSHADER()
+    var fragmentShader = getFSHADER()
+
+    // 初始化着色器
+    if(!initShaders(gl,vertexShader,fragmentShader)){   // initShaders => true : 创建成功, false : 创建失败
+        console.log('failed initShader')
+    }
+
+    // 指定清空 canvas 的颜色 (背景色)
+    gl.clearColor(0.0, 1.0, 1.0, 1.0)
+
+    // 清空 canvas 
+    gl.clear(gl.COLOR_BUFFER_BIT)
+
+
+    // 使用 attribute 变量传递顶点的位置信息
+        // 获取相应的 attribute 变量的存储位置
+        var a_Position = gl.getAttribLocation(gl.program, "a_Position") // => -1 : 指定的 attribute 变量不存在, >= 0 : 指定的 attribute 变量地址存在
+        if(a_Position < 0) {console.log('this attribute not exist')}
+        // 将顶点位置传递给 attribute 变量
+        // gl.vertexAttrib3f(a_Position, 0.5, 0.0, 0.0)
+        var count = initVertexBuffers()
+
+    // 使用 uniform 变量传递顶点的位置信息
+        var u_FragColor = gl.getUniformLocation(gl.program, "u_FragColor")
+        gl.uniform4f(u_FragColor,1.0,1.0,0.0,1.0)
+    
+    // 设置旋转的矩阵
+    var rotMatrix = new Matrix4()
+    rotMatrix.setRotate(90.0,0,0,1)  // (angle,x,y,z) angle:旋转角度 (x,y,z):旋转轴
+    rotMatrix.translate(0,0.5,0)
+    // 传输设置好的旋转矩阵
+    var u_matrix = gl.getUniformLocation(gl.program,"u_matrix")
+    gl.uniformMatrix4fv(u_matrix, false, rotMatrix.elements)  // (location,transpose,array) location:uniform地址 transpose:固定值false array:传递的旋转地址值
+
+
+    // 执行绘制操作 mode: 绘制的种类,first: 绘制的起始位置,count: 绘制点的数量
+    // gl.drawArrays(gl.POINTS, 0, 1)
+    // gl.drawArrays(gl.POINTS, 0, count)
+    gl.drawArrays(gl.TRIANGLES, 0, count)
+
+    function getVSHADER(){
+            //gl_PointSize = 10.0;\n    该语句只在绘制单个的点的时候才会有效果
+            return `
+                attribute vec4 a_Color;
+                varying vec4 v_Color;
+                attribute vec4 a_Position;
+                attribute float a_PointSize;
+                uniform mat4 u_matrix;
+                void main(){
+                    v_Color=a_Color;
+                    gl_Position = u_matrix*a_Position;
+                    gl_PointSize = 10.0;    // 该变量只有在绘制点的时候才会起作用
+                }
+            `
+        }
+    function getFSHADER(){
+        // gl_FragCoord 该内置变量的第一个和第二个分量分别表示片元在canvas坐标系统中的坐标值
+        return `
+            precision mediump float;
+            varying vec4 v_Color;
+            uniform vec4 u_FragColor;
+            void main(){
+                gl_FragColor = v_Color * vec4(1.0, 1.0, 1.0, gl_FragCoord.x/400.0);
+            }
+        `
+    }
+    function initVertexBuffers(){ // 创建顶点缓冲区
+        var vertices = new Float32Array([
+            0.0,0.5,-0.5,-0.5,0.5,-0.5
+        ]) // 点的坐标数组 类型化数组
+        var FSIZE = vertices.BYTES_PER_ELEMENT
+        var n = 3   // 定义点的个数
+        // 创建顶点缓冲区对象   gl.deleteBuffer(buffer) 删除缓冲区对象,buffer是待删除的缓冲区对象
+        var vertexBuffer = gl.createBuffer()
+        if(!vertexBuffer){
+            console.log('Failed to create the buffer object')
+            return
+        }
+        // 绑定缓冲区对象
+        gl.bindBuffer(gl.ARRAY_BUFFER,vertexBuffer)
+        // 将数据写入缓冲区对象
+        gl.bufferData(gl.ARRAY_BUFFER,vertices,gl.STATIC_DRAW)
+        // 将缓冲区对象分配给一个 attribute 变量
+        gl.vertexAttribPointer(a_Position,2,gl.FLOAT,false,0,0)
+        // 开启所绑定的 attribute 变量
+        gl.enableVertexAttribArray(a_Position)
+        // 返回缓冲区的顶点数量
+
+        var colors = new Float32Array([
+            1.0,0.0,0.0,
+            0.0,1.0,0.0,
+            0.0,0.0,1.0
+        ])
+        var a_Color = gl.getAttribLocation(gl.program, "a_Color")
+        var colorsBuffer = gl.createBuffer()
+        gl.bindBuffer(gl.ARRAY_BUFFER,colorsBuffer)
+        gl.bufferData(gl.ARRAY_BUFFER,colors,gl.STATIC_DRAW)
+        gl.vertexAttribPointer(a_Color,3,gl.FLOAT,false,0,0)
+        gl.enableVertexAttribArray(a_Color)
+
+        return n
+    }
+</script>
+</html>

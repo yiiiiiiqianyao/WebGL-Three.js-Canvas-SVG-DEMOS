@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <style>
+        body{
+            margin: 0;
+            overflow: hidden;
+        }
+        .wrap {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            border: 1px solid;
+            border-radius: 10px;
+            padding: 10px;
+        }
+    </style>
+    <script src="../src/three.js"></script>
+    <script src="../src/controller/OrbitControls.js"></script>
+    <script src="./GLTFLoader.js"></script>
+    <script type="x-shader/x-vertex" id="vertexShader">
+        attribute vec3 center;
+        varying vec3 vCenter;
+        varying vec2 vUv;
+    
+        void main() {
+            vUv = uv;
+            vCenter = center;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+        }
+    </script>
+    <script type="x-shader/x-vertex" id="fragmentShader">
+   
+        #extension GL_OES_standard_derivatives : enable
+        varying vec3 vCenter;
+        varying vec2 vUv;
+
+        float edgeFactorTri() {
+            vec3 d = fwidth( vCenter.xyz ) * 1.5;
+            vec3 a3 = smoothstep( vec3( 0.0 ), d, vCenter.xyz );
+            return min( min( a3.x, a3.y ), a3.z );
+        }
+
+        void main() {
+            float edgeFactorTri = edgeFactorTri();
+            gl_FragColor.r = mix( 1.0, 0.0, edgeFactorTri );
+            gl_FragColor = vec4(mix( 1.0, 0.0, edgeFactorTri ), 0.0, 0.0, 1.0);
+            if(gl_FragColor.r < 0.1) {
+                //gl_FragColor = vec4(1.0, 1.0, 0.0, 0.1);
+                gl_FragColor.a = 0.;
+            } else {
+                
+                //gl_FragColor = vec4(1.0, 0.0, 0.0, gl_FragColor.r * 0.8);
+            }
+        }
+    </script>
+</head>
+<body>
+</body>
+<script>
+    var scene, camera, renderer, controller, shadermaterial
+  
+    var loader = new THREE.GLTFLoader()
+    init()
+    animate()
+
+    // - Functions -
+    function init(){
+        scene = new THREE.Scene()
+
+        camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100000000)
+        camera.position.set(200, 200, 200)
+        renderer = new THREE.WebGLRenderer({    
+            antialias:true, // 开启抗锯齿处理
+            alpha:true
+        })
+        renderer.setSize(window.innerWidth,window.innerHeight)
+        var axesHelper = new THREE.AxesHelper( 100000 );
+        scene.add( axesHelper )
+
+        loader.load('./join.glb', function(gltf) {
+            // model = gltf.scene
+            console.log(gltf.scene.children)
+            let line = gltf.scene.children[0]
+            let model = gltf.scene.children[1]
+
+            model.material.transparent = true
+            model.material.opacity = 0.1
+
+            scene.add(line)
+            scene.add(model)
+            
+        })
+
+        var directionalLight = new THREE.DirectionalLight(0xffffff, 0.9);
+        directionalLight.position.set(400, 200, 300);
+        scene.add(directionalLight);
+        // 方向光2
+        var directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.9);
+        directionalLight2.position.set(-400, -200, -300);
+        scene.add(directionalLight2);
+        //环境光
+        var ambient = new THREE.AmbientLight(0xffffff, 0.6);
+        scene.add(ambient);
+
+        controller = new THREE.OrbitControls(camera,renderer.domElement)
+        document.body.appendChild(renderer.domElement)
+        window.onresize = onResize
+    }
+
+    function animate(){
+        requestAnimationFrame(animate)
+        renderer.render(scene, camera)
+        controller.update()
+    }
+
+    function onResize() {
+        camera.aspect = window.innerWidth / window.innerHeight
+        camera.updateProjectionMatrix()
+        renderer.setSize(window.innerWidth, window.innerHeight)
+    }
+
+    function setupAttributes(geometry) {
+        // const attrib = geometry.getAttribute('position');
+        //  const count = attrib.count / 3;
+        //  const barycentric = [];
+        //  for (let i = 0; i < count; i++) {
+        //    const even = i % 2 === 0;
+        //    if (even) {
+        //      barycentric.push(
+        //        0, 0, 1,
+        //        0, 1, 0,
+        //        1, 0, 1
+        //      );
+        //    } else {
+        //      barycentric.push(
+        //        0, 1, 0,
+        //        0, 0, 1,
+        //        1, 0, 1
+        //      );
+        //    }
+        //  }
+        //  const array = new Float32Array(barycentric);
+        //  geometry.addAttribute( 'center', new THREE.BufferAttribute( array, 3 ) );
+
+
+        // TODO: Bring back quads
+
+        var vectors = [
+            // new THREE.Vector3(0, 0, 1),
+            // new THREE.Vector3(0, 1, 0),
+            // new THREE.Vector3(1, 0, 1)
+            new THREE.Vector3(0, 1, 0),
+            new THREE.Vector3(0, 0, 1),
+            new THREE.Vector3(1, 0, 1)
+        ];
+
+        var position = geometry.attributes.position;
+        var centers = new Float32Array(position.count * 3);
+
+        for (var i = 0, l = position.count; i < l; i++) {
+            vectors[i % 3].toArray(centers, i * 3);
+        }
+        geometry.addAttribute('center', new THREE.BufferAttribute(centers, 3));
+
+    }
+</script>
+</html>

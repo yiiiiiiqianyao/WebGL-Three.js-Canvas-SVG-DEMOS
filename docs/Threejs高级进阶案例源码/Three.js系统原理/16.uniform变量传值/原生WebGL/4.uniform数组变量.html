@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>使用WebGL绘制一个点</title>
+</head>
+<body>
+<!--canvas标签创建一个宽高均为500像素，背景为蓝色的矩形画布-->
+<canvas id="webgl" width="500" height="500" style="background-color: blue"></canvas>
+
+</body>
+<!-- 顶点着色器源码 -->
+<script id="vertexShader" type="x-shader/x-vertex">
+  // uniform关键字声明一个数组变量
+  // 数组元素是浮点数
+  uniform float arr[100];
+  void main() {
+    //给内置变量gl_PointSize赋值像素大小
+    gl_PointSize=50.0;
+    //顶点位置，从数组变量获得具体值
+    gl_Position =vec4(arr[0],0.0,0.0,1.0);
+  }
+
+</script>
+<!-- 片元着色器源码 -->
+<script id="fragmentShader" type="x-shader/x-fragment">
+
+  void main() {
+    gl_FragColor = vec4(1.0,0.0,0.0,1.0);
+  }
+
+</script>
+
+<script>
+    //通过getElementById()方法获取canvas画布
+    var canvas=document.getElementById('webgl');
+    //通过方法getContext()获取WebGL上下文
+    var gl=canvas.getContext('webgl');
+
+    //顶点着色器源码
+    var vertexShaderSource = document.getElementById( 'vertexShader' ).innerText;
+
+    //片元着色器源码
+    var fragShaderSource = document.getElementById( 'fragmentShader' ).innerText;
+
+    //初始化着色器
+    var program = initShader(gl,vertexShaderSource,fragShaderSource);
+
+    // 通过变量名+下标给数组变量传值
+    gl.uniform1f(gl.getUniformLocation(program, "arr[0]"), 0.3);
+    gl.uniform1f(gl.getUniformLocation(program, "arr[1]"), 0.6);
+    gl.uniform1f(gl.getUniformLocation(program, "arr[2]"), -0.6);
+    gl.uniform1f(gl.getUniformLocation(program, "arr[3]"), -0.3);
+
+    //开始绘制，显示器显示结果
+    gl.drawArrays(gl.POINTS,0,1);
+
+    //声明初始化着色器函数
+    function initShader(gl,vertexShaderSource,fragmentShaderSource){
+        //创建顶点着色器对象
+        var vertexShader = gl.createShader(gl.VERTEX_SHADER);
+        //创建片元着色器对象
+        var fragmentShader = gl.createShader(gl.FRAGMENT_SHADER);
+        //引入顶点、片元着色器源代码
+        gl.shaderSource(vertexShader,vertexShaderSource);
+        gl.shaderSource(fragmentShader,fragmentShaderSource);
+        //编译顶点、片元着色器
+        gl.compileShader(vertexShader);
+        gl.compileShader(fragmentShader);
+
+        //创建程序对象program
+        var program = gl.createProgram();
+        //附着顶点着色器和片元着色器到program
+        gl.attachShader(program,vertexShader);
+        gl.attachShader(program,fragmentShader);
+        //链接program
+        gl.linkProgram(program);
+        //使用program
+        gl.useProgram(program);
+        //返回程序program对象
+        return program;
+    }
+
+    // 获得uniform变量的个数
+    var n = gl.getProgramParameter( program, gl.ACTIVE_UNIFORMS );
+    console.log('uniform变量个数',n);
+    // 通过for循环可以获得所有uniform变量的信息
+    for ( var i = 0; i < n; ++ i ) {
+      var info = gl.getActiveUniform( program, i );
+      // console.log('第i+1个uniform变量的信息',info);
+      console.log('uniform变量名字',info.name);
+      // 获得当前uniform变量的地址
+      var addr = gl.getUniformLocation( program, info.name );
+    }
+</script>
+</html>

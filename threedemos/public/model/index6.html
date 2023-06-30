@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <style>
+        body{
+            margin: 0;
+            overflow: hidden;
+        }
+    </style>
+    <script src="../src/three.js"></script>
+    <script src="../src/controller/OrbitControls.js"></script>
+    <script src="../src/libs/Reflector.js"></script>
+    <script src="./OBJLoader.js"></script>
+    <script src="./MTLLoader.js"></script>
+
+    <!-- <script src="../src/three.js"></script>
+    <script src="../src/OrbitControls.js"></script>
+    <script src="../src/objects/Reflector.js"></script> -->
+</head>
+<body>
+    
+</body>
+<script type="x-shader/x-vertex" id="vertexShader">
+    attribute vec3 center;
+    varying vec3 vCenter;
+    varying vec2 vUv;
+
+    void main() {
+        vUv = uv;
+        vCenter = center;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+    }
+</script>
+<script type="x-shader/x-vertex" id="fragmentShader">
+    uniform sampler2D texture;
+
+    varying vec3 vCenter;
+    varying vec2 vUv;
+
+    float edgeFactorTri() {
+        vec3 d = fwidth( vCenter.xyz ) * 1.5;
+        vec3 a3 = smoothstep( vec3( 0.0 ), d, vCenter.xyz );
+        return min( min( a3.x, a3.y ), a3.z );
+    }
+
+    void main() {
+        float edgeFactorTri = edgeFactorTri();
+        gl_FragColor.r = mix( 1.0, 0.0, edgeFactorTri );
+        
+        if(gl_FragColor.r < 0.1) {
+            //discard;
+           gl_FragColor = texture2D( texture, vUv); 
+           gl_FragColor.a = 0.5;
+        } else {
+           gl_FragColor = vec4(1.0, 0.0, 0.0, gl_FragColor.r * 0.8);
+         
+        }
+        //gl_FragColor = texture2D( texture, vUv); 
+    }
+</script>
+<script>
+    var scene, camera, renderer, clock, controlller
+    init()
+    animate()
+
+    // - Functions -
+    function init(){
+        scene = new THREE.Scene()
+
+        clock = new THREE.Clock();
+        camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 100000)
+        camera.position.set(100, 100, 100)
+        renderer = new THREE.WebGLRenderer({    
+            antialias:true, // 开启抗锯齿处理
+            alpha:true
+        })
+        renderer.setSize(window.innerWidth,window.innerHeight)
+        renderer.setClearColor(0x000000)
+    
+        let mtl1 = 'bgl/科幻办公楼.mtl'
+        let obj1 = 'bgl/科幻办公楼.obj'
+        let mtl2 = 'room/room.mtl'
+        let obj2 = 'room/room.obj'
+
+        new THREE.MTLLoader().load(mtl1, function(materials) {
+            materials.preload();
+            new THREE.OBJLoader().setMaterials(materials)
+            .load(obj1, function(object) {
+                console.log(object)
+                let material = new THREE.ShaderMaterial({
+                    uniforms: {
+                        texture: {
+                            value: object.children[0].material[0].map
+                        }
+                    },
+                    vertexShader: document.getElementById('vertexShader').textContent,
+                    fragmentShader: document.getElementById('fragmentShader').textContent,
+                    side: THREE.DoubleSide,
+                    transparent: true,
+                    depthTest: true
+                });
+                material.extensions.derivatives = true;
+                let geometry = object.children[0].geometry.clone();
+                geometry = geometry.toNonIndexed();
+                setupAttributes(geometry);
+
+                let mesh = new THREE.Mesh(geometry, material)
+                mesh.position.z = -8500;
+                scene.add(mesh);
+            });
+      });
+
+        /**
+            * 光源设置
+            */
+        // 方向光1
+        var directionalLight = new THREE.DirectionalLight(0xffffff, 0.9);
+        directionalLight.position.set(400, 200, 300);
+        scene.add(directionalLight);
+        // 方向光2
+        var directionalLight2 = new THREE.DirectionalLight(0xffffff, 0.9);
+        directionalLight2.position.set(-400, -200, -300);
+        scene.add(directionalLight2);
+        //环境光
+        var ambient = new THREE.AmbientLight(0xffffff, 1);
+        scene.add(ambient);
+
+        controlller = new THREE.OrbitControls(camera,renderer.domElement)
+        document.body.appendChild(renderer.domElement)
+        window.onresize = onResize
+    }
+
+    function animate(){
+        requestAnimationFrame(animate)
+        renderer.render(scene, camera)
+        controlller.update(clock.getDelta())
+    }
+
+    function onResize() {
+        camera.aspect = window.innerWidth / window.innerHeight
+        camera.updateProjectionMatrix()
+        renderer.setSize(window.innerWidth, window.innerHeight)
+    }
+
+    function setupAttributes(geometry) {
+        //        0, 0, 1,
+        //        0, 1, 0,
+        //        1, 0, 1
+
+        //        0, 1, 0,
+        //        0, 0, 1,
+        //        1, 0, 1
+
+        var vectors = [
+            // new THREE.Vector3(1, 1, 0),
+            // new THREE.Vector3(0, 1, 0),
+            // new THREE.Vector3(0, 0, 1)
+
+            // new THREE.Vector3(0, 0, 1),
+            // new THREE.Vector3(0, 1, 0),
+            // new THREE.Vector3(1, 0, 1)
+
+            new THREE.Vector3(0, 1, 1),
+            new THREE.Vector3(0, 1, 0),
+            new THREE.Vector3(1, 0, 0)
+        ];
+
+        var position = geometry.attributes.position;
+        var centers = new Float32Array(position.count * 3);
+
+        for (var i = 0, l = position.count; i < l; i++) {
+        vectors[i % 3].toArray(centers, i * 3);
+        }
+
+        geometry.addAttribute('center', new THREE.BufferAttribute(centers, 3));
+
+    }
+</script>
+</html>

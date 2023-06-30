@@ -1,0 +1,681 @@
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>模板测试</title>
+
+    <script src="./gl-matrix.js"></script>
+    <script src="../src/webgl_lib/webgl-debug.js"></script>
+    <script src="../src/webgl_lib/webgl-utils.js"></script>
+    <script src="./stats.js"></script>
+
+    <!-- 顶点着色器 -->
+    <script id="shader-vs" type="x-shader/x-vertex">
+        attribute vec3 aVertexPosition;
+        attribute vec2 aTextureCoordinates;
+
+        uniform mat4 uMVMatrix;
+        uniform mat4 uPMatrix;
+
+        varying vec2 vTextureCoordinates;
+
+        void main() {
+            gl_Position = uPMatrix * uMVMatrix * vec4(aVertexPosition, 1.0);
+            vTextureCoordinates = aTextureCoordinates;
+        }
+    </script>
+
+    <!-- 片段着色器 -->
+    <script id="shader-fs" type="x-shader/x-fragment">
+        precision mediump float;
+
+        varying vec2 vTextureCoordinates;
+        uniform sampler2D uSampler;
+
+        void main() {
+            gl_FragColor = texture2D(uSampler, vTextureCoordinates);
+        }
+    </script>
+
+    <!-- 片段着色器，纯绿色渲染 -->
+    <script id="shader-fs-2" type="x-shader/x-fragment">
+        precision mediump float;
+
+        varying vec2 vTextureCoordinates;
+        uniform sampler2D uSampler;
+
+        void main() {
+            gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);
+        }
+    </script>
+
+    <script>
+        var stats = new Stats();
+
+        var gl;
+        var canvas;
+
+        var pwgl = {};
+        pwgl.ongoingImageLoads = [];
+        pwgl.listOfPressedKeys = [];
+
+        function createGLContext(canvas) {
+            var names = ["webgl", "experimental-webgl"];
+            var context = null;
+            for (var i = 0; i < names.length; i++) {
+                try {
+                    context = canvas.getContext(names[i], { stencil: true });
+                } catch (e) { }
+                if (context) {
+                    break;
+                }
+            }
+            if (context) {
+                // 添加动态属性记录画布的大小
+                context.viewportWidth = canvas.width;
+                context.viewportHeight = canvas.height;
+            } else {
+                alert("Failed to create WebGL context!");
+            }
+            return context;
+        }
+
+        function setupShaders() {
+            // 从 DOM 上创建对应的着色器
+            var vertexShader = loadShaderFromDOM("shader-vs");
+            var fragmentShader = loadShaderFromDOM("shader-fs");
+
+            // 创建程序并连接着色器
+            shaderProgram = gl.createProgram();
+            gl.attachShader(shaderProgram, vertexShader);
+            gl.attachShader(shaderProgram, fragmentShader);
+            gl.linkProgram(shaderProgram);
+
+            // 连接失败的检测
+            if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+                alert("Failed to setup shaders");
+            }
+
+            // 使用着色器
+            gl.useProgram(shaderProgram);
+
+            // 获取属性位置
+            pwgl.vertexPositionAttributeLoc = gl.getAttribLocation(shaderProgram, "aVertexPosition");
+            pwgl.vertexTextureAttributeLoc = gl.getAttribLocation(shaderProgram, "aTextureCoordinates");
+            pwgl.uniformMVMatrixLoc_1 = gl.getUniformLocation(shaderProgram, "uMVMatrix");
+            pwgl.uniformProjMatrixLoc_1 = gl.getUniformLocation(shaderProgram, "uPMatrix");
+            pwgl.uniformSamplerLoc_1 = gl.getUniformLocation(shaderProgram, "uSampler");
+
+            // 设定为数组类型的变量数据
+            gl.enableVertexAttribArray(pwgl.vertexPositionAttributeLoc);
+            gl.enableVertexAttribArray(pwgl.vertexTextureAttributeLoc);
+
+            gl.useProgram(null);
+
+            // 正常渲染着色器程序
+            pwgl.program_1 = shaderProgram;
+
+            // 从 DOM 上创建对应的着色器
+            var vertexShader = loadShaderFromDOM("shader-vs");
+            var fragmentShader = loadShaderFromDOM("shader-fs-2");
+
+            // 创建程序并连接着色器
+            shaderProgram = gl.createProgram();
+            gl.attachShader(shaderProgram, vertexShader);
+            gl.attachShader(shaderProgram, fragmentShader);
+            gl.linkProgram(shaderProgram);
+
+            // 连接失败的检测
+            if (!gl.getProgramParameter(shaderProgram, gl.LINK_STATUS)) {
+                alert("Failed to setup shaders");
+            }
+
+            // 使用着色器
+            gl.useProgram(shaderProgram);
+
+            // 获取属性位置
+            pwgl.vertexPositionAttributeLoc = gl.getAttribLocation(shaderProgram, "aVertexPosition");
+            pwgl.vertexTextureAttributeLoc = gl.getAttribLocation(shaderProgram, "aTextureCoordinates");
+            pwgl.uniformMVMatrixLoc_2 = gl.getUniformLocation(shaderProgram, "uMVMatrix");
+            pwgl.uniformProjMatrixLoc_2 = gl.getUniformLocation(shaderProgram, "uPMatrix");
+            pwgl.uniformSamplerLoc_2 = gl.getUniformLocation(shaderProgram, "uSampler");
+
+            // 设定为数组类型的变量数据
+            gl.enableVertexAttribArray(pwgl.vertexPositionAttributeLoc);
+            gl.enableVertexAttribArray(pwgl.vertexTextureAttributeLoc);
+
+            gl.useProgram(null);
+
+            // 纯绿色渲染着色器程序
+            pwgl.program_2 = shaderProgram;
+
+            // 初始化矩阵
+            pwgl.modelViewMatrix = glMatrix.mat4.create();
+            pwgl.projectionMatrix = glMatrix.mat4.create();
+            pwgl.modelViewMatrixStack = [];
+        }
+
+        function loadShaderFromDOM(id) {
+            // 获取 DOM
+            var shaderScript = document.getElementById(id);
+
+            if (!shaderScript) {
+                return null;
+            }
+
+            // 获取着色器代码
+            var shaderSource = "";
+            var currentChild = shaderScript.firstChild;
+            while (currentChild) {
+                if (currentChild.nodeType == 3) { // 3 corresponds to TEXT_NODE
+                    shaderSource += currentChild.textContent;
+                }
+                currentChild = currentChild.nextSibling;
+            }
+
+            // 创建着色器
+            var shader;
+            if (shaderScript.type == "x-shader/x-fragment") {
+                shader = gl.createShader(gl.FRAGMENT_SHADER);
+            } else if (shaderScript.type == "x-shader/x-vertex") {
+                shader = gl.createShader(gl.VERTEX_SHADER);
+            } else {
+                return null;
+            }
+
+            // 编译着色器
+            gl.shaderSource(shader, shaderSource);
+            gl.compileShader(shader);
+
+            // 判断编译是否成功
+            if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+                alert(gl.getShaderInfoLog(shader));
+                return null;
+            }
+            return shader;
+        }
+
+        function setupBuffers() {
+            setupFloorBuffers();
+            setupCubeBuffers();
+        }
+
+        function setupFloorBuffers() {
+            // 顶点数据
+            pwgl.floorVertexPositionBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, pwgl.floorVertexPositionBuffer);
+            var floorVertexPosition = [
+                // Plane in y=0
+                5.0, 0.0, 5.0,      //v0
+                5.0, 0.0, -5.0,     //v1
+                -5.0, 0.0, -5.0,    //v2
+                -5.0, 0.0, 5.0];    //v3
+
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(floorVertexPosition), gl.STATIC_DRAW);
+
+            pwgl.FLOOR_VERTEX_POS_BUF_ITEM_SIZE = 3;
+            pwgl.FLOOR_VERTEX_POS_BUF_NUM_ITEMS = 4;
+
+            // uv 数据
+            pwgl.floorVertexTextureCoordinateBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, pwgl.floorVertexTextureCoordinateBuffer);
+            var floorVertexTextureCoordinates = [
+                2.0, 0.0,
+                2.0, 2.0,
+                0.0, 2.0,
+                0.0, 0.0
+            ];
+
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(floorVertexTextureCoordinates), gl.STATIC_DRAW);
+
+            pwgl.FLOOR_VERTEX_TEX_COORD_BUF_ITEM_SIZE = 2;
+            pwgl.FLOOR_VERTEX_TEX_COORD_BUF_NUM_ITEMS = 4;
+
+            // 索引数据
+            pwgl.floorVertexIndexBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, pwgl.floorVertexIndexBuffer);
+            var floorVertexIndices = [0, 1, 2, 3];
+
+            gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(floorVertexIndices), gl.STATIC_DRAW);
+
+            pwgl.FLOOR_VERTEX_INDEX_BUF_ITEM_SIZE = 1;
+            pwgl.FLOOR_VERTEX_INDEX_BUF_NUM_ITEMS = 4;
+        }
+
+        function setupCubeBuffers() {
+            // 顶点数据
+            pwgl.cubeVertexPositionBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, pwgl.cubeVertexPositionBuffer);
+
+            var cubeVertexPosition = [
+                // Front face
+                1.0, 1.0, 1.0,      //v0
+                -1.0, 1.0, 1.0,     //v1
+                -1.0, -1.0, 1.0,    //v2
+                1.0, -1.0, 1.0,     //v3
+
+                // Back face
+                1.0, 1.0, -1.0,     //v4
+                -1.0, 1.0, -1.0,    //v5
+                -1.0, -1.0, -1.0,   //v6
+                1.0, -1.0, -1.0,    //v7
+
+                // Left face
+                -1.0, 1.0, 1.0,     //v8
+                -1.0, 1.0, -1.0,    //v9
+                -1.0, -1.0, -1.0,   //v10
+                -1.0, -1.0, 1.0,    //v11
+
+                // Right face
+                1.0, 1.0, 1.0,      //12
+                1.0, -1.0, 1.0,     //13
+                1.0, -1.0, -1.0,    //14
+                1.0, 1.0, -1.0,     //15
+
+                // Top face
+                1.0, 1.0, 1.0,      //v16
+                1.0, 1.0, -1.0,     //v17
+                -1.0, 1.0, -1.0,    //v18
+                -1.0, 1.0, 1.0,     //v19
+
+                // Bottom face
+                1.0, -1.0, 1.0,     //v20
+                1.0, -1.0, -1.0,    //v21
+                -1.0, -1.0, -1.0,   //v22
+                -1.0, -1.0, 1.0,    //v23
+            ];
+
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(cubeVertexPosition), gl.STATIC_DRAW);
+
+            pwgl.CUBE_VERTEX_POS_BUF_ITEM_SIZE = 3;
+            pwgl.CUBE_VERTEX_POS_BUF_NUM_ITEMS = 24;
+
+            // uv 数据
+            pwgl.cubeVertexTextureCoordinateBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, pwgl.cubeVertexTextureCoordinateBuffer);
+
+            var textureCoordinates = [
+                //Front face
+                0.0, 0.0, //v0
+                1.0, 0.0, //v1
+                1.0, 1.0, //v2
+                0.0, 1.0, //v3
+
+                // Back face
+                0.0, 1.0, //v4
+                1.0, 1.0, //v5
+                1.0, 0.0, //v6
+                0.0, 0.0, //v7
+
+                // Left face
+                0.0, 1.0, //v8
+                1.0, 1.0, //v9
+                1.0, 0.0, //v10
+                0.0, 0.0, //v11
+
+                // Right face
+                0.0, 1.0, //v12
+                1.0, 1.0, //v13
+                1.0, 0.0, //v14
+                0.0, 0.0, //v15
+
+                // Top face
+                0.0, 1.0, //v16
+                1.0, 1.0, //v17
+                1.0, 0.0, //v18
+                0.0, 0.0, //v19
+
+                // Bottom face
+                0.0, 1.0, //v20
+                1.0, 1.0, //v21
+                1.0, 0.0, //v22
+                0.0, 0.0, //v23
+            ];
+
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(textureCoordinates), gl.STATIC_DRAW);
+
+            pwgl.CUBE_VERTEX_TEX_COORD_BUF_ITEM_SIZE = 2;
+            pwgl.CUBE_VERTEX_TEX_COORD_BUF_NUM_ITEMS = 24;
+
+            // 索引数据
+            pwgl.cubeVertexIndexBuffer = gl.createBuffer();
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, pwgl.cubeVertexIndexBuffer);
+
+            var cubeVertexIndices = [
+                0, 1, 2, 0, 2, 3,       // Front face
+                4, 6, 5, 4, 7, 6,       // Back face
+                8, 9, 10, 8, 10, 11,    // Left face
+                12, 13, 14, 12, 14, 15, // Right face
+                16, 17, 18, 16, 18, 19, // Top face
+                20, 22, 21, 20, 23, 22  // Bottom face
+            ];
+
+            gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(cubeVertexIndices), gl.STATIC_DRAW);
+
+            pwgl.CUBE_VERTEX_INDEX_BUF_ITEM_SIZE = 1;
+            pwgl.CUBE_VERTEX_INDEX_BUF_NUM_ITEMS = 36;
+        }
+
+        function setupTextures() {
+            pwgl.groundTexture = gl.createTexture();
+            loadImageForTexture("./wood_floor_256.jpg", pwgl.groundTexture);
+
+            pwgl.boxTexture = gl.createTexture();
+            loadImageForTexture("./wicker_256.jpg", pwgl.boxTexture);
+        }
+
+        function loadImageForTexture(url, texture) {
+            var image = new Image();
+            image.onload = function () {
+                pwgl.ongoingImageLoads.splice(pwgl.ongoingImageLoads.indexOf(image), 1);
+                textureFinishedLoading(image, texture);
+            };
+            pwgl.ongoingImageLoads.push(image);
+            image.src = url;
+        }
+
+        function textureFinishedLoading(image, texture) {
+            // 指定当前操作的贴图
+            gl.bindTexture(gl.TEXTURE_2D, texture);
+            // Y 轴取反
+            gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+
+            // 创建贴图, 绑定对应的图像并设置数据格式
+            gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+
+            // 生成 MipMap 映射
+            gl.generateMipmap(gl.TEXTURE_2D);
+
+            // 设定参数, 放大滤镜和缩小滤镜的采样方式
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+
+            // 设定参数, x 轴和 y 轴为镜面重复绘制
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.MIRRORED_REPEAT);
+            gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.MIRRORED_REPEAT);
+
+            // 清除当前操作的贴图
+            gl.bindTexture(gl.TEXTURE_2D, null);
+        }
+
+        function draw() {
+
+            stats.begin();
+
+            handlePressedDownKeys();
+
+            gl.viewport(0, 0, gl.viewportWidth, gl.viewportHeight);
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+            // 设置为正交矩阵
+            // glMatrix.mat4.ortho(pwgl.projectionMatrix, -8, 8, -8, 8, 0.1, 100);
+            // 设置为透视矩阵
+            glMatrix.mat4.perspective(pwgl.projectionMatrix, 60 * Math.PI / 180, gl.viewportWidth / gl.viewportHeight, 0.1, 100);
+            // 初始化模型视图矩阵
+            glMatrix.mat4.identity(pwgl.modelViewMatrix);
+            glMatrix.mat4.lookAt(pwgl.modelViewMatrix, [8, 5, -10], [0, 0, 0], [0, 1, 0]);
+
+            gl.useProgram(pwgl.program_1);
+            gl.uniform1i(pwgl.uniformSamplerLoc_1, 0);
+            gl.useProgram(pwgl.program_2);
+            gl.uniform1i(pwgl.uniformSamplerLoc_2, 0);
+
+            // 使用正常渲染着色器
+            gl.useProgram(pwgl.program_1);
+            pwgl.useProgramNum = 1;
+
+            uploadModelViewMatrixToShader();
+            uploadProjectionMatrixToShader();
+            gl.uniform1i(pwgl.uniformSamplerLoc, 0);
+
+            // 绘制地板
+            drawFloor();
+
+            // ----- 模板方法 begin -----
+
+            // 清除模板缓存
+            gl.clear(gl.STENCIL_BUFFER_BIT);
+            // 开启模板测试
+            gl.enable(gl.STENCIL_TEST);
+
+            // 设置模板测试参数
+            gl.stencilFunc(gl.ALWAYS, 1, 1);
+            // 设置模板值操作
+            gl.stencilOp(gl.KEEP, gl.KEEP, gl.REPLACE);
+
+            // ----- 模板方法 end -----
+
+            // 绘制小盒子 1
+            pushModelViewMatrix();
+
+            glMatrix.mat4.translate(pwgl.modelViewMatrix, pwgl.modelViewMatrix, [0, 2.5, 0]);
+            glMatrix.mat4.scale(pwgl.modelViewMatrix, pwgl.modelViewMatrix, [1.5, 1.5, 1.5]);
+            uploadModelViewMatrixToShader();
+            uploadProjectionMatrixToShader();
+            drawCube(pwgl.boxTexture);
+            popModelViewMatrix();
+
+            // 使用纯绿色渲染着色器
+            gl.useProgram(pwgl.program_2);
+            pwgl.useProgramNum = 2;
+
+            // ----- 模板方法 begin -----
+
+            //设置模板测试参数
+            gl.stencilFunc(gl.EQUAL, 1, 1);
+            //设置模板测试后的操作
+            gl.stencilOp(gl.KEEP, gl.KEEP, gl.KEEP);
+
+            // ----- 模板方法 end -----
+
+            // 关闭深度检测
+            gl.disable(gl.DEPTH_TEST);
+
+            // 绘制小盒子 2
+            pushModelViewMatrix();
+            uploadProjectionMatrixToShader();
+
+            pwgl.angle = (1000 / 60) / 2000 * 2 * Math.PI % (2 * Math.PI);
+            pwgl.x = Math.cos(pwgl.angle) * pwgl.circleRadius;
+            pwgl.z = Math.sin(pwgl.angle) * pwgl.circleRadius;
+
+            glMatrix.mat4.translate(pwgl.modelViewMatrix, pwgl.modelViewMatrix, [pwgl.x, pwgl.y, pwgl.z]);
+            glMatrix.mat4.scale(pwgl.modelViewMatrix, pwgl.modelViewMatrix, [1, 1, 1]);
+            uploadModelViewMatrixToShader();
+            drawCube(pwgl.boxTexture);
+            popModelViewMatrix();
+
+            // 开启深度检测
+            gl.enable(gl.DEPTH_TEST);
+
+            // ----- 模板方法 begin -----
+
+            // 关闭模板测试
+            gl.disable(gl.STENCIL_TEST);
+
+            // ----- 模板方法 end -----
+
+            stats.end();
+
+            // 开启动画帧循环
+            // pwgl.requestId = requestAnimFrame(draw, canvas);
+            pwgl.requestId = requestAnimationFrame(draw, canvas);
+        }
+
+        function uploadModelViewMatrixToShader() {
+            if (pwgl.useProgramNum == 1) {
+                gl.uniformMatrix4fv(pwgl.uniformMVMatrixLoc_1, false, pwgl.modelViewMatrix);
+            } else if (pwgl.useProgramNum == 2) {
+                gl.uniformMatrix4fv(pwgl.uniformMVMatrixLoc_2, false, pwgl.modelViewMatrix);
+            }
+        }
+
+        function uploadProjectionMatrixToShader() {
+            if (pwgl.useProgramNum == 1) {
+                gl.uniformMatrix4fv(pwgl.uniformProjMatrixLoc_1, false, pwgl.projectionMatrix);
+            } else if (pwgl.useProgramNum == 2) {
+                gl.uniformMatrix4fv(pwgl.uniformProjMatrixLoc_2, false, pwgl.projectionMatrix);
+            }
+        }
+
+        // 将 modelViewMatrix 矩阵压入堆栈
+        function pushModelViewMatrix() {
+            var copyToPush = glMatrix.mat4.clone(pwgl.modelViewMatrix);
+            pwgl.modelViewMatrixStack.push(copyToPush);
+        }
+
+        // 从矩阵堆栈中取出矩阵并设定为当前的 modelViewMatrix 矩阵
+        function popModelViewMatrix() {
+            if (pwgl.modelViewMatrixStack.length == 0) {
+                throw "Error popModelViewMatrix() - Stack was empty ";
+            }
+            pwgl.modelViewMatrix = pwgl.modelViewMatrixStack.pop();
+        }
+
+        function drawFloor(r, g, b, a) {
+            gl.bindBuffer(gl.ARRAY_BUFFER, pwgl.floorVertexPositionBuffer);
+            gl.vertexAttribPointer(pwgl.vertexPositionAttributeLoc, pwgl.FLOOR_VERTEX_POS_BUF_ITEM_SIZE, gl.FLOAT, false, 0, 0);
+
+            gl.bindBuffer(gl.ARRAY_BUFFER, pwgl.floorVertexTextureCoordinateBuffer);
+            gl.vertexAttribPointer(pwgl.vertexTextureAttributeLoc, pwgl.FLOOR_VERTEX_TEX_COORD_BUF_ITEM_SIZE, gl.FLOAT, false, 0, 0);
+
+            // 激活 0 号纹理单元
+            gl.activeTexture(gl.TEXTURE0);
+            // 指定当前操作的贴图
+            gl.bindTexture(gl.TEXTURE_2D, pwgl.groundTexture);
+
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, pwgl.floorVertexIndexBuffer);
+            gl.drawElements(gl.TRIANGLE_FAN, pwgl.FLOOR_VERTEX_INDEX_BUF_NUM_ITEMS, gl.UNSIGNED_SHORT, 0);
+        }
+
+        function drawCube(texture) {
+            gl.bindBuffer(gl.ARRAY_BUFFER, pwgl.cubeVertexPositionBuffer);
+            gl.vertexAttribPointer(pwgl.vertexPositionAttributeLoc, pwgl.CUBE_VERTEX_POS_BUF_ITEM_SIZE, gl.FLOAT, false, 0, 0);
+
+            gl.bindBuffer(gl.ARRAY_BUFFER, pwgl.cubeVertexTextureCoordinateBuffer);
+            gl.vertexAttribPointer(pwgl.vertexTextureAttributeLoc, pwgl.CUBE_VERTEX_TEX_COORD_BUF_ITEM_SIZE, gl.FLOAT, false, 0, 0);
+
+            // 激活 0 号纹理单元
+            gl.activeTexture(gl.TEXTURE0);
+            // 指定当前操作的贴图
+            gl.bindTexture(gl.TEXTURE_2D, texture);
+
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, pwgl.cubeVertexIndexBuffer);
+
+            gl.drawElements(gl.TRIANGLES, pwgl.CUBE_VERTEX_INDEX_BUF_NUM_ITEMS, gl.UNSIGNED_SHORT, 0);
+        }
+
+        function handleContextLost(event) {
+            event.preventDefault();
+
+            // 取消动画帧循环
+            // cancelRequestAnimFrame(pwgl.requestId);
+            cancelAnimationFrame(pwgl.requestId);
+
+            // 取消所有的加载事件
+            for (var i = 0; i < pwgl.ongoingImageLoads.length; i++) {
+                pwgl.ongoingImageLoads[i].onload = undefined;
+            }
+            // 清除图片
+            pwgl.ongoingImageLoads = [];
+        }
+
+        function handleContextRestored(event) {
+            setupShaders();
+            setupBuffers();
+            setupTextures();
+            gl.clearColor(1.0, 1.0, 1.0, 1.0);
+            gl.enable(gl.DEPTH_TEST);
+            // 开启动画帧循环
+            // pwgl.requestId = requestAnimFrame(draw, canvas);
+            pwgl.requestId = requestAnimationFrame(draw, canvas);
+        }
+
+        function handleKeyDown(event) {
+            pwgl.listOfPressedKeys[event.keyCode] = true;
+
+            // console.log("keydown - keyCode=%d, charCode=%d", event.keyCode, event.charCode);
+        }
+
+        function handleKeyUp(event) {
+            pwgl.listOfPressedKeys[event.keyCode] = false;
+
+            // console.log("keyup - keyCode=%d, charCode=%d", event.keyCode, event.charCode);
+        }
+
+        function handleKeyPress(event) {
+            // console.log("keypress - keyCode=%d, charCode=%d", event.keyCode, event.charCode);
+        }
+
+        function handlePressedDownKeys() {
+            if (pwgl.listOfPressedKeys[38]) {
+                pwgl.circleRadius += 0.1;
+            }
+            if (pwgl.listOfPressedKeys[40]) {
+                pwgl.circleRadius -= 0.1;
+                if (pwgl.circleRadius < 0) {
+                    pwgl.circleRadius = 0;
+                }
+            }
+        }
+
+        function handleMouseMove(event) {
+            // console.log("handleMouseMove, clientX=%d, clientY=%d", event.clientX, event.clientY);
+        }
+
+        function handleMouseDown(event) {
+            // console.log("handleDown, clientX=%d, clientY=%d, button=%d", event.clientX, event.clientY, event.button);
+        }
+
+        function handleMouseUp(event) {
+            // console.log("handleMouseUp, clientX=%d, clientY=%d, button=%d", event.clientX, event.clientY, event.button);
+        }
+
+        function startup() {
+            stats.showPanel(0); // 0: fps, 1: ms, 2: mb, 3+: custom
+            document.body.appendChild(stats.dom);
+
+            canvas = document.getElementById("myGLCanvas");
+            // canvas = WebGLDebugUtils.makeLostContextSimulatingCanvas(canvas);
+            canvas.addEventListener('webglcontextlost', handleContextLost, false);
+            canvas.addEventListener('webglcontextrestored', handleContextRestored, false);
+
+            document.addEventListener('keydown', handleKeyDown, false);
+            document.addEventListener('keyup', handleKeyUp, false);
+            document.addEventListener('keypress', handleKeyPress, false);
+            document.addEventListener('mousemove', handleMouseMove, false);
+            document.addEventListener('mousedown', handleMouseDown, false);
+            document.addEventListener('mouseup', handleMouseUp, false);
+
+            pwgl.x = 0.0;
+            pwgl.y = 2.7;
+            pwgl.z = 0.0;
+            pwgl.circleRadius = 2.0;
+            pwgl.angle = 0;
+
+            // 鼠标点击模拟上下文丢失
+            // window.addEventListener('mousedown', function() {
+            //   canvas.loseContext();
+            // });
+
+            gl = createGLContext(canvas);
+            setupShaders();
+            setupBuffers();
+            setupTextures();
+            gl.clearColor(1.0, 1.0, 1.0, 1.0);
+            gl.enable(gl.DEPTH_TEST);
+
+            draw();
+        }
+    </script>
+</head>
+
+<body onload="startup();">
+    <canvas id="myGLCanvas" width="500" height="500"></canvas>
+</body>
+
+</html>

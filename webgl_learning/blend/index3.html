@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <script src="../src/webgl_lib/webgl-utils.js"></script>
+    <script src="../src/webgl_lib/webgl-debug.js"></script>
+    <script src="../src/webgl_lib/cuon-utils.js"></script>
+    <script src="../src/webgl_lib/cuon-matrix.js"></script>
+    <style>
+        #canvas{
+            display: block;
+            margin: 0 auto;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas" width="800px" height="600px"></canvas>
+</body>
+<script>
+    var canvas = document.getElementById('canvas')
+    canvas.width = 800
+    canvas.height = 600
+    
+    // 获取 webgl 绘图上下文
+    var gl = getWebGLContext(canvas)
+    if(!gl) { 
+        console.log('not support')
+    }
+
+    // 获取着色器片段
+    var vertexShader = getTriangleVSHADER()
+    var fragmentShader = getTriangleFSHADER()
+
+    // 初始化着色器
+    if(!initShaders(gl, vertexShader, fragmentShader)){   // initShaders => true : 创建成功, false : 创建失败
+        console.log('failed initShader')
+    }
+
+    gl.clearColor(1.0, 1.0, 1.0, 1.0) // 指定清空 canvas 的颜色 (背景色)
+    gl.clear(gl.COLOR_BUFFER_BIT) // 清空 canvas 
+
+    gl.enable(gl.BLEND) // 开启混合
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA) // 指定混合函数
+
+    let vertices = new Float32Array([
+        0.5, 0.5, -0.4,     // red triangle
+        -0.5, 0.5, -0.4,    
+        0.0, -0.5, -0.4,    
+    ])
+
+    let vertices2 = new Float32Array([
+        0.0, 0.5, -0.6,      // green triangle
+        -0.5, -0.5, -0.6,   
+        0.5, -0.5, -0.6,    
+    ])
+
+    let vertices3 = new Float32Array([
+        0.0, 0.5, 0.0,       // blue triangle
+        -0.5, -0.5, 0.0,    
+        0.5, -0.5, 0.0,     
+    ])
+
+    let viewMatrix = new Matrix4() // 构建视图矩阵
+    viewMatrix.setLookAt(
+        1, 1, 2,    // eye point
+        0, 0, 0,    // lookAt
+        0, 1, 0     // up
+    )
+    
+    let projMatrix =  new Matrix4()
+    projMatrix.setPerspective(45, 1, 0.1, 10)
+
+    let modelMatrix = new Matrix4()
+
+    gl.enable(gl.DEPTH_TEST)
+    gl.clear(gl.DEPTH_BUFFER_BIT)
+    
+    drawTriangle(vertices2, 0.0, 1.0, 0.0, 1.0) // green - draw then
+
+    gl.depthMask(false);
+
+    drawTriangle(vertices3, 0.0, 0.0, 1.0, 0.5) // blue - draw first
+    drawTriangle(vertices, 1.0, 0.0, 0.0, 0.5) // red - draw last
+
+    function drawTriangle(vertices, r, g, b, a) {
+        let vertexBuffer = gl.createBuffer()
+        if(!vertexBuffer) {
+            console.log("failed create vertex buffer")
+            return
+        }
+
+        let shaderAttriPos = gl.getAttribLocation(gl.program, "aPos")
+        if(shaderAttriPos < 0) {
+            console.log("failed get pos attribute location")
+            gl.deleteBuffer(vertexBuffer)
+            return
+        }
+        
+        gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer) // 将缓冲区对象绑定到目标
+        gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW) // 向缓冲区对象中写入数据
+        gl.vertexAttribPointer(shaderAttriPos, 3, gl.FLOAT, false, 0, 0) // 将缓冲区对象分配给 shaderAttriPos 变量
+        gl.enableVertexAttribArray(shaderAttriPos) // 开启 shaderAttriPos 变量
+
+        let shaderViewMatrix = gl.getUniformLocation(gl.program, "viewMatrix")
+        if(!shaderViewMatrix) {
+            console.log("failed get model uniform location")
+            return
+        }
+        gl.uniformMatrix4fv(shaderViewMatrix, false, viewMatrix.elements)
+
+        
+        let shaderModelMatrix = gl.getUniformLocation(gl.program, "modelMatrix")
+        if(!shaderModelMatrix) {
+            console.log("failed get model uniform location")
+            return
+        }
+        gl.uniformMatrix4fv(shaderModelMatrix, false, modelMatrix.elements)
+
+        let shaderProjMatrix = gl.getUniformLocation(gl.program, "projMatrix")
+        if(!shaderProjMatrix) {
+            console.log("failed get model uniform location")
+            return
+        }
+        gl.uniformMatrix4fv(shaderProjMatrix, false, projMatrix.elements)
+
+        var uColor = gl.getUniformLocation(gl.program, "uColor")
+        gl.uniform4f(uColor, r, g, b, a)
+
+        gl.drawArrays(gl.TRIANGLES, 0, 3)
+
+        gl.deleteBuffer(vertexBuffer) // 删除缓冲区对象
+    }
+
+    function getTriangleVSHADER(){
+        return `
+            attribute vec3 aPos;
+            uniform mat4 modelMatrix;
+            uniform mat4 viewMatrix;
+            uniform mat4 projMatrix;
+            void main(){
+                gl_Position = projMatrix * viewMatrix * modelMatrix * vec4(aPos, 1.0);
+            }
+        `
+    }
+
+    function getTriangleFSHADER(){
+        return `
+            precision mediump float;
+            uniform vec4 uColor;
+            void main(){
+                gl_FragColor = uColor;
+            }
+        `
+    }
+  
+</script>
+</html>

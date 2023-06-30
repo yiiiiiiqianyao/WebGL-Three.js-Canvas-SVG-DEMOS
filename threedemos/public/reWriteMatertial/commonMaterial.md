@@ -1,0 +1,9 @@
+THREE.ShaderChunk
+    MeshBasicMaterial
+    MeshLambertMaterial
+    MeshPhongMaterial
+    MeshNormalMaterial
+        normal_vert
+        normal_frag
+    MeshPhysicalMaterial
+    MeshStandardMaterial

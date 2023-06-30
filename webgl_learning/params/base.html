@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Document</title>
+    <script src="../src/webgl_lib/webgl-utils.js"></script>
+    <script src="../src/webgl_lib/webgl-debug.js"></script>
+    <script src="../src/webgl_lib/cuon-utils.js"></script>
+    <script src="../src/webgl_lib/cuon-matrix.js"></script>
+    <script src="../src/utils.js"></script>
+    <style>
+        #canvas{
+            display: block;
+            margin: 0 auto;
+            border: 1px solid;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas" width="800px" height="600px"></canvas>
+</body>
+<script>
+    var canvas = document.getElementById('canvas')
+    canvas.width = 800
+    canvas.height = 600
+    
+    // 获取 webgl 绘图上下文
+    var gl = getWebGLContext(canvas)
+    if(!gl) { 
+        console.log('not support')
+    }
+
+
+    var program1 = createProgram(gl, getVSHADER1(), getFSHADER1()); // 根据说着色器代码构建程序对象
+    var program2 = createProgram(gl, getVSHADER2(), getFSHADER2())
+
+    gl.clearColor(0.0, 1.0, 1.0, 1.0)
+    gl.clear(gl.COLOR_BUFFER_BIT)
+
+    gl.useProgram(program1)
+    var a_Position = gl.getAttribLocation(program1, "a_Position") 
+    var vertices = new Float32Array([
+        0.0,  0.5,
+        -0.5, -0.5,
+        0.5,  -0.5
+    ]) // 点的坐标数组 类型化数组
+    var vertexBuffer = gl.createBuffer()
+    gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer)
+    gl.bufferData(gl.ARRAY_BUFFER, vertices,gl.STATIC_DRAW)
+    gl.vertexAttribPointer(a_Position, 2, gl.FLOAT, false, 0, 0)
+    gl.enableVertexAttribArray(a_Position)
+
+    gl.drawArrays(gl.POINTS, 0, 3)
+
+    gl.useProgram(program2)
+    
+    // bindAttriBuffer('a_rectPosition', rectVertices, 2, program2)
+    // bindAttriBuffer('a_TextCoord', rectUvs, 2, program2)
+    // bindTexture0("./girl.jpg", 'u_Sampler', program2)
+
+    gl.drawArrays(gl.POINTS, 0, 1)
+    // gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    
+    // animate()
+    // function animate() {
+    //     gl.clear(gl.COLOR_BUFFER_BIT)
+
+    //     gl.useProgram(program1)
+    //     gl.drawArrays(gl.POINTS, 0, 3)
+
+    //     gl.useProgram(program2)
+    //     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+    //     requestAnimationFrame(animate)
+    // }
+
+    function getVSHADER1(){
+        return `
+            attribute vec4 a_Position;
+            void main(){
+                gl_Position = a_Position;
+                gl_PointSize = 10.0;    // 该变量只有在绘制点的时候才会起作用
+            }
+        `
+    }
+    function getFSHADER1(){
+        return `
+            precision mediump float;
+            void main(){
+                gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+            }
+        `
+    }
+
+    function getVSHADER2(){
+        return `
+            // attribute vec4 a_rectPosition;
+            // attribute vec2 a_TextCoord;
+            // varying vec2 v_TexCoord;
+
+            void main(){
+                // gl_Position = a_rectPosition;
+                // v_TexCoord = a_TextCoord;
+                gl_Position = vec4(0.2, 0.0, 0.0, 1.0);
+                gl_PointSize = 20.0;
+            }
+        `
+    }
+    function getFSHADER2(){
+        return `
+            precision mediump float;
+            // varying vec2 v_TexCoord;
+            // uniform sampler2D u_Sampler;
+            void main(){
+                // gl_FragColor = texture2D(u_Sampler, v_TexCoord);
+                gl_FragColor = vec4(1.0, 1.0, 0.0, 1.0);
+            }
+        `
+    }
+
+    function bindAttriBuffer(attrName, vertices, count, program) {
+        let vertexBuffer = gl.createBuffer()
+        if(!vertexBuffer) {
+            console.log("failed create vertex buffer")
+        }
+        gl.bindBuffer(gl.ARRAY_BUFFER, vertexBuffer) // 将缓冲区对象绑定到目标
+        gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW) // 向缓冲区对象中写入数据
+
+        let attr = gl.getAttribLocation(program, attrName);
+        gl.vertexAttribPointer(attr, count, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(attr);
+    }
+
+
+    function handleLoadedTexture(texture) {
+        gl.bindTexture(gl.TEXTURE_2D, texture) // 绑定当前的纹理单元（设置纹理单元的参数是针对每张不同纹理， 而不是同时作用与所有的纹理单元）
+        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, 1) // 对纹理图像进行 Y 轴反转 - 点精灵不需要翻转
+
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); 
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, texture.image);
+
+    }
+
+    function initTexture(imageFile) {
+        let texture = gl.createTexture()
+        texture.image = new Image()
+        texture.image.src = imageFile
+        texture.image.onload = () => {
+            handleLoadedTexture(texture)
+        }
+        return texture
+    }
+
+    function bindTexture0(textureName, samplerName, program) {
+        var texture = initTexture(textureName)
+        gl.activeTexture(gl.TEXTURE0); // 激活0号纹理单元
+        gl.bindTexture(gl.TEXTURE_2D, texture); // 绑定纹理单元
+
+        var u_Sampler = gl.getUniformLocation(program, samplerName);
+        gl.uniform1i(u_Sampler, 0);
+    }
+
+
+   
+</script>
+</html>

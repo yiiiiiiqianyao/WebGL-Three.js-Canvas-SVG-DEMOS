@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        .bar {
+            height: 0;
+            width: 4px;
+            border: 1px solid #f00;
+            border-radius: 2px;
+            margin: 1px;
+            float: left;
+            transition: height 0.1s;
+            background: linear-gradient(to bottom, #ff0000 0%,#ffff007f 100%);
+        }
+    </style>
+</head>
+<body>
+    <div id="wrap" style="height: 0px;border: 1px solid #f00; position: absolute;top: 200px;">
+    </div>
+</body>
+<script>
+    const wrap = document.getElementById('wrap');
+    for(let i = 0;i < 80;i++) {
+        const div = document.createElement('div');
+        div.className = 'bar';
+        wrap.appendChild(div);
+    }
+    const bars = document.querySelectorAll('.bar');
+    bars.forEach(bar => {
+        const randomHeight = Math.random() * 40 + 40;
+        bar.randomHeight = randomHeight;
+        bar.style.height = randomHeight + 'px';
+    })
+
+    let t = 0;
+    function loop() {
+        t += 0.1;
+        bars.forEach(bar => {
+            const randomHeight = bar.randomHeight;
+            const height = randomHeight + Math.sin(t + randomHeight) * randomHeight;
+            bar.style.height = height + 'px';
+            bar.style.transform = `translateY(${-height/2}px)`;
+        })
+        requestAnimationFrame(loop);
+    }
+    loop()
+
+
+   
+
+</script>
+</html>

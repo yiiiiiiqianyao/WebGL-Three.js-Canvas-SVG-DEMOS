@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <link rel="shortcut icon" href="../favicon.ico" />
+    <link rel="bookmark" href="../favicon.ico" />
+    <title>Document</title>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+      }
+    </style>
+    <script src="../src/three.js"></script>
+    <script src="../src/controller/OrbitControls.js"></script>
+  </head>
+  <body></body>
+ 
+  <script id="post-vert" type="x-shader/x-vertex">
+    varying vec4 v_PositionFromLight;
+    uniform mat4 u_MvpMatrixFromLight;
+    
+    void main() {
+      v_PositionFromLight = vec4(position, 1.0) * u_MvpMatrixFromLight;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }
+  </script>
+  <script id="post-frag" type="x-shader/x-fragment">
+    uniform sampler2D tDepth;
+    varying vec4 v_PositionFromLight;
+    void main() {
+      vec3 shadowCoord = (v_PositionFromLight.xyz/v_PositionFromLight.w)/2.0 + 0.5;
+      vec4 rgbaDepth = texture2D(tDepth, shadowCoord.xy);
+      float depth = rgbaDepth.x;
+      float visibility = (shadowCoord.z > depth) ? 0.5 : 1.0;
+      
+      gl_FragColor = vec4(1.0, 0.0, 0.0,visibility);
+    }
+  </script>
+
+  <script>
+    var scene, camera, renderer, clock, controlller;
+    var shadowMaterial, textureShader, textureShader2
+
+    var target, target2;
+    var postScene, postCamera
+
+    init();
+    animate();
+
+    // - Functions -
+    function init() {
+      scene = new THREE.Scene();
+      clock = new THREE.Clock();
+      camera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 0.01, 50 );
+      camera.position.set(20, 0, 20);
+
+      virtualCamera = new THREE.PerspectiveCamera( 70, window.innerWidth / window.innerHeight, 0.01, 50 );
+      virtualCamera.position.z = 30;
+
+      renderer = new THREE.WebGLRenderer({
+        antialias: true, // 开启抗锯齿处理
+        alpha: true,
+      });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+
+      target = new THREE.WebGLRenderTarget( window.innerWidth, window.innerHeight );
+      target.texture.format = THREE.RGBFormat;
+      target.texture.minFilter = THREE.NearestFilter;
+      target.texture.magFilter = THREE.NearestFilter;
+      target.texture.generateMipmaps = false;
+      target.stencilBuffer = false;
+      target.depthBuffer = true;
+      target.depthTexture = new THREE.DepthTexture();
+      target.depthTexture.type = THREE.UnsignedShortType;
+
+    
+      scene = new THREE.Scene();
+
+      var geometry2 = new THREE.PlaneBufferGeometry( 5, 5 );
+      var material2 = new THREE.MeshBasicMaterial( {color: 0x00ff00} );
+      var plane2 = new THREE.Mesh( geometry2, material2 );
+      plane2.position.z = 10
+      scene.add( plane2 );
+
+      renderer.autoClear = false
+      renderer.setRenderTarget( target );
+      renderer.render(scene, virtualCamera)
+      renderer.autoClear = true
+      renderer.setRenderTarget( null );
+      
+      var geometry1 = new THREE.PlaneBufferGeometry( 10, 10 );
+      var postMaterial = new THREE.ShaderMaterial( {
+        vertexShader: document.querySelector( '#post-vert' ).textContent.trim(),
+        fragmentShader: document.querySelector( '#post-frag' ).textContent.trim(),
+        uniforms: {
+          tDepth: { value: target.depthTexture },
+          u_MvpMatrixFromLight: { value: virtualCamera.matrix.clone() }
+        }
+      } );
+      var plane1 = new THREE.Mesh( geometry1, postMaterial );
+      scene.add( plane1 );
+
+
+      // var postPlane = new THREE.PlaneBufferGeometry( 2, 2 );
+      // var postQuad = new THREE.Mesh( postPlane, postMaterial );
+      // postScene = new THREE.Scene();
+      // postScene.add( postQuad );
+      // plane1.material = postMaterial
+      
+      controlller = new THREE.OrbitControls(camera, renderer.domElement);
+      document.body.appendChild(renderer.domElement);
+      window.onresize = onResize;
+    }
+
+    function animate() {
+        requestAnimationFrame(animate);
+        renderer.render(scene, camera);
+        // renderer.render(scene, postCamera);
+      
+        
+      controlller.update(clock.getDelta());
+    }
+
+    function onResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+  </script>
+</html>

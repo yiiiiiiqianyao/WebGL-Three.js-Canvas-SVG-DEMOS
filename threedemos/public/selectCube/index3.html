@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <link rel="shortcut icon" href="../favicon.ico" />
+    <link rel="bookmark" href="../favicon.ico" />
+    <title>Document</title>
+    <style>
+      body {
+        margin: 0;
+        overflow: hidden;
+      }
+    </style>
+    <script src="../src/three.js"></script>
+    <script src="../src/controller/OrbitControls.js"></script>
+    <script src="../src/libs/stats.min.js"></script>
+  </head>
+  <body></body>
+  <script type="x-shader/x-vertex" id="vertexShader">
+    varying vec2 vUv;
+    void main() {
+        vUv = uv;
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    }</script>
+  <script type="x-shader/x-vertex" id="fragmentShader">
+    varying vec2 vUv;
+    uniform vec3 color;
+    void main() {
+      gl_FragColor = vec4(color, vUv.x);
+    }
+  </script>
+ 
+  <script type="module">
+    var scene, camera, renderer, clock, controller, stats
+    var projectionMatrix, viewMatrix, modelMatrix
+    var viewPortWidth = window.innerWidth, viewPortHeight = window.innerHeight, mvp, mvpInverse
+    var triangles
+
+    init();
+    animate();
+
+    // - Functions -
+    function init() {
+      scene = new THREE.Scene();
+      clock = new THREE.Clock();
+      camera = new THREE.PerspectiveCamera(
+        45,
+        window.innerWidth / window.innerHeight,
+        0.2,
+        2000
+      );
+      camera.position.set(10, 10, 10)
+      camera.lookAt(scene.position)
+      scene.add(camera)
+
+      projectionMatrix = camera.projectionMatrix
+      viewMatrix = camera.matrixWorldInverse
+      modelMatrix = new THREE.Matrix4()
+      mvp = projectionMatrix.clone().multiply(viewMatrix.clone().multiply(modelMatrix.clone()))
+      mvpInverse = new THREE.Matrix4().getInverse(mvp)
+      
+      renderer = new THREE.WebGLRenderer({
+        antialias: true, // 开启抗锯齿处理
+        alpha: true,
+      });
+      renderer.setClearColor(0xbfd1e5) // set sky color
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(window.devicePixelRatio)
+
+      var directionalLight = new THREE.DirectionalLight(0xffffff, 0.9);
+      directionalLight.position.set(400, 200, 300);
+      scene.add(directionalLight);
+ 
+      var ambient = new THREE.AmbientLight(0x404040, 0.6);
+      scene.add(ambient);
+
+      stats = new Stats()
+      document.body.appendChild( stats.dom );
+
+      // --------
+
+      var axisHelper = new THREE.AxesHelper(10);
+      scene.add(axisHelper);
+
+      var geometry = new THREE.SphereGeometry( 5, 16, 16 );
+      // const geometry = new THREE.PlaneGeometry( 5, 5 );
+      var material = new THREE.MeshPhongMaterial( {color: 0x00ff00} );
+      var cube = new THREE.Mesh( geometry, material );
+      cube.position.set(0, 0, 0)
+      scene.add( cube );
+     
+    
+      let { faces, vertices } = cube.geometry
+      triangles = []
+      faces.forEach(f => {
+        let { a, b, c } = f
+        triangles.push([vertices[a], vertices[b], vertices[c]])
+      })
+   
+      window.onclick = handlClick
+      // --------
+
+      controller = new THREE.OrbitControls(camera, renderer.domElement);
+      document.body.appendChild(renderer.domElement);
+      window.onresize = onResize;
+      renderer.render(scene, camera);
+    }
+
+    function handlClick({ clientX, clientY }) {
+     
+      let nearPoint = screenCoordToWorldCoord(clientX, clientY, 0)
+      let direction = nearPoint.sub(camera.position.clone()).normalize()
+      
+      let selected = testRayCrossTriangles(direction)
+      console.log(selected)
+      
+    }
+
+    function testRayCrossTriangles(direction) {
+      for(let i = 0; i < triangles.length;i++) {
+        let [v1, v2, v3] = triangles[i]
+        let origin = camera.position.clone()
+        if(testRayCrossTriangle(origin, direction.clone(), v1.clone(), v2.clone(), v3.clone())) {
+          return true
+        }
+      }
+      return false
+    }
+
+    function testRayCrossTriangle(nearPoint, ray, v1, v2, v3) {
+      // plane v
+      let v1v2 = v2.clone().sub(v1.clone()).normalize()
+      let v1v3 = v3.clone().sub(v1.clone()).normalize()
+      let n = v1v2.clone().cross(v1v3.clone()).normalize() // 垂线
+
+      let point = calRayPoint(nearPoint.clone(), v1.clone(), n.clone(), ray.clone())
+      return isPointInTriangle(point.clone(), v1.clone(), v2.clone(), v3.clone())
+    }
+
+    function calRayPoint(nearPoint, v1, N, Ray) { // 计算射线和平面的交点
+      // L = p0 + t*D         // p0 是射线起点、t 是射线方向的步长、D 是射线向量
+      // (p1 - p2)·N = 0      // p1 是射线上的一点、p2 是平面上的一点、N 是平面法线
+      // (p0 + t*D - p2)·N = 0
+      // t = (p2·N - p0·N)/D·N  // N 不能约去
+
+      let d = (v1.clone().dot(N.clone()) - nearPoint.clone().dot(N.clone())) / (Ray.clone().dot(N.clone()))
+      return nearPoint.clone().add(Ray.clone().multiplyScalar(d))
+    }
+
+    function isPointInTriangle(p, v1, v2, v3) { // 判断相同平面上点 p 是否在点 v1、v2、v3 所构成的三角形内部
+      let v1p = p.clone().sub(v1.clone())
+      let v1v2 = v2.clone().sub(v1.clone())
+      let c1 = v1p.clone().cross(v1v2.clone()).normalize()
+
+      let v2p = p.clone().sub(v2.clone())
+      let v2v3 = v3.clone().sub(v2.clone())
+      let c2 = v2p.clone().cross(v2v3.clone()).normalize()
+
+      let v3p = p.clone().clone().sub(v3.clone())
+      let v3v1 = v1.clone().sub(v3.clone())
+      let c3 = v3p.clone().cross(v3v1.clone()).normalize()
+      
+      let s1 = Math.sign(c1.clone().dot(c2.clone()))
+      let s2 = Math.sign(c1.clone().dot(c3.clone()))
+      let s3 = Math.sign(c2.clone().dot(c3.clone()))
+      
+      return s1 == s2 && s2 == s3
+    }
+
+    // 屏幕坐标转世界坐标
+    function sTw(screenPointX, screenPoinY) {
+      // range to [-1, 1]
+      let pX = (screenPointX / viewPortWidth) * 2 - 1;
+      let pY = - (screenPoinY / viewPortHeight) * 2 + 1;
+      
+      let p = new THREE.Vector3(pX, pY, -1).unproject(camera)
+      return  new THREE.Vector2(p.x,p.y);
+    }
+
+    // 屏幕顶点到世界顶点
+    function screenCoordToWorldCoord(x, y, z) {
+      // viewport to range[0, 1]
+      let v0 = x/viewPortWidth
+      let v1 = (viewPortHeight - y)/viewPortHeight
+      let v2 = z
+
+      // map to NDC
+      v0 = v0 * 2.0 - 1.0
+      v1 = v1 * 2.0 - 1.0
+
+      // NDC to World
+      let screenVector = new THREE.Vector3(v0, v1, v2)
+      return screenVector.applyMatrix4( camera.projectionMatrixInverse ).applyMatrix4( camera.matrixWorld )
+    }
+
+    // 世界坐标到屏幕坐标
+    function worldCoordToScreenCoord(worldVector) {
+      // to NDC & to Range [0, 1]
+      let NDCVector = (worldVector.applyMatrix4(mvp)).multiplyScalar (0.5).addScalar(0.5)
+      // to ViewPort
+      let screenVector2 = [
+        NDCVector.x * viewPortWidth,
+        viewPortHeight * (1 - NDCVector.y)
+      ]
+      return screenVector2
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      renderer.render(scene, camera);
+      stats.update();
+      controller.update();
+    }
+
+    function onResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+  </script>
+</html>
