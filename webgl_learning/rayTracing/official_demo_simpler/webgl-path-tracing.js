@@ -1,41 +1,10 @@
 
-////////////////////////////////////////////////////////////////////////////////
-// shader strings
-////////////////////////////////////////////////////////////////////////////////
-
-// vertex shader for drawing a textured quad
-var renderVertexSource =
-' attribute vec3 vertex;' +
-' varying vec2 texCoord;' +
-' void main() {' +
-'   texCoord = vertex.xy * 0.5 + 0.5;' +
-'   gl_Position = vec4(vertex, 1.0);' +
-' }';
-
-// fragment shader for drawing a textured quad
-var renderFragmentSource =
-' precision highp float;' +
-' varying vec2 texCoord;' +
-' uniform sampler2D texture;' +
-' void main() {' +
-'   gl_FragColor = texture2D(texture, texCoord);' +
-' }';
-
 // constants for the shaders
 var bounces = '5';
 var epsilon = '0.0001';
 var infinity = '10000.0';
 
-// vertex shader, interpolate ray per-pixel
-var tracerVertexSource =
-' attribute vec3 vertex;' +
-' uniform vec3 eye, ray00, ray01, ray10, ray11;' +
-' varying vec3 initialRay;' +
-' void main() {' +
-'   vec2 percent = vertex.xy * 0.5 + 0.5;' +
-'   initialRay = mix(mix(ray00, ray01, percent.y), mix(ray10, ray11, percent.y), percent.x);' +
-'   gl_Position = vec4(vertex, 1.0);' +
-' }';
+
 
 // start of fragment shader
 var tracerFragmentSourceHeader =
@@ -201,11 +170,11 @@ function makeCalculateColor(objects) {
 '     vec3 normal;' +
 
       // calculate the normal (and change wall color)
-'     if(t == tRoom.y) {' +
+'     if(t  ==  tRoom.y) {' +
 '       normal = -normalForCube(hit, roomCubeMin, roomCubeMax);' +
         [yellowBlueCornellBox, redGreenCornellBox][0] +
         newDiffuseRay +
-'     } else if(t == ' + infinity + ') {' +
+'     } else if(t  ==  ' + infinity + ') {' +
 '       break;' +
 '     } else {' +
 '       if(false) ;' + // hack to discard the first 'else' in 'else if'
@@ -272,7 +241,7 @@ function setUniforms(program, uniforms) {
   for(var name in uniforms) {
     var value = uniforms[name];
     var location = gl.getUniformLocation(program, name);
-    if(location == null) continue;
+    if(location  ==  null) continue;
     if(value instanceof Vector) {
       gl.uniform3fv(location, new Float32Array([value.elements[0], value.elements[1], value.elements[2]]));
     } else if(value instanceof Matrix) {
@@ -388,7 +357,7 @@ Sphere.prototype.getMinimumIntersectCode = function() {
 
 Sphere.prototype.getNormalCalculationCode = function() {
   return '' +
-' else if(t == ' + this.intersectStr + ') normal = normalForSphere(hit, ' + this.centerStr + ', ' + this.radiusStr + ');';
+' else if(t  ==  ' + this.intersectStr + ') normal = normalForSphere(hit, ' + this.centerStr + ', ' + this.radiusStr + ');';
 };
 
 Sphere.prototype.setUniforms = function(renderer) {
@@ -451,19 +420,15 @@ Light.prototype.intersect = function(origin, ray) {
   return Number.MAX_VALUE;
 };
 
-////////////////////////////////////////////////////////////////////////////////
-// class PathTracer
-////////////////////////////////////////////////////////////////////////////////
-
 function PathTracer() {
+  
+  // create vertex buffer
   var vertices = [
     -1, -1,
     -1, +1,
     +1, -1,
     +1, +1
   ];
-
-  // create vertex buffer
   this.vertexBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vertices), gl.STATIC_DRAW);
@@ -471,7 +436,7 @@ function PathTracer() {
   // create framebuffer
   this.framebuffer = gl.createFramebuffer();
 
-  // create textures
+  // create textures => two textures
   var type = gl.getExtension('OES_texture_float') ? gl.FLOAT : gl.UNSIGNED_BYTE;
   this.textures = [];
   for(var i = 0; i < 2; i++) {
@@ -484,6 +449,22 @@ function PathTracer() {
   gl.bindTexture(gl.TEXTURE_2D, null);
 
   // create render shader
+  const renderVertexSource = `
+  attribute vec3 vertex;
+  varying vec2 texCoord;
+  void main() {
+    texCoord = vertex.xy * 0.5 + 0.5;
+    gl_Position = vec4(vertex, 1.0);
+  }
+  `
+  const renderFragmentSource = `
+  precision highp float;
+  varying vec2 texCoord;
+  uniform sampler2D texture;
+  void main() {
+    gl_FragColor = texture2D(texture, texCoord);
+  }
+  `
   this.renderProgram = compileShader(renderVertexSource, renderFragmentSource);
   this.renderVertexAttribute = gl.getAttribLocation(this.renderProgram, 'vertex');
   gl.enableVertexAttribArray(this.renderVertexAttribute);
@@ -498,12 +479,166 @@ PathTracer.prototype.setObjects = function(objects) {
   this.uniforms = {};
   this.sampleCount = 0;
   this.objects = objects;
+  
+  const tracerVertexSource = ` // vertex shader, interpolate ray per-pixel
+  attribute vec3 vertex; 
+  uniform vec3 eye, ray00, ray01, ray10, ray11; 
+  varying vec3 initialRay; 
+  void main() {   
+    vec2 percent = vertex.xy * 0.5 + 0.5;  // -1 ~ 1 => 0 ~ 1 
+    initialRay = mix(mix(ray00, ray01, percent.y), mix(ray10, ray11, percent.y), percent.x);   
+    gl_Position = vec4(vertex, 1.0); 
+  }`
 
-  // create tracer shader
-  if(this.tracerProgram != null) {
-    gl.deleteProgram(this.shaderProgram);
+  const tracerFragmentSource = `
+precision highp float;
+uniform vec3 eye;
+uniform vec3 light;
+uniform float glossiness;
+uniform sampler2D texture;
+
+varying vec3 initialRay; // 
+
+uniform float textureWeight;
+uniform float timeSinceStart;
+
+vec3 roomCubeMin=vec3(-1.,-1.,-1.);
+vec3 roomCubeMax=vec3(1.,1.,1.);
+
+uniform vec3 sphereCenter0;
+uniform float sphereRadius0;
+
+vec2 intersectCube(vec3 origin,vec3 ray,vec3 cubeMin,vec3 cubeMax){
+    vec3 tMin=(cubeMin-origin) / ray;
+    vec3 tMax=(cubeMax-origin) / ray;
+    vec3 t1=min(tMin,tMax);
+    vec3 t2=max(tMin,tMax);
+    float tNear=max(max(t1.x,t1.y),t1.z);
+    float tFar=min(min(t2.x,t2.y),t2.z);
+    return vec2(tNear,tFar);
+}
+vec3 normalForCube(vec3 hit,vec3 cubeMin,vec3 cubeMax){
+  if(hit.x<cubeMin.x+.0001) {
+    return vec3(-1.,0.,0.);
+  } else if(hit.x>cubeMax.x-.0001) {
+    return vec3(1.,0.,0.);
+  } else if(hit.y<cubeMin.y+.0001) {
+    return vec3(0.,-1.,0.);
+  } else if(hit.y>cubeMax.y-.0001) {
+    return vec3(0.,1.,0.);
+  } else if(hit.z<cubeMin.z+.0001) {
+    return vec3(0.,0.,-1.);
+  } else {
+    return vec3(0.,0.,1.);
   }
-  this.tracerProgram = compileShader(tracerVertexSource, makeTracerFragmentSource(objects));
+}
+float intersectSphere(vec3 origin,vec3 ray,vec3 sphereCenter,float sphereRadius){
+  vec3 toSphere = origin - sphereCenter;
+  float a = dot(ray,ray);
+  float b = 2. * dot(toSphere,ray);
+  float c = dot(toSphere,toSphere) - sphereRadius * sphereRadius;
+  float discriminant = b * b - 4. * a * c;
+  if(discriminant > 0.){
+    float t = (-b - sqrt(discriminant)) / ( 2.* a);
+    if( t > 0. ){
+      return t;
+    }
+  }
+  return 10000.;
+}
+vec3 normalForSphere(vec3 hit,vec3 sphereCenter,float sphereRadius){
+  return(hit-sphereCenter)/sphereRadius;
+}
+float random(vec3 scale,float seed){
+  return fract(sin(dot(gl_FragCoord.xyz+seed,scale))*43758.5453+seed);
+}
+vec3 cosineWeightedDirection(float seed,vec3 normal){
+  float u = random(vec3(12.9898,78.233,151.7182),seed);
+  float v = random(vec3(63.7264,10.873,623.6736),seed);
+  float r = sqrt(u);
+  float angle=6.283185307179586 * v;
+  vec3 sdir, tdir;
+  if(abs(normal.x)<.5){
+    sdir = cross(normal,vec3(1,0,0));
+  }else{
+    sdir = cross(normal,vec3(0,1,0));
+  }
+  tdir = cross(normal,sdir);
+  return r*cos(angle)*sdir+r*sin(angle)*tdir+sqrt(1.-u)*normal;
+}
+vec3 uniformlyRandomDirection(float seed){
+  float u = random(vec3(12.9898,78.233,151.7182),seed);
+  float v = random(vec3(63.7264,10.873,623.6736),seed);
+  float z = 1.-2.*u;
+  float r = sqrt(1.-z*z);
+  float angle=6.283185307179586*v;
+  return vec3(r*cos(angle),r*sin(angle),z);
+}
+vec3 uniformlyRandomVector(float seed){
+  return uniformlyRandomDirection(seed)*sqrt(random(vec3(36.7539,50.3658,306.2759),seed));
+}
+float shadow(vec3 origin,vec3 ray){
+  float tSphere0=intersectSphere(origin,ray,sphereCenter0,sphereRadius0);
+  if(tSphere0<1.) {
+    return 0.;
+  }
+  return 1.;
+}
+vec3 calculateColor(vec3 origin,vec3 ray,vec3 light){
+  vec3 colorMask = vec3(1.);
+  vec3 accumulatedColor = vec3(0.);
+  for(int bounce = 0;bounce<5;bounce++) {
+      vec2 tRoom = intersectCube(origin, ray, roomCubeMin, roomCubeMax);
+      float tSphere0=intersectSphere(origin,ray,sphereCenter0,sphereRadius0);
+      float t = 10000.;
+      if(tRoom.x < tRoom.y) {
+          t = tRoom.y;
+      }  
+      if(tSphere0<t) {
+          t = tSphere0;
+      }
+      vec3 hit = origin+ray*t;
+      vec3 surfaceColor = vec3(.75);
+      float specularHighlight = 0.;
+      vec3 normal;
+      if(t == tRoom.y){
+          normal =- normalForCube(hit,roomCubeMin,roomCubeMax);
+          if(hit.x<-.9999) {
+              surfaceColor = vec3(.1,.5,1.);
+          } else if(hit.x > .9999) {
+              surfaceColor = vec3(1., .9, .1);
+          }
+          ray = cosineWeightedDirection(timeSinceStart+float(bounce),normal);
+      }else if(t == 10000.){
+          break;
+      }else{
+          if(false);
+          else if(t == tSphere0) {
+              normal = normalForSphere(hit,sphereCenter0,sphereRadius0);
+          }
+          ray = cosineWeightedDirection(timeSinceStart+float(bounce),normal);
+      }
+      vec3 toLight = light - hit;
+      float diffuse = max(0.,dot(normalize(toLight),normal));
+      float shadowIntensity = shadow(hit+normal*.0001,toLight);
+      colorMask *= surfaceColor;
+      float lightVal =.5;
+      accumulatedColor += colorMask*(lightVal*diffuse*shadowIntensity);
+      accumulatedColor += colorMask*specularHighlight*shadowIntensity;
+      origin = hit;
+    }
+    return accumulatedColor;
+  }
+  void main(){
+      float lightSize =.1;
+      vec3 newLight = light + uniformlyRandomVector(timeSinceStart - 53.) * lightSize;
+      vec3 texture = texture2D(texture, gl_FragCoord.xy/512.).rgb;
+      vec3 diffuse = mix(calculateColor(eye, initialRay, newLight), texture, textureWeight);
+      gl_FragColor = vec4(diffuse, 1.);
+  }
+  `
+
+  this.tracerProgram = compileShader(tracerVertexSource, tracerFragmentSource);
   this.tracerVertexAttribute = gl.getAttribLocation(this.tracerProgram, 'vertex');
   gl.enableVertexAttribArray(this.tracerVertexAttribute);
 };
@@ -521,6 +656,7 @@ PathTracer.prototype.update = function(matrix, timeSinceStart) {
   this.uniforms.ray11 = getEyeRay(matrix, +1, +1);
   this.uniforms.timeSinceStart = timeSinceStart;
   this.uniforms.textureWeight = this.sampleCount / (this.sampleCount + 1);
+  // console.log('this.uniforms.textureWeight', this.uniforms.textureWeight)
 
   // set uniforms
   gl.useProgram(this.tracerProgram);
@@ -563,22 +699,31 @@ var mvp =  Matrix.create([
 
 
 window.onload = function() {
-  gl = document.getElementById('canvas').getContext('experimental-webgl');
+  gl = document.getElementById('canvas').getContext('webgl');
 
   var pathTracer = new PathTracer();
   
   pathTracer.setObjects([new Light(), new Sphere(Vector.create([0, 0, 0]), 0.25, 0)]);
 
+  // const renderFrameDuration = 1000 / 60;
+  const renderFrameDuration = 1000;
   var start = new Date();
   setInterval(function(){ 
     var timeSinceStart = (new Date() - start) * 0.001
     
-
-    var jitter = Matrix.Translation(Vector.create([Math.random() * 2 - 1, Math.random() * 2 - 1, 0]).multiply(1 / 512));
+    // jitter 抖动
+    var jitter = Matrix.Translation(
+      Vector.create(
+        [
+          Math.random() * 2 - 1, 
+          Math.random() * 2 - 1, 
+          0
+        ])
+        .multiply(1 / 512));
     var inverse = jitter.multiply(mvp).inverse();
     pathTracer.update(inverse, timeSinceStart);
 
 
     pathTracer.render();
-  }, 1000 / 60);
+  }, renderFrameDuration);
 };

@@ -75,6 +75,8 @@
 		// 浏览器加载图片
 		var image = new Image();
         image.src = "./love.png";
+        // image.src = 'https://mdn.alipayobjects.com/huamei_uu41p1/afts/img/A*_xn9Sa4TZsoAAAAAAAAAAAAADhyWAQ/original'
+        image.crossOrigin = ''
 		image.onload = function(){
 			//-----3.将图像数据复制到GPU缓冲区的纹理中-----//
 			var texture = gl.createTexture(); // 创建用于存储纹理图像的纹理对象
