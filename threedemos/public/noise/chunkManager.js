@@ -23,7 +23,6 @@ export class ChunkManager extends EventSystem {
     }
 
     updateChunk(chunkId) {
-        // const id = this.initChunkID(x, z);
         if(this.chunkCache.has(chunkId)) {
             return;
         }

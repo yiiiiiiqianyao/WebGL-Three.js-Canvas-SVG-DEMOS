@@ -16,7 +16,6 @@ const plane = new Plane(gl);
 gl.enable(gl.DEPTH_TEST)
 gl.enable(gl.BLEND) // 开启混合
 gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA) // 指定混合函数
-gl.clearColor(0.0, 1.0, 1.0, 1.0)
 
 const lightPos = [1, 1, 1];
 const cameraPos = [0, 5, 10]

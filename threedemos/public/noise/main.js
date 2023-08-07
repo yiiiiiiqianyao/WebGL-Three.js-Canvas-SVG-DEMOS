@@ -1,6 +1,4 @@
 import { animate, init, initCube, addLights } from './initFunc.js'
-import { generateElevation } from './chunkManager.js'
-import { ChunkRange } from './chunkManager.js'
 (function() {
     const seed = 'test-seed';
     const { simplex, scene, camera, avatar, chunkManager } = init(seed);
@@ -25,5 +23,4 @@ import { ChunkRange } from './chunkManager.js'
     chunkManager.updateChunk(chunkId2);
     chunkManager.updateChunk(chunkId3);
     chunkManager.updateChunk(chunkId4);
-
 })()
