@@ -180,4 +180,28 @@ export class Pyramid extends Object3D {
         gl.bindTexture(gl.TEXTURE_2D, null);
     }
 
+    renderShadow(cameraPos, viewMatrix, viewProjectMatrixFromLight) {
+        const gl = this.gl;
+        gl.useProgram(this.program); // 上下文对象绑定程序对象
+        this.setUniform('u_shadow', 'v1', [1]);
+        this.setUniform('u_shadowVertex', 'v1', [1]);
+        this.setUniform('u_CameraPos', 'v3', cameraPos);
+        
+        this.setUniform('u_viewProjFromLightMatrix', 'mat4', viewProjectMatrixFromLight.elements);
+        this.viewMatrix = viewMatrix;
+        this.rotate();
+        this.draw();
+    }
+
+    render(cameraPos, viewMatrix, fbo) {
+        const gl = this.gl;
+        gl.useProgram(this.program); // 上下文对象绑定程序对象
+        this.setUniform('u_shadow', 'v1', [0]);
+        this.setUniform('u_shadowVertex', 'v1', [0]);
+        this.setUniform('u_CameraPos', 'v3', cameraPos);
+        this.viewMatrix = viewMatrix;
+        this.rotate();
+        this.draw();
+    }
+
 }

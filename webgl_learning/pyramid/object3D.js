@@ -117,6 +117,7 @@ export class Object3D {
     bindAttriBufferOffset(attrName, count, program, all, offfset) {
         const gl = this.gl;
         let attr = gl.getAttribLocation(program, attrName);
+        var FSIZE = 4;
         gl.vertexAttribPointer(attr, count, gl.FLOAT, false, all * FSIZE, offfset * FSIZE);
         gl.enableVertexAttribArray(attr);
         return attr;

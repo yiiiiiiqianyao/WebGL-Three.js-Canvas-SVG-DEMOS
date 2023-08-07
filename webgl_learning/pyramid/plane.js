@@ -173,4 +173,40 @@ export class Plane extends Object3D {
         gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     }
 
+    renderShadow(cameraPos, viewMatrix, viewProjectMatrixFromLight) {
+        const gl = this.gl;
+        gl.useProgram(this.program);
+        this.setUniform('u_shadow', 'v1', [1]);
+        this.setUniform('u_CameraPos', 'v3', cameraPos);
+        
+        this.setUniform('u_viewProjFromLightMatrix', 'mat4', viewProjectMatrixFromLight.elements);
+        this.viewMatrix = viewMatrix;
+        this.draw();
+    }
+
+    render(cameraPos, viewMatrix, fbo) {
+        const gl = this.gl;
+        gl.useProgram(this.program);
+    
+        this.setUniform('u_shadow', 'v1', [0]);
+        this.setUniform('u_CameraPos', 'v3', cameraPos);
+        this.viewMatrix = viewMatrix;
+
+        gl.useProgram(this.program); // 上下文对象绑定程序对象
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.buffer) // 将缓冲区对象绑定到目标
+        this.bindAttr();
+
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, this.texture);
+        const u_Sampler = gl.getUniformLocation(this.program, 'u_Sampler');
+        gl.uniform1i(u_Sampler, 0);
+
+        gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, fbo.texture);
+        const u_Shadow = gl.getUniformLocation(this.program, 'u_Shadow');
+        gl.uniform1i(u_Shadow, 1);
+
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    }
+
 }

@@ -68,61 +68,17 @@ function animate() {
     gl.viewport(0.0,0.0,offset_height,offset_height);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
-    gl.useProgram(pyramid.program); // 上下文对象绑定程序对象
-    pyramid.setUniform('u_shadow', 'v1', [1]);
-    pyramid.setUniform('u_shadowVertex', 'v1', [1]);
-    pyramid.setUniform('u_CameraPos', 'v3', cameraPos);
+    pyramid.renderShadow(cameraPos, viewMatrix, viewProjectMatrixFromLight);
+    plane.renderShadow(cameraPos, viewMatrix, viewProjectMatrixFromLight);
     
-    pyramid.setUniform('u_viewProjFromLightMatrix', 'mat4', viewProjectMatrixFromLight.elements);
-    pyramid.viewMatrix = viewMatrix;
-    pyramid.rotate();
-    pyramid.draw();
-
-    gl.useProgram(plane.program);
-    plane.setUniform('u_shadow', 'v1', [1]);
-    plane.setUniform('u_CameraPos', 'v3', cameraPos);
-    
-    plane.setUniform('u_viewProjFromLightMatrix', 'mat4', viewProjectMatrixFromLight.elements);
-    plane.viewMatrix = viewMatrix;
-    plane.draw();
-
     // draw scene
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     gl.viewport(0.0, 0.0, canvas.width, canvas.height);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
-    gl.useProgram(pyramid.program); // 上下文对象绑定程序对象
-    pyramid.setUniform('u_shadow', 'v1', [0]);
-    pyramid.setUniform('u_shadowVertex', 'v1', [0]);
-    pyramid.setUniform('u_CameraPos', 'v3', cameraPos);
-    pyramid.viewMatrix = viewMatrix;
-    pyramid.rotate();
-    pyramid.draw();
-
-    gl.useProgram(plane.program);
-    
-    // gl.bindTexture(gl.TEXTURE_2D, fbo.texture);
-    // plane.texture = fbo.texture;
-    plane.setUniform('u_shadow', 'v1', [0]);
-    plane.setUniform('u_CameraPos', 'v3', cameraPos);
-    plane.viewMatrix = viewMatrix;
-    // plane.draw();
-
-    gl.useProgram(plane.program); // 上下文对象绑定程序对象
-    gl.bindBuffer(gl.ARRAY_BUFFER, plane.buffer) // 将缓冲区对象绑定到目标
-    plane.bindAttr();
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, plane.texture);
-    const u_Sampler = gl.getUniformLocation(plane.program, 'u_Sampler');
-	gl.uniform1i(u_Sampler, 0);
-
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, fbo.texture);
-    const u_Shadow = gl.getUniformLocation(plane.program, 'u_Shadow');
-	gl.uniform1i(u_Shadow, 1);
-
-    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-
+    pyramid.render(cameraPos, viewMatrix, fbo);
+    plane.render(cameraPos, viewMatrix, fbo);
+   
     requestAnimationFrame(animate)
 }
 
